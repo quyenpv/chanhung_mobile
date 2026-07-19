@@ -130,6 +130,16 @@ class _CheckInCard extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.80)),
             ),
           ],
+          const SizedBox(height: Dimensions.space10),
+          // GPS + Camera info
+          Row(
+            children: [
+              Icon(Icons.location_on, size: 13, color: Colors.white.withValues(alpha: 0.65)),
+              const SizedBox(width: 4),
+              Text('GPS + Ảnh selfie được ghi nhận khi chấm công',
+                  style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.65))),
+            ],
+          ),
           const SizedBox(height: Dimensions.space20),
           Row(
             children: [
@@ -140,7 +150,7 @@ class _CheckInCard extends StatelessWidget {
                   enabled: !checkedIn && !controller.isChecking,
                   color: Colors.white,
                   textColor: ColorResources.primaryColor,
-                  onTap: () => controller.doCheckIn(),
+                  onTap: () => controller.doCheckIn(context),
                 ),
               ),
               if (checkedIn && !checkedOut) ...[
@@ -152,7 +162,7 @@ class _CheckInCard extends StatelessWidget {
                     enabled: !controller.isChecking,
                     color: Colors.white.withValues(alpha: 0.2),
                     textColor: Colors.white,
-                    onTap: () => controller.doCheckOut(),
+                    onTap: () => controller.doCheckOut(context),
                   ),
                 ),
               ],

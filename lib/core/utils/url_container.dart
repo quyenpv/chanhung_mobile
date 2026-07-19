@@ -48,6 +48,7 @@ class UrlContainer {
   static const String attendanceCheckInUrl = 'attendance/check-in';
   static const String attendanceCheckOutUrl = 'attendance/check-out';
   static const String attendanceHistoryUrl = 'attendance/history';
+  static const String saveDeviceTokenUrl = 'attendance/save-device-token';
 
   // HR - Business Trips
   static const String businessTripsUrl = 'business_trips';

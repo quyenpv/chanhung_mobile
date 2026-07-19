@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "311525427777",
+    "project_id": "chanhung-erp",
+    "storage_bucket": "chanhung-erp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:311525427777:android:aa76f6d33c7fddb6b914c0",
+        "android_client_info": {
+          "package_name": "com.chanhung.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9RlBcA-U46z80kJ3I29HakOxzM4NvDEc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

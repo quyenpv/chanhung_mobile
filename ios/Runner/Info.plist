@@ -43,6 +43,12 @@
 	</array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Ứng dụng cần sử dụng FaceID để xác thực sinh trắc học và khóa ứng dụng bảo mật.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Ứng dụng cần quyền truy cập Camera để chụp ảnh selfie khi chấm công, xác minh danh tính nhân viên.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Ứng dụng cần quyền truy cập Vị trí để ghi nhận tọa độ GPS khi chấm công.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Ứng dụng cần quyền truy cập Vị trí để ghi nhận tọa độ GPS khi chấm công.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

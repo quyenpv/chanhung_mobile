@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:chanhung/core/helper/face_camera_helper.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/data/model/global/response_model/response_model.dart';
 import 'package:chanhung/data/model/hr/attendance_model.dart';
@@ -11,7 +14,7 @@ class AttendanceController extends GetxController {
   AttendanceController({required this.attendanceRepo});
 
   bool isLoading = true;
-  bool isChecking = false; // loading state for check-in/out
+  bool isChecking = false;
   bool isHistoryLoading = false;
 
   AttendanceStatus? todayStatus;
@@ -62,51 +65,136 @@ class AttendanceController extends GetxController {
     update();
   }
 
-  Future<void> doCheckIn({double? lat, double? lng}) async {
+  // ─── GPS Helper ─────────────────────────────────────────────────────────────
+
+  Future<Position?> _getLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      CustomSnackBar.error(errorList: ['Vui lòng bật Dịch vụ Vị trí (GPS)']);
+      return null;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        CustomSnackBar.error(errorList: ['Quyền truy cập vị trí bị từ chối']);
+        return null;
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      CustomSnackBar.error(errorList: ['Quyền vị trí bị từ chối vĩnh viễn. Vui lòng bật trong Cài đặt.']);
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 15),
+      ),
+    );
+  }
+
+  // ─── CHECK-IN ────────────────────────────────────────────────────────────────
+
+  Future<void> doCheckIn(BuildContext context) async {
     isChecking = true;
     update();
 
-    ResponseModel response =
-        await attendanceRepo.checkIn(latitude: lat, longitude: lng);
+    try {
+      // 1. Lấy GPS location
+      final position = await _getLocation();
+      if (position == null) {
+        isChecking = false;
+        update();
+        return;
+      }
+
+      // 2. Chụp ảnh selfie + ML Kit face detection
+      if (!context.mounted) return;
+      final selfieBase64 = await FaceCameraHelper.captureVerifiedSelfie(context);
+      if (selfieBase64 == null) {
+        // User cancelled camera
+        isChecking = false;
+        update();
+        return;
+      }
+
+      // 3. Gửi lên API
+      ResponseModel response = await attendanceRepo.checkIn(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        selfieBase64: selfieBase64,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        CustomSnackBar.success(successList: [LocalStrings.checkInSuccess.tr]);
+        await loadTodayStatus();
+        await loadHistory();
+      } else {
+        final decoded = _safeDecodeJson(response.responseJson);
+        final msg = decoded?['message'] as String? ??
+            (response.message.isNotEmpty
+                ? response.message
+                : LocalStrings.somethingWentWrong.tr);
+        CustomSnackBar.error(errorList: [msg]);
+      }
+    } catch (e) {
+      CustomSnackBar.error(errorList: ['Lỗi chấm công: ${e.toString()}']);
+    }
 
     isChecking = false;
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      CustomSnackBar.success(successList: [LocalStrings.checkInSuccess.tr]);
-      await loadTodayStatus();
-      await loadHistory();
-    } else {
-      final decoded = _safeDecodeJson(response.responseJson);
-      final msg = decoded?['message'] as String? ??
-          (response.message.isNotEmpty
-              ? response.message
-              : LocalStrings.somethingWentWrong.tr);
-      CustomSnackBar.error(errorList: [msg]);
-    }
     update();
   }
 
-  Future<void> doCheckOut({double? lat, double? lng}) async {
+  // ─── CHECK-OUT ───────────────────────────────────────────────────────────────
+
+  Future<void> doCheckOut(BuildContext context) async {
     isChecking = true;
     update();
 
-    ResponseModel response =
-        await attendanceRepo.checkOut(latitude: lat, longitude: lng);
+    try {
+      // 1. Lấy GPS location
+      final position = await _getLocation();
+      if (position == null) {
+        isChecking = false;
+        update();
+        return;
+      }
+
+      // 2. Chụp ảnh selfie + ML Kit face detection
+      if (!context.mounted) return;
+      final selfieBase64 = await FaceCameraHelper.captureVerifiedSelfie(context);
+      if (selfieBase64 == null) {
+        isChecking = false;
+        update();
+        return;
+      }
+
+      // 3. Gửi lên API
+      ResponseModel response = await attendanceRepo.checkOut(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        selfieBase64: selfieBase64,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        CustomSnackBar.success(successList: [LocalStrings.checkOutSuccess.tr]);
+        await loadTodayStatus();
+        await loadHistory();
+      } else {
+        final decoded = _safeDecodeJson(response.responseJson);
+        final msg = decoded?['message'] as String? ??
+            (response.message.isNotEmpty
+                ? response.message
+                : LocalStrings.somethingWentWrong.tr);
+        CustomSnackBar.error(errorList: [msg]);
+      }
+    } catch (e) {
+      CustomSnackBar.error(errorList: ['Lỗi chấm công: ${e.toString()}']);
+    }
 
     isChecking = false;
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      CustomSnackBar.success(successList: [LocalStrings.checkOutSuccess.tr]);
-      await loadTodayStatus();
-      await loadHistory();
-    } else {
-      final decoded = _safeDecodeJson(response.responseJson);
-      final msg = decoded?['message'] as String? ??
-          (response.message.isNotEmpty
-              ? response.message
-              : LocalStrings.somethingWentWrong.tr);
-      CustomSnackBar.error(errorList: [msg]);
-    }
     update();
   }
 

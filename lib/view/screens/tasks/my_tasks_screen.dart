@@ -1,11 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
-import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/style.dart';
 import 'package:chanhung/data/controller/tasks/tasks_controller.dart';
+import 'package:chanhung/data/model/project/task_comment_model.dart';
 import 'package:chanhung/data/model/project/tasks_model.dart';
+import 'package:chanhung/data/repo/tasks/task_comment_repo.dart';
 import 'package:chanhung/data/repo/tasks/tasks_repo.dart';
 import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
@@ -13,7 +17,8 @@ import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:chanhung/view/components/no_data.dart';
 import 'package:chanhung/view/components/divider/custom_divider.dart';
-import 'package:nb_utils/nb_utils.dart' hide NoDataWidget;
+import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
+
 
 class MyTasksScreen extends StatefulWidget {
   const MyTasksScreen({super.key});
@@ -382,6 +387,23 @@ class _TaskDetailsSheetState extends State<_TaskDetailsSheet> {
               ],
             ),
             const SizedBox(height: Dimensions.space20),
+
+            // ─── COMMENTS SECTION ───────────────────────────────────────────
+            Row(
+              children: [
+                Container(
+                    width: 3,
+                    height: 16,
+                    color: ColorResources.primaryColor),
+                const SizedBox(width: 6),
+                Text('Bình luận & Tiến độ',
+                    style: regularLarge.copyWith(
+                        fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: Dimensions.space10),
+            _TaskCommentSection(taskId: widget.task.id ?? ''),
+            const SizedBox(height: Dimensions.space20),
           ],
         ),
       ),
@@ -438,3 +460,286 @@ class _StatusButton extends StatelessWidget {
     );
   }
 }
+
+// ─── TASK COMMENT SECTION ──────────────────────────────────────────────────────
+
+class _TaskCommentSection extends StatefulWidget {
+  const _TaskCommentSection({required this.taskId});
+  final String taskId;
+
+  @override
+  State<_TaskCommentSection> createState() => _TaskCommentSectionState();
+}
+
+class _TaskCommentSectionState extends State<_TaskCommentSection> {
+  final TextEditingController _textCtrl = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
+  late TaskCommentRepo _repo;
+  List<TaskComment> _comments = [];
+  List<File> _selectedImages = [];
+  bool _loadingComments = false;
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _repo = TaskCommentRepo(apiClient: Get.find());
+    _loadComments();
+  }
+
+  @override
+  void dispose() {
+    _textCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadComments() async {
+    setState(() => _loadingComments = true);
+    try {
+      final res = await _repo.getComments(widget.taskId);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.responseJson);
+        final List list = data['data'] ?? data ?? [];
+        setState(() {
+          _comments = list.map((e) => TaskComment.fromJson(e)).toList();
+        });
+      }
+    } catch (_) {}
+    setState(() => _loadingComments = false);
+  }
+
+  Future<void> _pickImage() async {
+    final picked = await _picker.pickMultiImage(imageQuality: 70);
+    if (picked.isNotEmpty) {
+      setState(() {
+        _selectedImages.addAll(picked.map((x) => File(x.path)));
+      });
+    }
+  }
+
+  Future<void> _sendComment() async {
+    final text = _textCtrl.text.trim();
+    if (text.isEmpty && _selectedImages.isEmpty) return;
+    setState(() => _sending = true);
+
+    try {
+      final res = await _repo.postComment(
+        taskId: widget.taskId,
+        content: text,
+        images: _selectedImages.isEmpty ? null : _selectedImages,
+      );
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        _textCtrl.clear();
+        setState(() => _selectedImages = []);
+        await _loadComments();
+        CustomSnackBar.success(successList: ['Đã gửi bình luận']);
+      } else {
+        CustomSnackBar.error(errorList: ['Không thể gửi bình luận']);
+      }
+    } catch (_) {
+      CustomSnackBar.error(errorList: ['Lỗi kết nối']);
+    }
+
+    setState(() => _sending = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Comment list
+        if (_loadingComments)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_comments.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text('Chưa có bình luận nào',
+                style: regularSmall.copyWith(
+                    color: ColorResources.blueGreyColor)),
+          )
+        else
+          ...List.generate(_comments.length, (i) {
+            final c = _comments[i];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: ColorResources.primaryColor
+                        .withValues(alpha: 0.18),
+                    child: Text(
+                      c.userName.isNotEmpty
+                          ? c.userName[0].toUpperCase()
+                          : '?',
+                      style: mediumSmall.copyWith(
+                          color: ColorResources.primaryColor),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(c.userName,
+                                  style: mediumSmall.copyWith(
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(width: 6),
+                              Text(c.createdAt,
+                                  style: lightSmall.copyWith(
+                                      color: ColorResources.blueGreyColor)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(c.content, style: regularSmall),
+                          if (c.attachments.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              children: c.attachments
+                                  .map((url) => ClipRRect(
+                                        borderRadius:
+                                            BorderRadius.circular(6),
+                                        child: Image.network(url,
+                                            width: 60,
+                                            height: 60,
+                                            fit: BoxFit.cover),
+                                      ))
+                                  .toList(),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+
+        const SizedBox(height: 8),
+
+        // Selected images preview
+        if (_selectedImages.isNotEmpty)
+          SizedBox(
+            height: 64,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _selectedImages.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (_, i) {
+                return Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(_selectedImages[i],
+                          width: 64, height: 64, fit: BoxFit.cover),
+                    ),
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: () => setState(() {
+                          _selectedImages.removeAt(i);
+                        }),
+                        child: const CircleAvatar(
+                          radius: 9,
+                          backgroundColor: Colors.red,
+                          child: Icon(Icons.close,
+                              size: 10, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+
+        if (_selectedImages.isNotEmpty) const SizedBox(height: 8),
+
+        // Input row
+        Row(
+          children: [
+            // Attach image button
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: ColorResources.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.image_outlined,
+                    color: ColorResources.primaryColor, size: 20),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Text input
+            Expanded(
+              child: TextField(
+                controller: _textCtrl,
+                maxLines: 3,
+                minLines: 1,
+                decoration: InputDecoration(
+                  hintText: 'Nhập bình luận tiến độ...',
+                  hintStyle: regularSmall.copyWith(
+                      color: ColorResources.blueGreyColor),
+                  filled: true,
+                  fillColor: Theme.of(context).cardColor,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Send button
+            GestureDetector(
+              onTap: _sending ? null : _sendComment,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: ColorResources.primaryColor,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: _sending
+                    ? const Center(
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.send, color: Colors.white, size: 18),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+

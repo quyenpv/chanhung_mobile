@@ -1,10 +1,12 @@
-﻿import 'dart:io';
+import 'dart:io';
 
+import 'package:chanhung/core/service/notification_service.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/messages.dart';
 import 'package:chanhung/core/utils/themes.dart';
 import 'package:chanhung/data/controller/common/theme_controller.dart';
 import 'package:chanhung/data/controller/localization/localization_controller.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/route/route.dart';
@@ -13,6 +15,15 @@ import 'core/di_service/di_services.dart' as services;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase (graceful fallback if google-services.json not yet configured)
+  try {
+    await Firebase.initializeApp();
+    await NotificationService.initialize();
+  } catch (_) {
+    // Firebase not configured yet — skip silently
+  }
+
   final sharedPreferences = await SharedPreferences.getInstance();
   Get.lazyPut(() => sharedPreferences);
   Map<String, Map<String, String>> languages = await services.init();

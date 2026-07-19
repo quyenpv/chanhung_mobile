@@ -1,5 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:chanhung/core/service/notification_service.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
+import 'package:chanhung/core/utils/method.dart';
+import 'package:chanhung/core/utils/url_container.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
@@ -72,10 +76,27 @@ class LoginController extends GetxController {
     await loginRepo.apiClient.sharedPreferences.setString(
         SharedPreferenceHelper.userPasswordKey, passwordController.text.trim());
 
+    // Đăng ký FCM device token sau khi đăng nhập thành công
+    _registerFcmToken();
+
     Get.offAndToNamed(RouteHelper.dashboardScreen);
 
     if (remember) {
       changeRememberMe();
+    }
+  }
+
+  /// Gửi FCM device token lên server (background, không block UI)
+  Future<void> _registerFcmToken() async {
+    try {
+      final token = await NotificationService.getDeviceToken();
+      if (token == null || token.isEmpty) return;
+      final platform = Platform.isIOS ? 'ios' : 'android';
+      final url = '${UrlContainer.baseUrl}${UrlContainer.saveDeviceTokenUrl}';
+      final body = {'token': token, 'platform': platform};
+      await loginRepo.apiClient.request(url, Method.postMethod, body, passHeader: true);
+    } catch (_) {
+      // Firebase not configured or error — skip silently
     }
   }
 
