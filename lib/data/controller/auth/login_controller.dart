@@ -67,6 +67,10 @@ class LoginController extends GetxController {
         SharedPreferenceHelper.accessTokenKey, responseModel.data?.token ?? '');
     await loginRepo.apiClient.sharedPreferences
         .setString(SharedPreferenceHelper.accessTokenType, 'Bearer');
+    await loginRepo.apiClient.sharedPreferences.setString(
+        SharedPreferenceHelper.userEmailKey, emailController.text.trim());
+    await loginRepo.apiClient.sharedPreferences.setString(
+        SharedPreferenceHelper.userPasswordKey, passwordController.text.trim());
 
     Get.offAndToNamed(RouteHelper.dashboardScreen);
 

@@ -242,8 +242,9 @@ class _TripCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _StatusPill extends StatelessWidget {

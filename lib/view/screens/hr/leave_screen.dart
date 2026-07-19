@@ -229,8 +229,9 @@ class _LeaveCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _StatusPill extends StatelessWidget {

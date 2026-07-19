@@ -13,7 +13,7 @@ import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:chanhung/view/components/no_data.dart';
 import 'package:chanhung/view/components/divider/custom_divider.dart';
-import 'package:nb_utils/nb_utils.dart';
+import 'package:nb_utils/nb_utils.dart' hide NoDataWidget;
 
 class MyTasksScreen extends StatefulWidget {
   const MyTasksScreen({super.key});
@@ -38,9 +38,8 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(
+      appBar: const CustomAppBar(
         title: 'Công Việc Của Tôi',
-        showActionImage: false,
       ),
       drawer: const AppDrawer(),
       body: GetBuilder<TasksController>(

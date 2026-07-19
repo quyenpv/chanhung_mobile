@@ -5,7 +5,6 @@ import 'package:chanhung/core/utils/style.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/data/controller/payment_request/payment_request_controller.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
-import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 
 class CreatePaymentRequestScreen extends StatefulWidget {
   const CreatePaymentRequestScreen({super.key});
@@ -42,7 +41,6 @@ class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen>
     return Scaffold(
       appBar: const CustomAppBar(
         title: 'Tạo Yêu Cầu Thanh Toán',
-        showActionImage: false,
       ),
       body: GetBuilder<PaymentRequestsController>(
         builder: (controller) {
