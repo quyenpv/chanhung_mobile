@@ -60,3 +60,7 @@ flutter:
           weight: 600
         - asset: assets/fonts/Montserrat-Arabic-Bold.ttf
           weight: 700
+
+dependency_overrides:
+  device_info_plus: 10.1.2
+
