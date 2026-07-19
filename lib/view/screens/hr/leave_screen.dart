@@ -135,13 +135,23 @@ class _LeaveCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _leaveStatusColor(leave.status);
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Dimensions.cardRadius),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(Dimensions.space15),
+    final controller = Get.find<LeaveController>();
+    return InkWell(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => _LeaveDetailsSheet(leave: leave, controller: controller),
+        );
+      },
+      child: Card(
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(Dimensions.space15),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -545,5 +555,141 @@ String _localizedStatus(String s) {
       return LocalStrings.rejected;
     default:
       return s;
+  }
+}
+
+// ─── LEAVE DETAILS BOTTOM SHEET ──────────────────────────────────────────────
+
+class _LeaveDetailsSheet extends StatelessWidget {
+  const _LeaveDetailsSheet({required this.leave, required this.controller});
+  final LeaveModel leave;
+  final LeaveController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Dimensions.space20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: ColorResources.blueGreyColor.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: Dimensions.space15),
+          Text('Chi Tiết Đơn Nghỉ Phép', style: semiBoldLarge.copyWith(
+              color: Theme.of(context).textTheme.bodyLarge!.color)),
+          const SizedBox(height: Dimensions.space15),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Nhân viên:', style: lightSmall),
+              Text(leave.applicantName, style: regularDefault),
+            ],
+          ),
+          const SizedBox(height: Dimensions.space10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Loại nghỉ phép:', style: lightSmall),
+              Text(leave.leaveTypeName.isNotEmpty ? leave.leaveTypeName : 'Nghỉ phép', style: regularDefault),
+            ],
+          ),
+          const SizedBox(height: Dimensions.space10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Thời gian:', style: lightSmall),
+              Text('${leave.startDate} - ${leave.endDate}', style: regularDefault),
+            ],
+          ),
+          if (leave.duration.isNotEmpty) ...[
+            const SizedBox(height: Dimensions.space10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Số ngày/giờ:', style: lightSmall),
+                Text(leave.duration, style: regularDefault),
+              ],
+            ),
+          ],
+          const SizedBox(height: Dimensions.space10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Trạng thái:', style: lightSmall),
+              Text(_localizedStatus(leave.status), 
+                style: regularDefault.copyWith(color: _leaveStatusColor(leave.status))),
+            ],
+          ),
+          if (leave.reason.isNotEmpty) ...[
+            const SizedBox(height: Dimensions.space15),
+            Text('Lý do:', style: lightSmall),
+            const SizedBox(height: 4),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(Dimensions.space10),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+              ),
+              child: Text(leave.reason, style: regularDefault),
+            ),
+          ],
+          if (leave.status == 'pending') ...[
+            const SizedBox(height: Dimensions.space25),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                      ),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      await controller.rejectLeave(leave.id);
+                    },
+                    child: const Text('Từ Chối', style: TextStyle(color: Colors.red)),
+                  ),
+                ),
+                const SizedBox(width: Dimensions.space15),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                      ),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      await controller.approveLeave(leave.id);
+                    },
+                    child: const Text('Phê Duyệt', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: Dimensions.space15),
+        ],
+      ),
+    );
   }
 }

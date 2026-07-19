@@ -70,4 +70,43 @@ class PaymentRequestsRepo {
     ResponseModel responseModel = await apiClient.request(url, Method.getMethod, null, passHeader: true);
     return responseModel;
   }
+
+  Future<ResponseModel> createPaymentRequest({
+    required String title,
+    required int companyId,
+    required double totalAmount,
+    required String description,
+    required String paymentMethodCode,
+    required String beneficiaryName,
+    required String beneficiaryBank,
+    required String beneficiaryAccount,
+    List<int>? signerUserIds,
+    List<String>? signerRoleTitles,
+  }) async {
+    String url = "${UrlContainer.baseUrl}${UrlContainer.paymentRequestsUrl}/save";
+    Map<String, dynamic> body = {
+      'title': title,
+      'company_id': companyId,
+      'total_amount': totalAmount,
+      'description': description,
+      'payment_method_code': paymentMethodCode,
+      'beneficiary_name': beneficiaryName,
+      'beneficiary_bank': beneficiaryBank,
+      'beneficiary_account': beneficiaryAccount,
+    };
+    if (signerUserIds != null) {
+      body['signer_user_ids'] = signerUserIds;
+    }
+    if (signerRoleTitles != null) {
+      body['signer_role_titles'] = signerRoleTitles;
+    }
+    ResponseModel responseModel = await apiClient.request(url, Method.postMethod, body, passHeader: true);
+    return responseModel;
+  }
+
+  Future<ResponseModel> getCompanies() async {
+    String url = "${UrlContainer.baseUrl}${UrlContainer.paymentRequestsUrl}/companies";
+    ResponseModel responseModel = await apiClient.request(url, Method.getMethod, null, passHeader: true);
+    return responseModel;
+  }
 }

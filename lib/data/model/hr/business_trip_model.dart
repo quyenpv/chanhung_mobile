@@ -15,6 +15,8 @@ class BusinessTripModel {
   final String notes;
   final String createdAt;
 
+  final List<TripExpenseModel>? expenses;
+
   const BusinessTripModel({
     required this.id,
     required this.userId,
@@ -31,9 +33,15 @@ class BusinessTripModel {
     required this.status,
     required this.notes,
     required this.createdAt,
+    this.expenses,
   });
 
   factory BusinessTripModel.fromJson(Map<String, dynamic> json) {
+    var expList = json['expenses'] as List<dynamic>?;
+    List<TripExpenseModel>? expensesData = expList != null
+        ? expList.map((e) => TripExpenseModel.fromJson(e as Map<String, dynamic>)).toList()
+        : null;
+
     return BusinessTripModel(
       id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
       userId: int.tryParse(json['user_id']?.toString() ?? '0') ?? 0,
@@ -50,6 +58,36 @@ class BusinessTripModel {
       status: json['status']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
       createdAt: json['created_at']?.toString() ?? '',
+      expenses: expensesData,
+    );
+  }
+}
+
+class TripExpenseModel {
+  final int id;
+  final int tripId;
+  final String expenseType;
+  final String expenseDate;
+  final double? amount;
+  final String note;
+
+  const TripExpenseModel({
+    required this.id,
+    required this.tripId,
+    required this.expenseType,
+    required this.expenseDate,
+    this.amount,
+    required this.note,
+  });
+
+  factory TripExpenseModel.fromJson(Map<String, dynamic> json) {
+    return TripExpenseModel(
+      id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      tripId: int.tryParse(json['trip_id']?.toString() ?? '0') ?? 0,
+      expenseType: json['expense_type']?.toString() ?? '',
+      expenseDate: json['expense_date']?.toString() ?? '',
+      amount: double.tryParse(json['amount']?.toString() ?? ''),
+      note: json['note']?.toString() ?? '',
     );
   }
 }

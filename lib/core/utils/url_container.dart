@@ -25,6 +25,7 @@ class UrlContainer {
 
   // Pages
   static const String projectsUrl = 'projects';
+  static const String tasksUrl = 'tasks';
   static const String usersUrl = 'users';
   static const String hrDashboardUrl = 'hr_dashboard';
   static const String documentsUrl = 'documents';

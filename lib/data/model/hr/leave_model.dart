@@ -30,7 +30,7 @@ class LeaveModel {
       id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
       applicantId: int.tryParse(json['applicant_id']?.toString() ?? '0') ?? 0,
       applicantName: json['applicant_name']?.toString() ?? '',
-      leaveTypeName: json['leave_type_name']?.toString() ?? '',
+      leaveTypeName: json['leave_type_name']?.toString() ?? json['leave_type_title']?.toString() ?? '',
       leaveTypeId: int.tryParse(json['leave_type_id']?.toString() ?? '0') ?? 0,
       status: json['status']?.toString() ?? '',
       reason: json['reason']?.toString() ?? '',

@@ -20,6 +20,7 @@ class PaymentRequestsController extends GetxController {
   List<PaymentRequestModel> paymentRequests = [];
   List<PaymentRequestModel> settlements = [];
   PaymentRequestDetailModel? details;
+  List<Map<String, dynamic>> companiesList = [];
   String? currency;
 
   Future<void> initialData({bool shouldLoad = true}) async {
@@ -30,9 +31,22 @@ class PaymentRequestsController extends GetxController {
     await loadDashboardStats();
     await loadPaymentRequests();
     await loadSettlements();
+    await loadCompanies();
 
     isLoading = false;
     update();
+  }
+
+  Future<void> loadCompanies() async {
+    try {
+      ResponseModel responseModel = await repo.getCompanies();
+      if (responseModel.statusCode == 200) {
+        var res = jsonDecode(responseModel.responseJson);
+        if (res['success'] == true && res['companies'] != null) {
+          companiesList = List<Map<String, dynamic>>.from(res['companies']);
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> loadDashboardStats() async {
@@ -179,6 +193,57 @@ class PaymentRequestsController extends GetxController {
       return 'FAILED';
     } catch (e) {
       return 'FAILED';
+    }
+  }
+
+  bool isCreating = false;
+
+  Future<bool> createRequest({
+    required String title,
+    required int companyId,
+    required double totalAmount,
+    required String description,
+    required String paymentMethodCode,
+    required String beneficiaryName,
+    required String beneficiaryBank,
+    required String beneficiaryAccount,
+    List<int>? signerUserIds,
+    List<String>? signerRoleTitles,
+  }) async {
+    isCreating = true;
+    update();
+
+    try {
+      ResponseModel responseModel = await repo.createPaymentRequest(
+        title: title,
+        companyId: companyId,
+        totalAmount: totalAmount,
+        description: description,
+        paymentMethodCode: paymentMethodCode,
+        beneficiaryName: beneficiaryName,
+        beneficiaryBank: beneficiaryBank,
+        beneficiaryAccount: beneficiaryAccount,
+        signerUserIds: signerUserIds,
+        signerRoleTitles: signerRoleTitles,
+      );
+
+      var res = jsonDecode(responseModel.responseJson);
+      isCreating = false;
+      update();
+
+      if (responseModel.statusCode == 200 && res['success'] == true) {
+        CustomSnackBar.success(successList: [res['message'] ?? 'Tạo đề nghị thanh toán thành công!']);
+        initialData();
+        return true;
+      } else {
+        CustomSnackBar.error(errorList: [res['message'] ?? 'Không thể tạo đề nghị thanh toán.']);
+        return false;
+      }
+    } catch (e) {
+      isCreating = false;
+      update();
+      CustomSnackBar.error(errorList: [e.toString()]);
+      return false;
     }
   }
 }

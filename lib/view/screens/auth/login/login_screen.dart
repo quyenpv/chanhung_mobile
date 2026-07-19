@@ -1,4 +1,5 @@
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
+import 'package:chanhung/core/helper/biometric_helper.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -35,10 +36,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       Get.find<LoginController>().initData();
       Get.find<LoginController>().remember = false;
+      
+      final biometricEnabled = await BiometricHelper.isBiometricEnabled();
+      if (biometricEnabled) {
+        _authenticateWithBiometrics();
+      }
     });
+  }
+
+  Future<void> _authenticateWithBiometrics() async {
+    final success = await BiometricHelper.authenticate();
+    if (success) {
+      final controller = Get.find<LoginController>();
+      final email = controller.loginRepo.apiClient.sharedPreferences.getString(SharedPreferenceHelper.userEmailKey);
+      final password = controller.loginRepo.apiClient.sharedPreferences.getString(SharedPreferenceHelper.userPasswordKey);
+      if (email != null && password != null && email.isNotEmpty && password.isNotEmpty) {
+        controller.emailController.text = email;
+        controller.passwordController.text = password;
+        controller.loginUser();
+      } else {
+        Get.snackbar('Đăng nhập sinh trắc học', 'Vui lòng đăng nhập bằng mật khẩu lần đầu để ghi nhớ tài khoản.');
+      }
+    }
   }
 
   @override
@@ -227,6 +249,29 @@ class _LoginScreenState extends State<LoginScreen> {
                                             controller.loginUser();
                                           }
                                         }),
+                                  const SizedBox(height: Dimensions.space10),
+                                  FutureBuilder<bool>(
+                                    future: BiometricHelper.isBiometricEnabled(),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.data == true) {
+                                        return InkWell(
+                                          onTap: _authenticateWithBiometrics,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(vertical: 10),
+                                            child: const Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(Icons.fingerprint, color: ColorResources.primaryColor, size: 28),
+                                                SizedBox(width: 8),
+                                                Text('Đăng nhập bằng vân tay/FaceID', style: TextStyle(color: ColorResources.primaryColor)),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      return const SizedBox.shrink();
+                                    },
+                                  ),
                                 if (controller.canUsePasskey) ...[
                                   const SizedBox(height: Dimensions.space10),
                                   controller.isPasskeyLoading

@@ -93,4 +93,64 @@ class BusinessTripController extends GetxController {
       return false;
     }
   }
+
+  Future<bool> approveTrip(int id) async {
+    isSubmitting = true;
+    update();
+
+    ResponseModel response = await businessTripRepo.approveTrip(id);
+
+    isSubmitting = false;
+    update();
+
+    if (response.statusCode == 200) {
+      CustomSnackBar.success(successList: ['Duyệt yêu cầu công tác thành công']);
+      await loadTrips();
+      return true;
+    } else {
+      CustomSnackBar.error(errorList: [
+        response.message.isNotEmpty
+            ? response.message
+            : LocalStrings.somethingWentWrong.tr
+      ]);
+      return false;
+    }
+  }
+
+  Future<bool> rejectTrip(int id) async {
+    isSubmitting = true;
+    update();
+
+    ResponseModel response = await businessTripRepo.rejectTrip(id);
+
+    isSubmitting = false;
+    update();
+
+    if (response.statusCode == 200) {
+      CustomSnackBar.success(successList: ['Từ chối yêu cầu công tác thành công']);
+      await loadTrips();
+      return true;
+    } else {
+      CustomSnackBar.error(errorList: [
+        response.message.isNotEmpty
+            ? response.message
+            : LocalStrings.somethingWentWrong.tr
+      ]);
+      return false;
+    }
+  }
+
+  Future<BusinessTripModel?> loadTripDetails(int id) async {
+    ResponseModel response = await businessTripRepo.getTrip(id);
+    if (response.statusCode == 200) {
+      try {
+        final decoded = jsonDecode(response.responseJson);
+        final data = decoded['business_trip'];
+        if (data != null) {
+          return BusinessTripModel.fromJson(data);
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
 }

@@ -48,4 +48,14 @@ class BusinessTripRepo {
     final url = '${UrlContainer.baseUrl}${UrlContainer.businessTripsUrl}/$id/cancel';
     return apiClient.request(url, Method.postMethod, null, passHeader: true);
   }
+
+  Future<ResponseModel> approveTrip(int id) async {
+    final url = '${UrlContainer.baseUrl}${UrlContainer.businessTripsUrl}/$id/approve';
+    return apiClient.request(url, Method.postMethod, null, passHeader: true);
+  }
+
+  Future<ResponseModel> rejectTrip(int id) async {
+    final url = '${UrlContainer.baseUrl}${UrlContainer.businessTripsUrl}/$id/reject';
+    return apiClient.request(url, Method.postMethod, null, passHeader: true);
+  }
 }

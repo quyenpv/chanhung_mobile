@@ -45,4 +45,15 @@ class LeaveRepo {
     };
     return apiClient.request(url, Method.postMethod, body, passHeader: true);
   }
+
+  Future<ResponseModel> approveLeave(int leaveId) async {
+    final url = '${UrlContainer.baseUrl}${UrlContainer.leavesUrl}/$leaveId/approve';
+    return apiClient.request(url, Method.postMethod, null, passHeader: true);
+  }
+
+  Future<ResponseModel> rejectLeave(int leaveId) async {
+    final url = '${UrlContainer.baseUrl}${UrlContainer.leavesUrl}/$leaveId/reject';
+    return apiClient.request(url, Method.postMethod, null, passHeader: true);
+  }
 }
+

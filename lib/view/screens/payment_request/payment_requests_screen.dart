@@ -8,6 +8,7 @@ import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:chanhung/view/components/no_data.dart';
+import 'package:chanhung/view/screens/payment_request/create_payment_request_screen.dart';
 import 'package:chanhung/view/screens/payment_request/widget/payment_request_card.dart';
 import 'package:chanhung/view/screens/payment_request/widget/payment_request_dashboard.dart';
 import 'package:flutter/material.dart';
@@ -153,6 +154,13 @@ class _PaymentRequestsScreenState extends State<PaymentRequestsScreen> with Sing
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Get.to(() => const CreatePaymentRequestScreen());
+        },
+        backgroundColor: Theme.of(context).primaryColor,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

@@ -24,6 +24,7 @@ import 'package:chanhung/view/components/will_pop_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:chanhung/data/controller/splash/splash_controller.dart';
+import 'package:chanhung/core/helper/biometric_helper.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -34,11 +35,20 @@ class MenuScreen extends StatefulWidget {
 
 class _MenuScreenState extends State<MenuScreen> {
   String appVersion = '';
+  bool isBiometricAvailable = false;
+  bool isBiometricEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _loadAppVersion();
+    _checkBiometrics();
+  }
+
+  _checkBiometrics() async {
+    isBiometricAvailable = await BiometricHelper.isBiometricsAvailable();
+    isBiometricEnabled = await BiometricHelper.isBiometricEnabled();
+    if (mounted) setState(() {});
   }
 
   _loadAppVersion() async {
@@ -148,13 +158,61 @@ class _MenuScreenState extends State<MenuScreen> {
                             MyUtils.allScreensUtils(themeController.darkTheme);
                           },
                         ),
-                        const CustomDivider(space: Dimensions.space10),
-                        MenuItems(
-                            imageSrc: MyImages.policy,
-                            label: LocalStrings.privacyPolicy.tr,
-                            onPressed: () {
-                              Get.toNamed(RouteHelper.privacyScreen);
-                            }),
+                         const CustomDivider(space: Dimensions.space10),
+                         MenuItems(
+                             imageSrc: MyImages.policy,
+                             label: LocalStrings.privacyPolicy.tr,
+                             onPressed: () {
+                               Get.toNamed(RouteHelper.privacyScreen);
+                             }),
+                        if (isBiometricAvailable) ...[
+                          const CustomDivider(space: Dimensions.space10),
+                          SwitchListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: Dimensions.space10),
+                            title: Text(
+                              'Đăng nhập vân tay / FaceID',
+                              style: regularLarge.copyWith(
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium!
+                                      .color),
+                            ),
+                            secondary: Container(
+                              height: 35,
+                              width: 35,
+                              alignment: Alignment.center,
+                              child: Icon(
+                                Icons.fingerprint,
+                                color: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium!
+                                    .color!,
+                                size: 22,
+                              ),
+                            ),
+                            activeThumbColor: ColorResources.primaryColor,
+                            activeTrackColor:
+                                ColorResources.primaryColor.withValues(alpha: 0.3),
+                            value: isBiometricEnabled,
+                            onChanged: (bool val) async {
+                              if (val) {
+                                final auth = await BiometricHelper.authenticate();
+                                if (auth) {
+                                  await BiometricHelper.saveBiometricState(true);
+                                  setState(() {
+                                    isBiometricEnabled = true;
+                                  });
+                                }
+                              } else {
+                                await BiometricHelper.saveBiometricState(false);
+                                setState(() {
+                                  isBiometricEnabled = false;
+                                });
+                              }
+                            },
+                          ),
+                        ],
                         const CustomDivider(space: Dimensions.space10),
                         MenuItems(
                             imageSrc: MyImages.exclamationImage,

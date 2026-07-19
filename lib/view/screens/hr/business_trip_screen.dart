@@ -135,16 +135,26 @@ class _TripCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _tripStatusColor(trip.status);
-    return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Dimensions.cardRadius),
-        side: BorderSide(
-          color: statusColor.withValues(alpha: 0.15),
+    final controller = Get.find<BusinessTripController>();
+    return InkWell(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => _TripDetailsSheet(trip: trip, controller: controller),
+        );
+      },
+      child: Card(
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+          side: BorderSide(
+            color: statusColor.withValues(alpha: 0.15),
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(Dimensions.space15),
+        child: Padding(
+          padding: const EdgeInsets.all(Dimensions.space15),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -581,5 +591,242 @@ String _localizedStatus(String s) {
       return 'Đã Hủy';
     default:
       return s;
+  }
+}
+
+// ─── TRIP DETAILS BOTTOM SHEET ──────────────────────────────────────────────
+
+class _TripDetailsSheet extends StatefulWidget {
+  const _TripDetailsSheet({required this.trip, required this.controller});
+  final BusinessTripModel trip;
+  final BusinessTripController controller;
+
+  @override
+  State<_TripDetailsSheet> createState() => _TripDetailsSheetState();
+}
+
+class _TripDetailsSheetState extends State<_TripDetailsSheet> {
+  bool _loadingDetails = true;
+  BusinessTripModel? _fullTrip;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDetails();
+  }
+
+  Future<void> _fetchDetails() async {
+    final details = await widget.controller.loadTripDetails(widget.trip.id);
+    if (mounted) {
+      setState(() {
+        _fullTrip = details ?? widget.trip;
+        _loadingDetails = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final trip = _fullTrip ?? widget.trip;
+    return Container(
+      padding: const EdgeInsets.all(Dimensions.space20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: ColorResources.blueGreyColor.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: Dimensions.space15),
+            Text('Chi Tiết Yêu Cầu Công Tác', style: semiBoldLarge.copyWith(
+                color: Theme.of(context).textTheme.bodyLarge!.color)),
+            const SizedBox(height: Dimensions.space15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Nhân viên:', style: lightSmall),
+                Text(trip.memberName, style: regularDefault),
+              ],
+            ),
+            const SizedBox(height: Dimensions.space10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Chủ đề:', style: lightSmall),
+                Text(trip.title, style: regularDefault),
+              ],
+            ),
+            if (trip.destination.isNotEmpty) ...[
+              const SizedBox(height: Dimensions.space10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Điểm đến:', style: lightSmall),
+                  Text(trip.destination, style: regularDefault),
+                ],
+              ),
+            ],
+            const SizedBox(height: Dimensions.space10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Thời gian:', style: lightSmall),
+                Text('${trip.startDate} - ${trip.endDate}', style: regularDefault),
+              ],
+            ),
+            if (trip.totalDays != null) ...[
+              const SizedBox(height: Dimensions.space10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Số ngày:', style: lightSmall),
+                  Text('${trip.totalDays!.toStringAsFixed(0)} ngày', style: regularDefault),
+                ],
+              ),
+            ],
+            if (trip.totalAmount != null) ...[
+              const SizedBox(height: Dimensions.space10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Tổng phụ cấp:', style: lightSmall),
+                  Text(trip.totalAmount!.toStringAsFixed(0), style: regularDefault),
+                ],
+              ),
+            ],
+            const SizedBox(height: Dimensions.space10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Trạng thái:', style: lightSmall),
+                Text(_localizedStatus(trip.status), 
+                  style: regularDefault.copyWith(color: _tripStatusColor(trip.status))),
+              ],
+            ),
+            if (trip.purpose.isNotEmpty) ...[
+              const SizedBox(height: Dimensions.space15),
+              Text('Mục đích:', style: lightSmall),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(Dimensions.space10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                ),
+                child: Text(trip.purpose, style: regularDefault),
+              ),
+            ],
+            if (trip.notes.isNotEmpty) ...[
+              const SizedBox(height: Dimensions.space15),
+              Text('Ghi chú:', style: lightSmall),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(Dimensions.space10),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                ),
+                child: Text(trip.notes, style: regularDefault),
+              ),
+            ],
+            if (_loadingDetails) ...[
+              const SizedBox(height: Dimensions.space15),
+              const Center(child: CircularProgressIndicator()),
+            ] else if (trip.expenses != null && trip.expenses!.isNotEmpty) ...[
+              const SizedBox(height: Dimensions.space15),
+              Text('Danh Sách Chi Phí:', style: mediumSmall.copyWith(color: ColorResources.blueGreyColor)),
+              const SizedBox(height: Dimensions.space10),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: trip.expenses!.length,
+                separatorBuilder: (_, __) => const SizedBox(height: Dimensions.space5),
+                itemBuilder: (ctx, idx) {
+                  final exp = trip.expenses![idx];
+                  return Container(
+                    padding: const EdgeInsets.all(Dimensions.space10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(exp.expenseType, style: regularDefault),
+                            Text(exp.expenseDate, style: lightSmall),
+                            if (exp.note.isNotEmpty)
+                              Text(exp.note, style: lightSmall.copyWith(fontStyle: FontStyle.italic)),
+                          ],
+                        ),
+                        Text(exp.amount != null ? exp.amount!.toStringAsFixed(0) : '0',
+                            style: mediumDefault.copyWith(color: ColorResources.secondaryColor)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+            if (trip.status == 'pending') ...[
+              const SizedBox(height: Dimensions.space25),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                        ),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await widget.controller.rejectTrip(trip.id);
+                      },
+                      child: const Text('Từ Chối', style: TextStyle(color: Colors.red)),
+                    ),
+                  ),
+                  const SizedBox(width: Dimensions.space15),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                        ),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await widget.controller.approveTrip(trip.id);
+                      },
+                      child: const Text('Phê Duyệt', style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: Dimensions.space15),
+          ],
+        ),
+      ),
+    );
   }
 }

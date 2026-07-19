@@ -120,4 +120,51 @@ class LeaveController extends GetxController {
       return false;
     }
   }
+
+  Future<bool> approveLeave(int leaveId) async {
+    isSubmitting = true;
+    update();
+
+    ResponseModel response = await leaveRepo.approveLeave(leaveId);
+
+    isSubmitting = false;
+    update();
+
+    if (response.statusCode == 200) {
+      CustomSnackBar.success(successList: ['Duyệt đơn nghỉ phép thành công']);
+      await loadLeaves();
+      return true;
+    } else {
+      CustomSnackBar.error(errorList: [
+        response.message.isNotEmpty
+            ? response.message
+            : LocalStrings.somethingWentWrong.tr
+      ]);
+      return false;
+    }
+  }
+
+  Future<bool> rejectLeave(int leaveId) async {
+    isSubmitting = true;
+    update();
+
+    ResponseModel response = await leaveRepo.rejectLeave(leaveId);
+
+    isSubmitting = false;
+    update();
+
+    if (response.statusCode == 200) {
+      CustomSnackBar.success(successList: ['Từ chối đơn nghỉ phép thành công']);
+      await loadLeaves();
+      return true;
+    } else {
+      CustomSnackBar.error(errorList: [
+        response.message.isNotEmpty
+            ? response.message
+            : LocalStrings.somethingWentWrong.tr
+      ]);
+      return false;
+    }
+  }
 }
+
