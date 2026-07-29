@@ -79,6 +79,20 @@ class DmsRepo {
     );
   }
 
+  Future<ResponseModel> rejectDocument(
+    dynamic documentId, {
+    required String reason,
+  }) async {
+    final url =
+        '${UrlContainer.baseUrl}${UrlContainer.documentsUrl}/$documentId/reject';
+    return apiClient.request(
+      url,
+      Method.postMethod,
+      {'reason': reason},
+      passHeader: true,
+    );
+  }
+
   Future<ResponseModel> getEsignStatus(String transactionId) async {
     final url =
         '${UrlContainer.baseUrl}${UrlContainer.documentsUrl}/esign/status/$transactionId';

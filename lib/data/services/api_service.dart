@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/data/model/global/response_model/response_model.dart';
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -78,14 +77,6 @@ class ApiClient extends GetxService {
         }
       }
 
-      if (kDebugMode) {
-        print('url--------------${uri.toString()}');
-        print('params-----------${params.toString()}');
-        print('status-----------${response.statusCode}');
-        print('body-------------${response.body.toString()}');
-        print('token------------$token');
-      }
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         return ResponseModel(
             true, 'Success', response.statusCode, response.body);
@@ -95,10 +86,21 @@ class ApiClient extends GetxService {
         if (response.body.isNotEmpty) {
           try {
             Map<String, dynamic> responseData = jsonDecode(response.body);
-            message = responseData['message'] ??
-                responseData['error']?['message'] ??
-                responseData['data']?['message'] ??
-                message;
+            final errorNode = responseData['error'];
+            final candidates = <String?>[
+              errorNode is Map ? errorNode['message']?.toString() : null,
+              responseData['message']?.toString(),
+              responseData['data'] is Map
+                  ? (responseData['data'] as Map)['message']?.toString()
+                  : null,
+            ];
+            for (final candidate in candidates) {
+              final text = candidate?.trim() ?? '';
+              if (text.isNotEmpty) {
+                message = text;
+                break;
+              }
+            }
           } catch (_) {}
         }
 

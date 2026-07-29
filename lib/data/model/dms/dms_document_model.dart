@@ -166,6 +166,7 @@ class DmsSigner {
 
 class DmsSignPermission {
   bool canSign = false;
+  bool canReject = false;
   bool canStartEsign = false;
   bool canStartPfx = false;
   bool hasEsignToken = false;
@@ -183,6 +184,7 @@ class DmsSignPermission {
   DmsSignPermission.fromJson(dynamic json) {
     final map = json is Map ? Map<String, dynamic>.from(json) : {};
     canSign = _toBool(map['can_sign']);
+    canReject = _toBool(map['can_reject']);
     canStartEsign = _toBool(map['can_start_esign']);
     canStartPfx = _toBool(map['can_start_pfx']);
     hasEsignToken = _toBool(map['has_esign_token']);

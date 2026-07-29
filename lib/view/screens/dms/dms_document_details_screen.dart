@@ -18,6 +18,7 @@ import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:chanhung/view/components/no_data.dart';
+import 'package:chanhung/view/components/dialog/app_alert_dialog.dart';
 import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 
 class DmsDocumentDetailsScreen extends StatefulWidget {
@@ -370,25 +371,31 @@ class _SigningActions extends StatelessWidget {
     }
 
     final canStartEsign = permission?.canStartEsign == true;
-    final canStartPfx = permission?.canStartPfx == true;
     final hasToken = permission?.hasEsignToken == true;
     final hasPfxCertificate = permission?.hasPfxCertificate == true;
     final hasPfxSavedPassword = permission?.hasPfxSavedPassword == true;
     final selectedPfxProfile = permission?.selectedPfxProfile;
     final signer = permission?.signer;
-    final signerStatus = signer?.status ?? '';
-    final statusText = document.canSign
+    final signerStatus = (signer?.status ?? '').toLowerCase();
+    final alreadyHandled = signerStatus == 'signed' ||
+        signerStatus == 'rejected' ||
+        signerStatus == 'cancelled';
+    final statusText = document.canSign && !alreadyHandled
         ? LocalStrings.waitingForSignature.tr
         : (signerStatus.isNotEmpty
             ? dmsStatusLabel(signerStatus)
             : LocalStrings.signingUnavailable.tr);
-    final statusColor = document.canSign
+    final statusColor = document.canSign && !alreadyHandled
         ? ColorResources.yellowColor
         : _statusColor(signerStatus);
-    final canSubmitPfx =
-        document.canSign && canStartPfx && !controller.isSigning;
-    final canSubmitEsign =
-        document.canSign && canStartEsign && !controller.isSigning;
+    final canAct = document.canSign &&
+        !alreadyHandled &&
+        !controller.isSigning &&
+        (permission?.canSign == true);
+    final canSubmitPfx = canAct && hasPfxCertificate;
+    final canSubmitEsign = canAct && canStartEsign;
+    // Từ chối cùng điều kiện với còn quyền ký (đã signed/rejected thì canAct=false).
+    final canReject = canAct;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -469,8 +476,8 @@ class _SigningActions extends StatelessWidget {
                 !hasPfxSavedPassword) ...[
               const SizedBox(height: Dimensions.space8),
               Text(
-                LocalStrings.pfxPasswordNotSaved.tr,
-                style: regularSmall.copyWith(color: ColorResources.redColor),
+                LocalStrings.pfxPasswordRequiredHint.tr,
+                style: regularSmall.copyWith(color: ColorResources.blueGreyColor),
               ),
             ],
             if (controller.isSigning) ...[
@@ -503,6 +510,16 @@ class _SigningActions extends StatelessWidget {
                   icon: const Icon(Icons.draw_outlined, size: 18),
                   label: Text(LocalStrings.signWithEsign.tr),
                 ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: ColorResources.colorRed,
+                    side: const BorderSide(color: ColorResources.colorRed),
+                  ),
+                  onPressed:
+                      canReject ? () => _confirmAndReject(context) : null,
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: Text(LocalStrings.rejectSignDocument.tr),
+                ),
               ],
             ),
           ],
@@ -512,28 +529,93 @@ class _SigningActions extends StatelessWidget {
   }
 
   Future<void> _confirmAndStartPfx(BuildContext context) async {
+    final permission = document.signPermission;
+    final needsPassword = permission?.hasPfxSavedPassword != true &&
+        permission?.selectedPfxProfile?.hasSavedPassword != true;
+    final passwordController = TextEditingController();
+    var obscurePassword = true;
+
     final shouldSign = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(LocalStrings.confirmSignDocument.tr),
-          content: Text(LocalStrings.confirmPfxSignDocumentMessage.tr),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(LocalStrings.no.tr),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(LocalStrings.yes.tr),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(LocalStrings.confirmSignDocument.tr),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(LocalStrings.confirmPfxSignDocumentMessage.tr),
+                  if (needsPassword) ...[
+                    const SizedBox(height: Dimensions.space15),
+                    Text(
+                      LocalStrings.pfxPasswordLabel.tr,
+                      style: mediumDefault,
+                    ),
+                    const SizedBox(height: Dimensions.space8),
+                    TextField(
+                      controller: passwordController,
+                      obscureText: obscurePassword,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        hintText: LocalStrings.pfxPasswordHint.tr,
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(Dimensions.defaultRadius),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              obscurePassword = !obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: Text(LocalStrings.no.tr),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (needsPassword &&
+                        passwordController.text.trim().isEmpty) {
+                      AppAlert.error(LocalStrings.enterPfxPassword.tr);
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop(true);
+                  },
+                  child: Text(LocalStrings.yes.tr),
+                ),
+              ],
+            );
+          },
         );
       },
     );
 
+    final password = passwordController.text.trim();
+    passwordController.dispose();
+
     if (shouldSign == true) {
-      await controller.startPfxSigning(document.id);
+      await controller.startPfxSigning(
+        document.id,
+        pfxPassword: password,
+      );
     }
   }
 
@@ -560,6 +642,75 @@ class _SigningActions extends StatelessWidget {
 
     if (shouldSign == true) {
       await controller.startEsignSigning(document.id);
+    }
+  }
+
+  Future<void> _confirmAndReject(BuildContext context) async {
+    final reasonController = TextEditingController();
+
+    final shouldReject = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(LocalStrings.rejectSignDocumentTitle.tr),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(LocalStrings.confirmRejectSignMessage.tr),
+              const SizedBox(height: Dimensions.space15),
+              Text(
+                LocalStrings.rejectSignReasonLabel.tr,
+                style: mediumDefault,
+              ),
+              const SizedBox(height: Dimensions.space8),
+              TextField(
+                controller: reasonController,
+                autofocus: true,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: LocalStrings.rejectSignReasonHint.tr,
+                  border: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(Dimensions.defaultRadius),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(LocalStrings.no.tr),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ColorResources.colorRed,
+                foregroundColor: ColorResources.colorWhite,
+              ),
+              onPressed: () {
+                if (reasonController.text.trim().isEmpty) {
+                  AppAlert.error(LocalStrings.enterRejectReason.tr);
+                  return;
+                }
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: Text(LocalStrings.rejectSignDocument.tr),
+            ),
+          ],
+        );
+      },
+    );
+
+    final reason = reasonController.text.trim();
+    reasonController.dispose();
+
+    if (shouldReject == true) {
+      await controller.rejectDocument(document.id, reason: reason);
     }
   }
 }

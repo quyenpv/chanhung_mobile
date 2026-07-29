@@ -5,7 +5,6 @@ import 'package:chanhung/core/utils/messages.dart';
 import 'package:chanhung/data/controller/localization/localization_controller.dart';
 import 'package:chanhung/data/model/global/overview_model.dart';
 import 'package:chanhung/data/model/global/response_model/response_model.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
@@ -117,9 +116,6 @@ class SplashController extends GetxController {
         }
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error checking app update: $e');
-      }
       if (showNoUpdateToast) {
         CustomSnackBar.error(errorList: ['Error checking for updates'.tr]);
       }

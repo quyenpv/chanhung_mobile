@@ -127,17 +127,32 @@ class LocalStrings {
   static const String signDocument = "Ký văn bản";
   static const String signWithEsign = "Sign With eSign";
   static const String signWithPfx = "Ký PFX server";
+  static const String rejectSignDocument = "Từ chối ký";
+  static const String rejectSignDocumentTitle = "Từ chối ký văn bản";
+  static const String rejectSignReasonLabel = "Lý do từ chối (*)";
+  static const String rejectSignReasonHint = "Nhập lý do từ chối ký văn bản";
+  static const String enterRejectReason = "Vui lòng nhập lý do từ chối";
+  static const String confirmRejectSignMessage =
+      "Văn bản sẽ bị từ chối và trả về người soạn. Các người ký còn lại sẽ bị hủy lượt.";
+  static const String rejectSignSuccess = "Đã từ chối văn bản.";
   static const String serverPfxCertificate = "Chứng thư PFX server";
   static const String pfxNotConfigured = "Chưa cấu hình PFX";
   static const String pfxPasswordNotSaved = "Chưa lưu mật khẩu PFX";
+  static const String pfxPasswordRequiredHint =
+      "Cần nhập mật khẩu chứng thư mềm khi ký";
+  static const String pfxPasswordLabel = "Mật khẩu chứng thư (*)";
+  static const String pfxPasswordHint = "Nhập mật khẩu tệp PFX của bạn";
+  static const String enterPfxPassword = "Vui lòng nhập mật khẩu chứng thư PFX";
   static const String signingUnavailable = "Chưa thể ký";
   static const String confirmSignDocument = "Xác nhận ký văn bản";
   static const String confirmSignDocumentMessage =
       "Yêu cầu ký sẽ được gửi tới MISA eSign. Vui lòng xác nhận trên app MISA eSign để hoàn tất.";
   static const String confirmPfxSignDocumentMessage =
-      "Server sẽ ký văn bản này bằng chứng thư PFX đã lưu của bạn.";
+      "Server sẽ ký văn bản này bằng chứng thư PFX của bạn.";
   static const String esignNotConnected = "eSign Not Connected";
   static const String openFileFailed = "Could Not Open File";
+  static const String openInBrowser = "Mở bằng trình duyệt";
+  static const String retry = "Thử lại";
   static const String clearSearch = "Clear Search";
   static const String all = "All";
   static const String incoming = "Incoming";
@@ -179,6 +194,12 @@ class LocalStrings {
   static const String noDataFound = 'Sorry! there are no data to show';
   static const String yes = "Yes";
   static const String no = "No";
+  static const String close = "Đóng";
+  static const String error = "Lỗi";
+  static const String success = "Thành công";
+  static const String warning = "Cảnh báo";
+  static const String signFailedTitle = "Ký thất bại";
+  static const String signSuccessTitle = "Ký thành công";
 
   // Contract
   static const String contracts = 'Contracts';

@@ -6,6 +6,7 @@ import 'package:chanhung/data/model/dms/dms_document_model.dart';
 import 'package:chanhung/data/model/global/api_response_payload.dart';
 import 'package:chanhung/data/model/global/response_model/response_model.dart';
 import 'package:chanhung/data/repo/dms/dms_repo.dart';
+import 'package:chanhung/view/components/dialog/app_alert_dialog.dart';
 import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 
 class DmsController extends GetxController {
@@ -159,13 +160,15 @@ class DmsController extends GetxController {
     ResponseModel responseModel = await dmsRepo.startEsign(documentId);
     try {
       if (responseModel.statusCode != 200) {
-        CustomSnackBar.error(errorList: [
+        isSigning = false;
+        signingStatusText = '';
+        update();
+        await AppAlert.error(
           responseModel.message.isNotEmpty
               ? responseModel.message
-              : LocalStrings.somethingWentWrong.tr
-        ]);
-        isSigning = false;
-        update();
+              : LocalStrings.somethingWentWrong.tr,
+          title: LocalStrings.signFailedTitle.tr,
+        );
         return;
       }
 
@@ -175,11 +178,13 @@ class DmsController extends GetxController {
           : startPayload;
       final transactionId = startData['transaction_id']?.toString() ?? '';
       if (transactionId.isEmpty) {
-        CustomSnackBar.error(errorList: [
-          startData['message']?.toString() ?? LocalStrings.badResponseMsg.tr
-        ]);
         isSigning = false;
+        signingStatusText = '';
         update();
+        await AppAlert.error(
+          startData['message']?.toString() ?? LocalStrings.badResponseMsg.tr,
+          title: LocalStrings.signFailedTitle.tr,
+        );
         return;
       }
 
@@ -205,38 +210,49 @@ class DmsController extends GetxController {
           signingStatusText = '';
           isSigning = false;
           await loadDocumentDetails(documentId);
-          CustomSnackBar.success(successList: ['Ký eSign thành công']);
+          await AppAlert.success(
+            'Ký eSign thành công',
+            title: LocalStrings.signSuccessTitle.tr,
+          );
           return;
         }
 
         if (status == 'FAILED' || status == 'REJECTED' || status == 'EXPIRED') {
           isSigning = false;
           signingStatusText = '';
-          CustomSnackBar.error(errorList: [
+          update();
+          await AppAlert.error(
             statusData['message']?.toString().isNotEmpty == true
                 ? statusData['message'].toString()
-                : 'Yêu cầu ký eSign không thành công'
-          ]);
-          update();
+                : 'Yêu cầu ký eSign không thành công',
+            title: LocalStrings.signFailedTitle.tr,
+          );
           return;
         }
       }
 
       isSigning = false;
       signingStatusText = '';
-      CustomSnackBar.error(errorList: [
-        'Chưa nhận được xác nhận eSign. Vui lòng kiểm tra lại sau.'
-      ]);
       update();
+      await AppAlert.error(
+        'Chưa nhận được xác nhận eSign. Vui lòng kiểm tra lại sau.',
+        title: LocalStrings.signFailedTitle.tr,
+      );
     } catch (_) {
       isSigning = false;
       signingStatusText = '';
-      CustomSnackBar.error(errorList: [LocalStrings.badResponseMsg.tr]);
       update();
+      await AppAlert.error(
+        LocalStrings.badResponseMsg.tr,
+        title: LocalStrings.signFailedTitle.tr,
+      );
     }
   }
 
-  Future<void> startPfxSigning(dynamic documentId) async {
+  Future<void> startPfxSigning(
+    dynamic documentId, {
+    String pfxPassword = '',
+  }) async {
     if (isSigning) {
       return;
     }
@@ -244,11 +260,21 @@ class DmsController extends GetxController {
     final permission = documentDetailsModel.data?.signPermission;
     final selectedProfile = permission?.selectedPfxProfile;
     if (selectedProfile?.hasCertificate != true) {
-      CustomSnackBar.error(errorList: [LocalStrings.pfxNotConfigured.tr]);
+      await AppAlert.error(
+        LocalStrings.pfxNotConfigured.tr,
+        title: LocalStrings.signFailedTitle.tr,
+      );
       return;
     }
-    if (selectedProfile?.hasSavedPassword != true) {
-      CustomSnackBar.error(errorList: [LocalStrings.pfxPasswordNotSaved.tr]);
+
+    final hasSavedPassword = selectedProfile?.hasSavedPassword == true ||
+        permission?.hasPfxSavedPassword == true;
+    final trimmedPassword = pfxPassword.trim();
+    if (!hasSavedPassword && trimmedPassword.isEmpty) {
+      await AppAlert.error(
+        LocalStrings.enterPfxPassword.tr,
+        title: LocalStrings.signFailedTitle.tr,
+      );
       return;
     }
 
@@ -259,18 +285,18 @@ class DmsController extends GetxController {
     ResponseModel responseModel = await dmsRepo.signWithPfx(
       documentId,
       pfxProfileSlug: selectedProfile?.slug ?? '',
+      pfxPassword: trimmedPassword,
     );
 
     try {
       if (responseModel.statusCode != 200) {
-        CustomSnackBar.error(errorList: [
-          responseModel.message.isNotEmpty
-              ? responseModel.message
-              : LocalStrings.somethingWentWrong.tr
-        ]);
         isSigning = false;
         signingStatusText = '';
         update();
+        await AppAlert.error(
+          _extractSignErrorMessage(responseModel),
+          title: LocalStrings.signFailedTitle.tr,
+        );
         return;
       }
 
@@ -285,13 +311,116 @@ class DmsController extends GetxController {
       isSigning = false;
       signingStatusText = '';
       await loadDocumentDetails(documentId);
-      CustomSnackBar.success(successList: [message]);
+      await AppAlert.success(
+        message,
+        title: LocalStrings.signSuccessTitle.tr,
+      );
     } catch (_) {
       isSigning = false;
       signingStatusText = '';
-      CustomSnackBar.error(errorList: [LocalStrings.badResponseMsg.tr]);
       update();
+      await AppAlert.error(
+        LocalStrings.badResponseMsg.tr,
+        title: LocalStrings.signFailedTitle.tr,
+      );
     }
+  }
+
+  Future<void> rejectDocument(
+    dynamic documentId, {
+    required String reason,
+  }) async {
+    if (isSigning) {
+      return;
+    }
+
+    final trimmedReason = reason.trim();
+    if (trimmedReason.isEmpty) {
+      await AppAlert.error(
+        LocalStrings.enterRejectReason.tr,
+        title: LocalStrings.rejectSignDocumentTitle.tr,
+      );
+      return;
+    }
+
+    isSigning = true;
+    signingStatusText = 'Đang từ chối ký...';
+    update();
+
+    ResponseModel responseModel = await dmsRepo.rejectDocument(
+      documentId,
+      reason: trimmedReason,
+    );
+
+    try {
+      if (responseModel.statusCode != 200) {
+        isSigning = false;
+        signingStatusText = '';
+        update();
+        await AppAlert.error(
+          _extractSignErrorMessage(responseModel),
+          title: LocalStrings.rejectSignDocumentTitle.tr,
+        );
+        return;
+      }
+
+      final payload = apiPayload(jsonDecode(responseModel.responseJson));
+      final data = payload['data'] is Map
+          ? Map<String, dynamic>.from(payload['data'])
+          : payload;
+      final message = data['message']?.toString().isNotEmpty == true
+          ? data['message'].toString()
+          : LocalStrings.rejectSignSuccess.tr;
+
+      isSigning = false;
+      signingStatusText = '';
+      await loadDocumentDetails(documentId);
+      await AppAlert.success(
+        message,
+        title: LocalStrings.rejectSignDocumentTitle.tr,
+      );
+    } catch (_) {
+      isSigning = false;
+      signingStatusText = '';
+      update();
+      await AppAlert.error(
+        LocalStrings.badResponseMsg.tr,
+        title: LocalStrings.rejectSignDocumentTitle.tr,
+      );
+    }
+  }
+
+  /// Ưu tiên message từ body API (error.message) giống thông báo trên web.
+  String _extractSignErrorMessage(ResponseModel responseModel) {
+    if (responseModel.responseJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(responseModel.responseJson);
+        if (decoded is Map) {
+          final map = Map<String, dynamic>.from(decoded);
+          final error = map['error'];
+          final fromError = error is Map ? error['message']?.toString() : null;
+          final candidates = [
+            fromError,
+            map['message']?.toString(),
+            map['data'] is Map
+                ? (map['data'] as Map)['message']?.toString()
+                : null,
+            responseModel.message,
+          ];
+          for (final item in candidates) {
+            final text = item?.trim() ?? '';
+            if (text.isNotEmpty) {
+              return text;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (responseModel.message.trim().isNotEmpty) {
+      return responseModel.message.trim();
+    }
+    return LocalStrings.somethingWentWrong.tr;
   }
 }
 

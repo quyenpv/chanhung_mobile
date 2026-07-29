@@ -1,79 +1,94 @@
 ﻿import 'package:chanhung/core/utils/local_strings.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/helper/string_format_helper.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
-import 'package:chanhung/core/utils/style.dart';
+import 'package:chanhung/view/components/dialog/app_alert_dialog.dart';
 
 class CustomSnackBar {
-  static error({required List<String> errorList, int duration = 5}) {
-    String message = '';
-    if (errorList.isEmpty) {
-      message = LocalStrings.somethingWentWrong.tr;
-    } else {
-      for (var element in errorList) {
-        String tempMessage = element;
-        message = message.isEmpty ? tempMessage : "$message\n$tempMessage";
-      }
-    }
-    message = Converter.removeQuotationAndSpecialCharacterFromString(message);
-    Get.rawSnackbar(
-      progressIndicatorBackgroundColor: ColorResources.transparentColor,
-      progressIndicatorValueColor:
-          const AlwaysStoppedAnimation<Color>(Colors.transparent),
-      messageText: Text(message,
-          style: regularLarge.copyWith(color: ColorResources.colorWhite)),
-      dismissDirection: DismissDirection.horizontal,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: ColorResources.colorRed,
-      borderRadius: 4,
-      margin: const EdgeInsets.all(Dimensions.space8),
-      padding: const EdgeInsets.all(Dimensions.space8),
-      duration: Duration(seconds: duration),
-      isDismissible: true,
-      forwardAnimationCurve: Curves.easeIn,
-      showProgressIndicator: true,
-      leftBarIndicatorColor: ColorResources.transparentColor,
-      animationDuration: const Duration(seconds: 1),
-      borderColor: ColorResources.transparentColor,
-      reverseAnimationCurve: Curves.easeOut,
-      borderWidth: 2,
+  static void error({required List<String> errorList, int duration = 5}) {
+    _show(
+      message: _joinMessages(errorList),
+      isError: true,
+      duration: duration,
     );
   }
 
-  static success({required List<String> successList, int duration = 5}) {
+  static void success({required List<String> successList, int duration = 5}) {
+    _show(
+      message: _joinMessages(successList),
+      isError: false,
+      duration: duration,
+    );
+  }
+
+  static String _joinMessages(List<String> messages) {
     String message = '';
-    if (successList.isEmpty) {
+    if (messages.isEmpty) {
       message = LocalStrings.somethingWentWrong.tr;
     } else {
-      for (var element in successList) {
-        String tempMessage = element;
-        message = message.isEmpty ? tempMessage : "$message\n$tempMessage";
+      for (final element in messages) {
+        message = message.isEmpty ? element : "$message\n$element";
       }
     }
-    message = Converter.removeQuotationAndSpecialCharacterFromString(message);
-    Get.rawSnackbar(
-      progressIndicatorBackgroundColor: ColorResources.colorGreen,
-      progressIndicatorValueColor:
-          const AlwaysStoppedAnimation<Color>(ColorResources.transparentColor),
-      messageText: Text(message,
-          style: regularLarge.copyWith(color: ColorResources.colorWhite)),
-      dismissDirection: DismissDirection.horizontal,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: ColorResources.colorGreen,
-      borderRadius: 4,
-      margin: const EdgeInsets.all(Dimensions.space8),
-      padding: const EdgeInsets.all(Dimensions.space8),
-      duration: Duration(seconds: duration),
-      isDismissible: true,
-      forwardAnimationCurve: Curves.easeInOutCubicEmphasized,
-      showProgressIndicator: true,
-      leftBarIndicatorColor: ColorResources.transparentColor,
-      animationDuration: const Duration(seconds: 2),
-      borderColor: ColorResources.transparentColor,
-      reverseAnimationCurve: Curves.easeOut,
-      borderWidth: 2,
-    );
+    return Converter.removeQuotationAndSpecialCharacterFromString(message);
+  }
+
+  /// Không dùng Get.rawSnackbar: trên Flutter web GetX xếp hàng show() bất
+  /// đồng bộ và ném "No Overlay widget found" ngoài try/catch.
+  /// Ưu tiên dialog (giống Swal trên web), fallback ScaffoldMessenger.
+  static void _show({
+    required String message,
+    required bool isError,
+    required int duration,
+  }) {
+    void present() {
+      // Web / sau khi đóng dialog: dialog rõ ràng hơn snackbar GetX.
+      if (kIsWeb) {
+        if (isError) {
+          AppAlert.error(message);
+        } else {
+          AppAlert.success(message);
+        }
+        return;
+      }
+
+      final scaffoldContext =
+          Get.context ?? Get.overlayContext ?? Get.key.currentContext;
+      if (scaffoldContext != null && scaffoldContext.mounted) {
+        final messenger = ScaffoldMessenger.maybeOf(scaffoldContext);
+        if (messenger != null) {
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: isError
+                  ? ColorResources.colorRed
+                  : ColorResources.colorGreen,
+              duration: Duration(seconds: duration),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(Dimensions.space8),
+            ),
+          );
+          return;
+        }
+      }
+
+      if (isError) {
+        AppAlert.error(message);
+      } else {
+        AppAlert.success(message);
+      }
+    }
+
+    final binding = WidgetsBinding.instance;
+    if (binding.schedulerPhase == SchedulerPhase.persistentCallbacks) {
+      binding.addPostFrameCallback((_) => present());
+    } else {
+      present();
+    }
   }
 }

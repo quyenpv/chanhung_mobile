@@ -70,7 +70,6 @@ class _OnBoardIntroScreenState extends State<OnBoardIntroScreen> {
         ),
       ),
       onChange: (v) {
-        debugPrint("Page Key $v");
         setState(() {
           currentPageID = v;
         });
