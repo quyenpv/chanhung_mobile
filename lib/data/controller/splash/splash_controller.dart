@@ -20,6 +20,9 @@ class SplashController extends GetxController {
   LocalizationController localizationController;
   bool isLoading = true;
 
+  /// Chỉ hiện dialog cập nhật 1 lần mỗi lần khởi động app.
+  bool _updateDialogShownThisSession = false;
+
   SplashController(
       {required this.splashRepo, required this.localizationController});
 
@@ -52,6 +55,12 @@ class SplashController extends GetxController {
   }
 
   Future<void> manualVersionCheck({required bool showNoUpdateToast}) async {
+    // Nếu không phải manual check (showNoUpdateToast=false = auto check),
+    // chỉ hiện dialog 1 lần mỗi session để tránh spam lặp.
+    if (!showNoUpdateToast && _updateDialogShownThisSession) {
+      return;
+    }
+
     try {
       ResponseModel response = await splashRepo.getAppConfig();
       if (response.statusCode == 200) {
@@ -68,9 +77,12 @@ class SplashController extends GetxController {
           String currentVersion = packageInfo.version;
 
           if (_isVersionGreater(currentVersion, latestVersion)) {
-            bool isForceUpdate = remoteForceUpdate || _isVersionGreater(currentVersion, minVersion);
+            bool isForceUpdate = remoteForceUpdate || _isVersionGreater(minVersion, currentVersion);
 
             if (downloadUrl.isNotEmpty) {
+              // Đánh dấu đã hiện dialog trong session này (trước khi await).
+              _updateDialogShownThisSession = true;
+
               bool? proceed = await Get.dialog<bool>(
                 UpdateDialog(
                   isForceUpdate: isForceUpdate,

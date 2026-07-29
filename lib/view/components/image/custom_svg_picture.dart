@@ -15,23 +15,26 @@ class CustomSvgPicture extends StatelessWidget {
       this.width = 20,
       this.color = ColorResources.primaryColor});
 
+  Widget _placeholder() => SizedBox(width: width, height: height);
+
   @override
   Widget build(BuildContext context) {
+    final colorFilter = ColorFilter.mode(color, BlendMode.srcIn);
     return fit != null
-        ? SvgPicture.asset(image,
+        ? SvgPicture.asset(
+            image,
             fit: fit!,
-            colorFilter: ColorFilter.mode(
-              color,
-              BlendMode.srcIn,
-            ),
+            colorFilter: colorFilter,
             height: height,
-            width: width)
-        : SvgPicture.asset(image,
-            colorFilter: ColorFilter.mode(
-              color,
-              BlendMode.srcIn,
-            ),
+            width: width,
+            placeholderBuilder: (_) => _placeholder(),
+          )
+        : SvgPicture.asset(
+            image,
+            colorFilter: colorFilter,
             height: height,
-            width: width);
+            width: width,
+            placeholderBuilder: (_) => _placeholder(),
+          );
   }
 }
