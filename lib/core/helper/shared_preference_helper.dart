@@ -11,6 +11,7 @@ class SharedPreferenceHelper {
   static const String moduleSettingKey = 'module-setting-key';
   static const String fcmDeviceKey = 'device-key';
   static const String onboardKey = 'onboardKey';
+  static const String companyRulesAcceptedKey = 'company_rules_accepted_v1';
 
   // Overview Data
   static const String appLogo = 'app-logo';

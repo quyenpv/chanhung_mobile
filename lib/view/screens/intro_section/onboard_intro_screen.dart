@@ -9,6 +9,7 @@ import 'package:chanhung/core/utils/images.dart';
 import 'package:chanhung/core/utils/style.dart';
 import 'package:chanhung/view/components/buttons/rounded_button.dart';
 import 'package:chanhung/view/components/divider/custom_divider.dart';
+import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 import 'package:get/get.dart';
 import 'package:introduction_screen/introduction_screen.dart';
 import '../../../core/helper/shared_preference_helper.dart';
@@ -23,9 +24,12 @@ class OnBoardIntroScreen extends StatefulWidget {
 class _OnBoardIntroScreenState extends State<OnBoardIntroScreen> {
   final introKey = GlobalKey<IntroductionScreenState>();
   var currentPageID = 0;
+  bool agreeCompanyRules = false;
 
   @override
   Widget build(BuildContext context) {
+    final pagesLength = 4;
+
     return IntroductionScreen(
       bodyPadding: const EdgeInsets.only(top: Dimensions.space200),
       key: introKey,
@@ -129,26 +133,87 @@ class _OnBoardIntroScreenState extends State<OnBoardIntroScreen> {
                 color: Theme.of(context).textTheme.bodyMedium!.color),
           ),
         ),
+        PageViewModel(
+          title: LocalStrings.companyRulesTitle.tr,
+          bodyWidget: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Dimensions.space15),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  LocalStrings.companyRulesBody.tr,
+                  style: regularLarge.copyWith(
+                      color: Theme.of(context).textTheme.bodyMedium!.color),
+                ),
+                const SizedBox(height: Dimensions.space20),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: agreeCompanyRules,
+                      activeColor: ColorResources.primaryColor,
+                      onChanged: (v) {
+                        setState(() {
+                          agreeCompanyRules = v ?? false;
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          LocalStrings.companyRulesAgree.tr,
+                          style: regularDefault.copyWith(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium!
+                                  .color),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          decoration: PageDecoration(
+            titleTextStyle: semiBoldMediumLarge.copyWith(
+                fontSize: Dimensions.space20,
+                color: Theme.of(context).textTheme.bodyMedium!.color),
+            titlePadding: const EdgeInsets.symmetric(
+                vertical: Dimensions.space5, horizontal: Dimensions.space15),
+            bodyPadding: const EdgeInsets.symmetric(
+                vertical: Dimensions.space5, horizontal: Dimensions.space15),
+            bodyAlignment: Alignment.topCenter,
+            imagePadding: EdgeInsets.zero,
+            contentMargin: const EdgeInsets.only(top: Dimensions.space20),
+          ),
+        ),
       ],
       globalFooter: Column(
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: Dimensions.space25),
             child: RoundedButton(
-                text: (currentPageID + 1) ==
-                        introKey.currentState?.getPagesLength()
+                text: (currentPageID + 1) >= pagesLength
                     ? LocalStrings.getStarted.tr
                     : LocalStrings.next.tr,
                 cornerRadius: Dimensions.space10,
                 press: () async {
-                  if (introKey.currentState!.getCurrentPage() + 1 ==
-                      introKey.currentState!.getPagesLength()) {
-                    await Get.find<ApiClient>()
-                        .sharedPreferences
-                        .setBool(SharedPreferenceHelper.onboardKey, true)
-                        .whenComplete(() {
-                      Get.offAllNamed(RouteHelper.loginScreen);
-                    });
+                  final isLast = introKey.currentState!.getCurrentPage() + 1 >=
+                      pagesLength;
+                  if (isLast) {
+                    if (!agreeCompanyRules) {
+                      CustomSnackBar.error(
+                          errorList: [LocalStrings.companyRulesRequired.tr]);
+                      return;
+                    }
+                    final prefs = Get.find<ApiClient>().sharedPreferences;
+                    await prefs.setBool(
+                        SharedPreferenceHelper.companyRulesAcceptedKey, true);
+                    await prefs.setBool(
+                        SharedPreferenceHelper.onboardKey, true);
+                    Get.offAllNamed(RouteHelper.loginScreen);
                   } else {
                     introKey.currentState!.next();
                   }

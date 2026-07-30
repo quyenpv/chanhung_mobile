@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:chanhung/core/service/notification_service.dart';
+import 'package:chanhung/core/service/staff_location_tracking_service.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/method.dart';
 import 'package:chanhung/core/utils/url_container.dart';
@@ -78,6 +79,7 @@ class LoginController extends GetxController {
 
     // Đăng ký FCM device token sau khi đăng nhập thành công
     _registerFcmToken();
+    _startLocationTracking();
 
     Get.offAndToNamed(RouteHelper.dashboardScreen);
 
@@ -98,6 +100,20 @@ class LoginController extends GetxController {
     } catch (_) {
       // Firebase not configured or error — skip silently
     }
+  }
+
+  /// Bắt đầu theo dõi vị trí nếu admin đã bật trên web (im lặng trong app).
+  Future<void> _startLocationTracking() async {
+    try {
+      if (!Get.isRegistered<StaffLocationTrackingService>()) {
+        final service = await Get.putAsync(
+            () => StaffLocationTrackingService().init(),
+            permanent: true);
+        await service.startIfNeeded();
+      } else {
+        await Get.find<StaffLocationTrackingService>().startIfNeeded();
+      }
+    } catch (_) {}
   }
 
   bool isSubmitLoading = false;

@@ -50,6 +50,10 @@ class UrlContainer {
   static const String attendanceHistoryUrl = 'attendance/history';
   static const String saveDeviceTokenUrl = 'attendance/save-device-token';
 
+  // Staff location tracking
+  static const String locationTrackingConfigUrl = 'location_tracking/config';
+  static const String locationTrackingPingUrl = 'location_tracking/ping';
+
   // HR - Business Trips
   static const String businessTripsUrl = 'business_trips';
 

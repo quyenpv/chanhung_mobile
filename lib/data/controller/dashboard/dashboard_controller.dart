@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:chanhung/core/helper/currency_format_helper.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/route/route.dart';
+import 'package:chanhung/core/service/staff_location_tracking_service.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/data/model/global/api_response_payload.dart';
@@ -319,6 +320,11 @@ class DashboardController extends GetxController {
   Future<void> logout() async {
     logoutLoading = true;
     update();
+    try {
+      if (Get.isRegistered<StaffLocationTrackingService>()) {
+        Get.find<StaffLocationTrackingService>().stop();
+      }
+    } catch (_) {}
     await dashboardRepo.clearSharedPrefData();
     CustomSnackBar.success(successList: [LocalStrings.logoutSuccessMsg.tr]);
     logoutLoading = false;
