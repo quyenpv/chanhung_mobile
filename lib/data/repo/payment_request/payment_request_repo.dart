@@ -55,6 +55,17 @@ class PaymentRequestsRepo {
     return responseModel;
   }
 
+  Future<ResponseModel> rejectSigning(int id, {required String reason}) async {
+    String url = "${UrlContainer.baseUrl}${UrlContainer.paymentRequestsUrl}/$id/reject";
+    ResponseModel responseModel = await apiClient.request(
+      url,
+      Method.postMethod,
+      {'reason': reason},
+      passHeader: true,
+    );
+    return responseModel;
+  }
+
   Future<ResponseModel> startESign(int id, String instruction, String keyword) async {
     String url = "${UrlContainer.baseUrl}${UrlContainer.paymentRequestsUrl}/$id/esign/start";
     Map<String, dynamic> body = {

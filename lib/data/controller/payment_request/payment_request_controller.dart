@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
+import 'package:chanhung/core/utils/local_strings.dart';
+import 'package:chanhung/data/model/global/api_response_payload.dart';
 import 'package:chanhung/data/model/payment_request/payment_request_dashboard_model.dart';
 import 'package:chanhung/data/model/payment_request/payment_request_model.dart';
 import 'package:chanhung/data/repo/payment_request/payment_request_repo.dart';
 import 'package:chanhung/data/model/global/response_model/response_model.dart';
+import 'package:chanhung/view/components/dialog/app_alert_dialog.dart';
 import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 import 'package:get/get.dart';
 
@@ -134,23 +137,94 @@ class PaymentRequestsController extends GetxController {
 
     try {
       ResponseModel responseModel = await repo.signWithPfx(id, slug, password, instruction, keyword);
-      var res = jsonDecode(responseModel.responseJson);
+      final decoded = responseModel.responseJson.isNotEmpty
+          ? jsonDecode(responseModel.responseJson)
+          : null;
       isSigning = false;
       update();
 
-      if (responseModel.statusCode == 200 && res['success'] == true) {
-        CustomSnackBar.success(successList: [res['message'] ?? 'Ký số thành công!']);
-        loadDetails(id); // Reload details
-        loadDashboardStats(); // Refresh stats
+      if (responseModel.statusCode == 200 && apiSuccess(decoded) == true) {
+        final message = apiMessage(decoded) ?? 'Ký số thành công!';
+        await AppAlert.success(
+          message,
+          title: LocalStrings.signSuccessTitle.tr,
+        );
+        await loadDetails(id);
+        loadDashboardStats();
         return true;
-      } else {
-        CustomSnackBar.error(errorList: [res['message'] ?? 'Lỗi ký số.']);
-        return false;
       }
+
+      await AppAlert.error(
+        _extractApiErrorMessage(responseModel, fallback: 'Lỗi ký số.'),
+        title: LocalStrings.signFailedTitle.tr,
+      );
+      return false;
     } catch (e) {
       isSigning = false;
       update();
-      CustomSnackBar.error(errorList: [e.toString()]);
+      await AppAlert.error(
+        e.toString(),
+        title: LocalStrings.signFailedTitle.tr,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> rejectSigning(int id, {required String reason}) async {
+    if (isSigning) {
+      return false;
+    }
+
+    final trimmedReason = reason.trim();
+    if (trimmedReason.isEmpty) {
+      await AppAlert.error(
+        LocalStrings.enterRejectReason.tr,
+        title: LocalStrings.rejectSignPaymentRequestTitle.tr,
+      );
+      return false;
+    }
+
+    isSigning = true;
+    update();
+
+    try {
+      ResponseModel responseModel = await repo.rejectSigning(
+        id,
+        reason: trimmedReason,
+      );
+      final decoded = responseModel.responseJson.isNotEmpty
+          ? jsonDecode(responseModel.responseJson)
+          : null;
+      isSigning = false;
+      update();
+
+      if (responseModel.statusCode == 200 && apiSuccess(decoded) == true) {
+        final message =
+            apiMessage(decoded) ?? LocalStrings.rejectPaymentRequestSuccess.tr;
+        await AppAlert.success(
+          message,
+          title: LocalStrings.rejectSignPaymentRequestTitle.tr,
+        );
+        await loadDetails(id);
+        loadDashboardStats();
+        return true;
+      }
+
+      await AppAlert.error(
+        _extractApiErrorMessage(
+          responseModel,
+          fallback: 'Không thể từ chối ký.',
+        ),
+        title: LocalStrings.rejectSignPaymentRequestTitle.tr,
+      );
+      return false;
+    } catch (e) {
+      isSigning = false;
+      update();
+      await AppAlert.error(
+        e.toString(),
+        title: LocalStrings.rejectSignPaymentRequestTitle.tr,
+      );
       return false;
     }
   }
@@ -161,34 +235,79 @@ class PaymentRequestsController extends GetxController {
 
     try {
       ResponseModel responseModel = await repo.startESign(id, instruction, keyword);
-      var res = jsonDecode(responseModel.responseJson);
+      final decoded = responseModel.responseJson.isNotEmpty
+          ? jsonDecode(responseModel.responseJson)
+          : null;
       isSigning = false;
       update();
 
-      if (responseModel.statusCode == 200 && res['success'] == true) {
+      if (responseModel.statusCode == 200 && apiSuccess(decoded) == true) {
+        final payload = apiPayload(decoded);
+        final data = payload['data'] is Map
+            ? Map<String, dynamic>.from(payload['data'])
+            : payload;
         return {
           'success': true,
-          'transaction_id': res['transaction_id'],
-          'message': res['message'],
+          'transaction_id': data['transaction_id'] ?? payload['transaction_id'],
+          'message': apiMessage(decoded),
         };
-      } else {
-        CustomSnackBar.error(errorList: [res['message'] ?? 'Lỗi ký eSign.']);
-        return null;
       }
+
+      await AppAlert.error(
+        _extractApiErrorMessage(responseModel, fallback: 'Lỗi ký eSign.'),
+        title: LocalStrings.signFailedTitle.tr,
+      );
+      return null;
     } catch (e) {
       isSigning = false;
       update();
-      CustomSnackBar.error(errorList: [e.toString()]);
+      await AppAlert.error(
+        e.toString(),
+        title: LocalStrings.signFailedTitle.tr,
+      );
       return null;
     }
+  }
+
+  String _extractApiErrorMessage(
+    ResponseModel responseModel, {
+    required String fallback,
+  }) {
+    if (responseModel.responseJson.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(responseModel.responseJson);
+        final fromApi = apiMessage(decoded);
+        if (fromApi != null && fromApi.trim().isNotEmpty) {
+          return fromApi.trim();
+        }
+        if (decoded is Map) {
+          final error = decoded['error'];
+          final fromError =
+              error is Map ? error['message']?.toString() : null;
+          if (fromError != null && fromError.trim().isNotEmpty) {
+            return fromError.trim();
+          }
+        }
+      } catch (_) {}
+    }
+    if (responseModel.message.trim().isNotEmpty) {
+      return responseModel.message.trim();
+    }
+    return fallback;
   }
 
   Future<String> checkESignStatus(String txId) async {
     try {
       ResponseModel responseModel = await repo.checkESignStatus(txId);
-      var res = jsonDecode(responseModel.responseJson);
-      if (responseModel.statusCode == 200 && res['success'] == true) {
-        return res['status'] ?? 'PENDING';
+      final decoded = responseModel.responseJson.isNotEmpty
+          ? jsonDecode(responseModel.responseJson)
+          : null;
+      if (responseModel.statusCode == 200 && apiSuccess(decoded) == true) {
+        final payload = apiPayload(decoded);
+        final data = payload['data'] is Map
+            ? Map<String, dynamic>.from(payload['data'])
+            : payload;
+        return (data['status'] ?? payload['status'] ?? 'PENDING').toString();
       }
       return 'FAILED';
     } catch (e) {

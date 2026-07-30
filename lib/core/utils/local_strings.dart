@@ -129,12 +129,19 @@ class LocalStrings {
   static const String signWithPfx = "Ký PFX server";
   static const String rejectSignDocument = "Từ chối ký";
   static const String rejectSignDocumentTitle = "Từ chối ký văn bản";
+  static const String rejectSignPaymentRequestTitle = "Từ chối ký ĐNTT/ĐNTU";
   static const String rejectSignReasonLabel = "Lý do từ chối (*)";
   static const String rejectSignReasonHint = "Nhập lý do từ chối ký văn bản";
+  static const String rejectSignPaymentRequestReasonHint =
+      "Nhập lý do từ chối ký phiếu";
   static const String enterRejectReason = "Vui lòng nhập lý do từ chối";
   static const String confirmRejectSignMessage =
       "Văn bản sẽ bị từ chối và trả về người soạn. Các người ký còn lại sẽ bị hủy lượt.";
+  static const String confirmRejectPaymentRequestMessage =
+      "Phiếu sẽ bị từ chối và trả về trạng thái nháp để người lập chỉnh sửa. Chuỗi ký sẽ được reset.";
   static const String rejectSignSuccess = "Đã từ chối văn bản.";
+  static const String rejectPaymentRequestSuccess =
+      "Đã từ chối ký. Phiếu đã trả về trạng thái nháp.";
   static const String serverPfxCertificate = "Chứng thư PFX server";
   static const String pfxNotConfigured = "Chưa cấu hình PFX";
   static const String pfxPasswordNotSaved = "Chưa lưu mật khẩu PFX";

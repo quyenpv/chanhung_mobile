@@ -4,6 +4,7 @@ import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/route/route.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
+import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/style.dart';
 import 'package:chanhung/data/controller/payment_request/payment_request_controller.dart';
 import 'package:chanhung/data/model/payment_request/payment_request_model.dart';
@@ -12,6 +13,8 @@ import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
 import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
+import 'package:chanhung/view/components/dialog/app_alert_dialog.dart';
+import 'package:chanhung/view/components/dialog/pfx_password_dialog.dart';
 import 'package:chanhung/view/components/no_data.dart';
 import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 import 'package:flutter/material.dart';
@@ -719,6 +722,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
     }
 
     final alertMessage = signPermissionData?['message'] ?? 'Sẵn sàng ký duyệt hồ sơ.';
+    final canSign = signPermissionData?['can_sign'] == true || details.canSign == true;
+    final canReject = signPermissionData?['can_reject'] == true;
 
     return Container(
       width: double.infinity,
@@ -760,17 +765,118 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: () => _showSigningBottomSheet(context, controller, details),
+                    onPressed: canSign
+                        ? () => _showSigningBottomSheet(context, controller, details)
+                        : null,
                     icon: const Icon(Icons.draw, color: Colors.white),
                     label: const Text("Ký duyệt hồ sơ", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
+                if (canReject) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: ColorResources.colorRed,
+                        side: const BorderSide(color: ColorResources.colorRed),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => _confirmAndReject(context, controller, details),
+                      icon: const Icon(Icons.cancel_outlined, size: 18),
+                      label: Text(
+                        LocalStrings.rejectSignDocument.tr,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             )
           ]
         ],
       ),
     );
+  }
+
+  Future<void> _confirmAndReject(
+    BuildContext context,
+    PaymentRequestsController controller,
+    PaymentRequestDetailModel details,
+  ) async {
+    final reasonController = TextEditingController();
+
+    final shouldReject = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(LocalStrings.rejectSignPaymentRequestTitle.tr),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(LocalStrings.confirmRejectPaymentRequestMessage.tr),
+              const SizedBox(height: Dimensions.space15),
+              Text(
+                LocalStrings.rejectSignReasonLabel.tr,
+                style: mediumDefault,
+              ),
+              const SizedBox(height: Dimensions.space8),
+              TextField(
+                controller: reasonController,
+                autofocus: true,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: LocalStrings.rejectSignPaymentRequestReasonHint.tr,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(Dimensions.defaultRadius),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(LocalStrings.no.tr),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ColorResources.colorRed,
+                foregroundColor: ColorResources.colorWhite,
+              ),
+              onPressed: () {
+                if (reasonController.text.trim().isEmpty) {
+                  AppAlert.error(LocalStrings.enterRejectReason.tr);
+                  return;
+                }
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: Text(LocalStrings.rejectSignDocument.tr),
+            ),
+          ],
+        );
+      },
+    );
+
+    final reason = reasonController.text.trim();
+    reasonController.dispose();
+
+    if (shouldReject == true) {
+      final ok = await controller.rejectSigning(
+        details.id ?? int.parse(_requestId.toString()),
+        reason: reason,
+      );
+      if (ok && mounted) {
+        setState(() {
+          signPermissionData = null;
+        });
+      }
+    }
   }
 
   void _showSigningBottomSheet(BuildContext context, PaymentRequestsController controller, PaymentRequestDetailModel details) {
@@ -1157,21 +1263,20 @@ class _SigningModalState extends State<_SigningModal> {
                     const SizedBox(height: Dimensions.space15),
                   ],
 
-                  // Password input field
-                  if (!(widget.permissionData?['has_pfx_saved_password'] == true)) ...[
-                    const Text("Mật khẩu chứng thư (*)", style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        hintText: "Nhập mật khẩu tệp PFX của bạn",
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      ),
+                  // Luôn hiện ô mật khẩu (giống DMS) — không ẩn khi has_pfx_saved_password
+                  // để tránh gửi mật khẩu rỗng khi bản lưu trên server hỏng.
+                  const Text("Mật khẩu chứng thư (*)", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      hintText: "Nhập mật khẩu tệp PFX của bạn",
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
-                    const SizedBox(height: Dimensions.space15),
-                  ],
+                  ),
+                  const SizedBox(height: Dimensions.space15),
                 ],
               ] else ...[
                 // eSign Tab Layout
@@ -1270,10 +1375,20 @@ class _SigningModalState extends State<_SigningModal> {
   }
 
   Future<void> _executePfxSign() async {
-    final pwd = _passwordController.text.trim();
-    final hasSavedPassword = widget.permissionData?['has_pfx_saved_password'] == true;
-    if (pwd.isEmpty && !hasSavedPassword) {
-      CustomSnackBar.error(errorList: ["Vui lòng nhập mật khẩu chứng thư PFX"]);
+    var pwd = _passwordController.text.trim();
+    // Bắt buộc có mật khẩu trước khi gọi API (mọi máy) — giống DMS.
+    if (pwd.isEmpty) {
+      final typed = await PfxPasswordDialog.show();
+      if (typed == null) {
+        return;
+      }
+      pwd = typed.trim();
+    }
+    if (pwd.isEmpty) {
+      await AppAlert.error(
+        LocalStrings.enterPfxPassword.tr,
+        title: LocalStrings.signFailedTitle.tr,
+      );
       return;
     }
 
