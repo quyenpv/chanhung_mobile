@@ -66,10 +66,8 @@ class DmsRepo {
     final body = <String, String>{
       'signer_instruction': signerInstruction,
       'pfx_profile_slug': pfxProfileSlug,
+      'pfx_password': pfxPassword,
     };
-    if (pfxPassword.isNotEmpty) {
-      body['pfx_password'] = pfxPassword;
-    }
 
     return apiClient.request(
       url,

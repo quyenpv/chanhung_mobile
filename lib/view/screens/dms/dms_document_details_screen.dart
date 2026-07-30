@@ -394,7 +394,7 @@ class _SigningActions extends StatelessWidget {
         (permission?.canSign == true);
     final canSubmitPfx = canAct && hasPfxCertificate;
     final canSubmitEsign = canAct && canStartEsign;
-    // Từ chối cùng điều kiện với còn quyền ký (đã signed/rejected thì canAct=false).
+    // Tá»« chá»‘i cÃ¹ng Ä‘iá»u kiá»‡n vá»›i cÃ²n quyá»n kÃ½ (Ä‘Ã£ signed/rejected thÃ¬ canAct=false).
     final canReject = canAct;
 
     return Card(
@@ -499,8 +499,9 @@ class _SigningActions extends StatelessWidget {
               runSpacing: Dimensions.space8,
               children: [
                 ElevatedButton.icon(
-                  onPressed:
-                      canSubmitPfx ? () => _confirmAndStartPfx(context) : null,
+                  onPressed: canSubmitPfx
+                      ? () => controller.startPfxSigning(document.id)
+                      : null,
                   icon: const Icon(Icons.workspace_premium_outlined, size: 18),
                   label: Text(LocalStrings.signWithPfx.tr),
                 ),
@@ -527,116 +528,6 @@ class _SigningActions extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _confirmAndStartPfx(BuildContext context) async {
-    final permission = document.signPermission;
-    // Chỉ tin cờ đã lưu khi CẢ top-level lẫn profile đều true.
-    // Tránh ẩn ô mật khẩu khi API báo có file .pwd nhưng giải mã thất bại.
-    final hasSavedPassword = permission?.hasPfxSavedPassword == true &&
-        permission?.selectedPfxProfile?.hasSavedPassword == true;
-    final passwordController = TextEditingController();
-    var obscurePassword = true;
-
-    final shouldSign = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(LocalStrings.confirmSignDocument.tr),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(LocalStrings.confirmPfxSignDocumentMessage.tr),
-                    const SizedBox(height: Dimensions.space15),
-                    Text(
-                      hasSavedPassword
-                          ? LocalStrings.pfxPasswordOptionalLabel.tr
-                          : LocalStrings.pfxPasswordLabel.tr,
-                      style: mediumDefault,
-                    ),
-                    const SizedBox(height: Dimensions.space8),
-                    // Luôn hiện ô mật khẩu — đồng bộ mọi máy; tránh lệ thuộc cờ API.
-                    TextField(
-                      controller: passwordController,
-                      obscureText: obscurePassword,
-                      autofocus: true,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) {
-                        FocusScope.of(dialogContext).unfocus();
-                      },
-                      decoration: InputDecoration(
-                        hintText: hasSavedPassword
-                            ? LocalStrings.pfxPasswordOptionalHint.tr
-                            : LocalStrings.pfxPasswordHint.tr,
-                        border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(Dimensions.defaultRadius),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            obscurePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                          ),
-                          onPressed: () {
-                            setDialogState(() {
-                              obscurePassword = !obscurePassword;
-                            });
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: Text(LocalStrings.no.tr),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    // Một số máy Android chưa commit IME khi bấm ngay → unfocus trước.
-                    FocusScope.of(dialogContext).unfocus();
-                    await Future<void>.delayed(
-                      const Duration(milliseconds: 80),
-                    );
-                    final typed = passwordController.text.trim();
-                    if (!hasSavedPassword && typed.isEmpty) {
-                      await AppAlert.error(LocalStrings.enterPfxPassword.tr);
-                      return;
-                    }
-                    if (dialogContext.mounted) {
-                      Navigator.of(dialogContext).pop(true);
-                    }
-                  },
-                  child: Text(LocalStrings.yes.tr),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    final password = passwordController.text.trim();
-    passwordController.dispose();
-
-    if (shouldSign == true) {
-      await controller.startPfxSigning(
-        document.id,
-        pfxPassword: password,
-      );
-    }
   }
 
   Future<void> _confirmAndStartEsign(BuildContext context) async {

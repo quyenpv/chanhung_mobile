@@ -7,6 +7,7 @@ import 'package:chanhung/data/model/global/api_response_payload.dart';
 import 'package:chanhung/data/model/global/response_model/response_model.dart';
 import 'package:chanhung/data/repo/dms/dms_repo.dart';
 import 'package:chanhung/view/components/dialog/app_alert_dialog.dart';
+import 'package:chanhung/view/components/dialog/pfx_password_dialog.dart';
 import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 
 class DmsController extends GetxController {
@@ -267,11 +268,17 @@ class DmsController extends GetxController {
       return;
     }
 
-    // Chỉ bỏ qua mật khẩu nhập tay khi CẢ hai cờ đều true (tránh lệch profile).
-    final hasSavedPassword = selectedProfile?.hasSavedPassword == true &&
-        permission?.hasPfxSavedPassword == true;
-    final trimmedPassword = pfxPassword.trim();
-    if (trimmedPassword.isEmpty && !hasSavedPassword) {
+    // Bắt buộc hiện modal nhập mật khẩu trước khi gọi API (mọi máy).
+    // Không dựa vào cờ has_saved_password — tránh ký rỗng khi file .pwd hỏng.
+    var trimmedPassword = pfxPassword.trim();
+    if (trimmedPassword.isEmpty) {
+      final typed = await PfxPasswordDialog.show();
+      if (typed == null) {
+        return; // Người dùng hủy
+      }
+      trimmedPassword = typed.trim();
+    }
+    if (trimmedPassword.isEmpty) {
       await AppAlert.error(
         LocalStrings.enterPfxPassword.tr,
         title: LocalStrings.signFailedTitle.tr,
