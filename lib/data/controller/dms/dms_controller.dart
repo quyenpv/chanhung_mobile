@@ -267,10 +267,11 @@ class DmsController extends GetxController {
       return;
     }
 
-    final hasSavedPassword = selectedProfile?.hasSavedPassword == true ||
+    // Chỉ bỏ qua mật khẩu nhập tay khi CẢ hai cờ đều true (tránh lệch profile).
+    final hasSavedPassword = selectedProfile?.hasSavedPassword == true &&
         permission?.hasPfxSavedPassword == true;
     final trimmedPassword = pfxPassword.trim();
-    if (!hasSavedPassword && trimmedPassword.isEmpty) {
+    if (trimmedPassword.isEmpty && !hasSavedPassword) {
       await AppAlert.error(
         LocalStrings.enterPfxPassword.tr,
         title: LocalStrings.signFailedTitle.tr,

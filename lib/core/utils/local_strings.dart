@@ -141,7 +141,11 @@ class LocalStrings {
   static const String pfxPasswordRequiredHint =
       "Cần nhập mật khẩu chứng thư mềm khi ký";
   static const String pfxPasswordLabel = "Mật khẩu chứng thư (*)";
+  static const String pfxPasswordOptionalLabel =
+      "Mật khẩu chứng thư (để trống nếu đã lưu)";
   static const String pfxPasswordHint = "Nhập mật khẩu tệp PFX của bạn";
+  static const String pfxPasswordOptionalHint =
+      "Nhập mật khẩu, hoặc để trống để dùng mật khẩu đã lưu";
   static const String enterPfxPassword = "Vui lòng nhập mật khẩu chứng thư PFX";
   static const String signingUnavailable = "Chưa thể ký";
   static const String confirmSignDocument = "Xác nhận ký văn bản";

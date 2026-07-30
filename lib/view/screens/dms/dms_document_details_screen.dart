@@ -471,12 +471,13 @@ class _SigningActions extends StatelessWidget {
                 style: regularSmall.copyWith(color: ColorResources.redColor),
               ),
             ],
-            if (document.canSign &&
-                hasPfxCertificate &&
-                !hasPfxSavedPassword) ...[
+            if (document.canSign && hasPfxCertificate) ...[
               const SizedBox(height: Dimensions.space8),
               Text(
-                LocalStrings.pfxPasswordRequiredHint.tr,
+                hasPfxSavedPassword &&
+                        selectedPfxProfile?.hasSavedPassword == true
+                    ? LocalStrings.pfxPasswordOptionalHint.tr
+                    : LocalStrings.pfxPasswordRequiredHint.tr,
                 style: regularSmall.copyWith(color: ColorResources.blueGreyColor),
               ),
             ],
@@ -530,36 +531,48 @@ class _SigningActions extends StatelessWidget {
 
   Future<void> _confirmAndStartPfx(BuildContext context) async {
     final permission = document.signPermission;
-    final needsPassword = permission?.hasPfxSavedPassword != true &&
-        permission?.selectedPfxProfile?.hasSavedPassword != true;
+    // Chỉ tin cờ đã lưu khi CẢ top-level lẫn profile đều true.
+    // Tránh ẩn ô mật khẩu khi API báo có file .pwd nhưng giải mã thất bại.
+    final hasSavedPassword = permission?.hasPfxSavedPassword == true &&
+        permission?.selectedPfxProfile?.hasSavedPassword == true;
     final passwordController = TextEditingController();
     var obscurePassword = true;
 
     final shouldSign = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(LocalStrings.confirmSignDocument.tr),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(LocalStrings.confirmPfxSignDocumentMessage.tr),
-                  if (needsPassword) ...[
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(LocalStrings.confirmPfxSignDocumentMessage.tr),
                     const SizedBox(height: Dimensions.space15),
                     Text(
-                      LocalStrings.pfxPasswordLabel.tr,
+                      hasSavedPassword
+                          ? LocalStrings.pfxPasswordOptionalLabel.tr
+                          : LocalStrings.pfxPasswordLabel.tr,
                       style: mediumDefault,
                     ),
                     const SizedBox(height: Dimensions.space8),
+                    // Luôn hiện ô mật khẩu — đồng bộ mọi máy; tránh lệ thuộc cờ API.
                     TextField(
                       controller: passwordController,
                       obscureText: obscurePassword,
                       autofocus: true,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) {
+                        FocusScope.of(dialogContext).unfocus();
+                      },
                       decoration: InputDecoration(
-                        hintText: LocalStrings.pfxPasswordHint.tr,
+                        hintText: hasSavedPassword
+                            ? LocalStrings.pfxPasswordOptionalHint.tr
+                            : LocalStrings.pfxPasswordHint.tr,
                         border: OutlineInputBorder(
                           borderRadius:
                               BorderRadius.circular(Dimensions.defaultRadius),
@@ -583,7 +596,7 @@ class _SigningActions extends StatelessWidget {
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -591,13 +604,20 @@ class _SigningActions extends StatelessWidget {
                   child: Text(LocalStrings.no.tr),
                 ),
                 ElevatedButton(
-                  onPressed: () {
-                    if (needsPassword &&
-                        passwordController.text.trim().isEmpty) {
-                      AppAlert.error(LocalStrings.enterPfxPassword.tr);
+                  onPressed: () async {
+                    // Một số máy Android chưa commit IME khi bấm ngay → unfocus trước.
+                    FocusScope.of(dialogContext).unfocus();
+                    await Future<void>.delayed(
+                      const Duration(milliseconds: 80),
+                    );
+                    final typed = passwordController.text.trim();
+                    if (!hasSavedPassword && typed.isEmpty) {
+                      await AppAlert.error(LocalStrings.enterPfxPassword.tr);
                       return;
                     }
-                    Navigator.of(dialogContext).pop(true);
+                    if (dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop(true);
+                    }
                   },
                   child: Text(LocalStrings.yes.tr),
                 ),
