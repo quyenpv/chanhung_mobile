@@ -6,12 +6,12 @@ import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/utils/method.dart';
 import 'package:chanhung/core/utils/url_container.dart';
 import 'package:chanhung/data/services/api_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 
 /// Gửi vị trí định kỳ khi admin bật theo dõi trên web.
-/// Không hiện banner/toast trong app khi đang chạy (chỉ nội quy lúc cài).
 class StaffLocationTrackingService extends GetxService
     with WidgetsBindingObserver {
   ApiClient? _apiClient;
@@ -25,6 +25,7 @@ class StaffLocationTrackingService extends GetxService
   double? _lastLat;
   double? _lastLng;
   DateTime? _lastSentAt;
+  String lastStatus = 'idle';
 
   Future<StaffLocationTrackingService> init() async {
     WidgetsBinding.instance.addObserver(this);
@@ -40,30 +41,36 @@ class StaffLocationTrackingService extends GetxService
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _enabled) {
-      _sendPing(force: true);
+    if (state == AppLifecycleState.resumed) {
+      startIfNeeded();
     }
   }
 
-  /// Gọi sau khi đăng nhập / vào dashboard khi đã có token.
+  /// Gọi sau login / vào dashboard / splash (đã có token).
   Future<void> startIfNeeded() async {
-    if (!Get.isRegistered<ApiClient>()) {
-      return;
-    }
-    _apiClient = Get.find<ApiClient>();
-    final token = _apiClient!.sharedPreferences
-            .getString(SharedPreferenceHelper.accessTokenKey) ??
-        '';
-    if (token.trim().isEmpty || token.trim().toLowerCase() == 'null') {
-      stop();
-      return;
-    }
+    try {
+      if (!Get.isRegistered<ApiClient>()) {
+        _log('no ApiClient');
+        return;
+      }
+      _apiClient = Get.find<ApiClient>();
+      final token = _apiClient!.sharedPreferences
+              .getString(SharedPreferenceHelper.accessTokenKey) ??
+          '';
+      if (token.trim().isEmpty || token.trim().toLowerCase() == 'null') {
+        _log('no token');
+        stop();
+        return;
+      }
 
-    await refreshConfig();
-    _configTimer?.cancel();
-    _configTimer = Timer.periodic(const Duration(minutes: 2), (_) {
-      refreshConfig();
-    });
+      await refreshConfig();
+      _configTimer?.cancel();
+      _configTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+        refreshConfig();
+      });
+    } catch (e) {
+      _log('startIfNeeded error: $e');
+    }
   }
 
   Future<void> refreshConfig() async {
@@ -73,25 +80,38 @@ class StaffLocationTrackingService extends GetxService
           '${UrlContainer.baseUrl}${UrlContainer.locationTrackingConfigUrl}';
       final res = await _apiClient!
           .request(url, Method.getMethod, null, passHeader: true);
+      _log('config status=${res.statusCode}');
       if (res.statusCode != 200 || res.responseJson.isEmpty) {
-        _setEnabled(false);
+        // Lỗi tạm: giữ trạng thái cũ, không tắt ngay
+        lastStatus = 'config_http_${res.statusCode}';
         return;
       }
       final json = jsonDecode(res.responseJson);
-      final data = json is Map ? (json['data'] ?? json) : null;
-      if (data is! Map) {
-        _setEnabled(false);
+      if (json is! Map) {
+        lastStatus = 'config_bad_json';
         return;
       }
-      final enabled = data['enabled'] == true || data['enabled'] == 1;
+      final rawData = json['data'];
+      final data = rawData is Map ? rawData : json;
+      final enabled = _asBool(data['enabled']);
       final interval = int.tryParse('${data['interval_seconds']}') ?? 60;
       final minDistance = int.tryParse('${data['min_distance_m']}') ?? 25;
       _intervalSeconds = interval.clamp(30, 600);
       _minDistanceM = minDistance.clamp(0, 500);
+      lastStatus = enabled ? 'enabled' : 'disabled_by_server';
+      _log('config enabled=$enabled interval=$_intervalSeconds');
       _setEnabled(enabled);
-    } catch (_) {
-      // Im lặng — không thông báo cho user
+    } catch (e) {
+      lastStatus = 'config_error';
+      _log('refreshConfig error: $e');
     }
+  }
+
+  bool _asBool(dynamic value) {
+    if (value == true || value == 1) return true;
+    if (value == false || value == 0 || value == null) return false;
+    final s = value.toString().trim().toLowerCase();
+    return s == '1' || s == 'true' || s == 'yes' || s == 'on';
   }
 
   void _setEnabled(bool enabled) {
@@ -104,6 +124,8 @@ class StaffLocationTrackingService extends GetxService
     }
     if (_running) {
       _restartTimer();
+      // Vẫn ping ngay khi config xác nhận đang bật
+      _ensurePermissionAndPing();
       return;
     }
     _running = true;
@@ -122,11 +144,18 @@ class StaffLocationTrackingService extends GetxService
     final ok = await _ensurePermission();
     if (ok) {
       await _sendPing(force: true);
+    } else {
+      lastStatus = 'permission_denied';
+      _log('permission denied or location service off');
     }
   }
 
   Future<bool> _ensurePermission() async {
     try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return false;
+      }
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -135,10 +164,28 @@ class StaffLocationTrackingService extends GetxService
           permission == LocationPermission.deniedForever) {
         return false;
       }
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      return serviceEnabled;
-    } catch (_) {
+      return true;
+    } catch (e) {
+      _log('permission error: $e');
       return false;
+    }
+  }
+
+  Future<Position?> _readPosition() async {
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 12),
+        ),
+      );
+    } catch (e) {
+      _log('getCurrentPosition failed: $e — try lastKnown');
+      try {
+        return await Geolocator.getLastKnownPosition();
+      } catch (_) {
+        return null;
+      }
     }
   }
 
@@ -147,14 +194,16 @@ class StaffLocationTrackingService extends GetxService
     _pingInFlight = true;
     try {
       final ok = await _ensurePermission();
-      if (!ok) return;
+      if (!ok) {
+        lastStatus = 'permission_denied';
+        return;
+      }
 
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 20),
-        ),
-      );
+      final pos = await _readPosition();
+      if (pos == null) {
+        lastStatus = 'no_position';
+        return;
+      }
 
       if (!force &&
           _lastLat != null &&
@@ -166,6 +215,7 @@ class StaffLocationTrackingService extends GetxService
             ? 9999
             : DateTime.now().difference(_lastSentAt!).inSeconds;
         if (dist < _minDistanceM && secondsSince < 300) {
+          lastStatus = 'skipped_too_close';
           return;
         }
       }
@@ -184,13 +234,18 @@ class StaffLocationTrackingService extends GetxService
 
       final res = await _apiClient!
           .request(url, Method.postMethod, body, passHeader: true);
+      _log('ping status=${res.statusCode} body=${res.responseJson}');
       if (res.statusCode == 200) {
         _lastLat = pos.latitude;
         _lastLng = pos.longitude;
         _lastSentAt = DateTime.now();
+        lastStatus = 'ping_ok';
+      } else {
+        lastStatus = 'ping_http_${res.statusCode}';
       }
-    } catch (_) {
-      // Im lặng
+    } catch (e) {
+      lastStatus = 'ping_error';
+      _log('ping error: $e');
     } finally {
       _pingInFlight = false;
     }
@@ -203,5 +258,12 @@ class StaffLocationTrackingService extends GetxService
     _timer = null;
     _configTimer?.cancel();
     _configTimer = null;
+    lastStatus = 'stopped';
+  }
+
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint('[StaffLocationTracking] $message');
+    }
   }
 }

@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/route/route.dart';
+import 'package:chanhung/core/service/staff_location_tracking_service.dart';
 import 'package:chanhung/data/repo/splash/splash_repo.dart';
 import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -234,8 +235,18 @@ class SplashController extends GetxController {
       });
     } else {
       if (isRemember) {
-        Future.delayed(const Duration(seconds: 1), () {
+        Future.delayed(const Duration(seconds: 1), () async {
           Get.offAndToNamed(RouteHelper.dashboardScreen);
+          try {
+            if (!Get.isRegistered<StaffLocationTrackingService>()) {
+              final service = await Get.putAsync(
+                  () => StaffLocationTrackingService().init(),
+                  permanent: true);
+              await service.startIfNeeded();
+            } else {
+              await Get.find<StaffLocationTrackingService>().startIfNeeded();
+            }
+          } catch (_) {}
         });
       } else {
         Future.delayed(const Duration(seconds: 1), () {
