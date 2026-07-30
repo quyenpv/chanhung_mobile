@@ -2,19 +2,36 @@ import 'package:chanhung/core/utils/dimensions.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/style.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 
-/// Modal nhập mật khẩu PFX — dùng Get.dialog để luôn hiện trên mọi máy.
+/// Modal nhập mật khẩu PFX.
+/// Dùng [showDialog] + root navigator — tránh crash `Get.dialog` khi Overlay
+/// chưa sẵn sàng hoặc đang mở bottom sheet.
 class PfxPasswordDialog extends StatefulWidget {
   const PfxPasswordDialog({super.key});
 
-  /// Trả về mật khẩu (đã trim). `null` = người dùng hủy.
-  static Future<String?> show() {
-    return Get.dialog<String>(
-      const PfxPasswordDialog(),
-      barrierDismissible: false,
-      useSafeArea: true,
-    );
+  /// Trả về mật khẩu (đã trim). `null` = người dùng hủy / không mở được dialog.
+  static Future<String?> show({BuildContext? context}) async {
+    BuildContext? ctx = context;
+    if (ctx == null || !ctx.mounted) {
+      await SchedulerBinding.instance.endOfFrame;
+      ctx = Get.overlayContext ?? Get.context ?? Get.key.currentContext;
+    }
+    if (ctx == null || !ctx.mounted) {
+      return null;
+    }
+
+    try {
+      return await showDialog<String>(
+        context: ctx,
+        useRootNavigator: true,
+        barrierDismissible: false,
+        builder: (_) => const PfxPasswordDialog(),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -31,7 +48,7 @@ class _PfxPasswordDialogState extends State<PfxPasswordDialog> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
+      if (mounted && _focusNode.canRequestFocus) {
         _focusNode.requestFocus();
       }
     });
@@ -60,7 +77,11 @@ class _PfxPasswordDialogState extends State<PfxPasswordDialog> {
       return;
     }
 
-    Get.back(result: password);
+    Navigator.of(context).pop(password);
+  }
+
+  void _cancel() {
+    Navigator.of(context).pop(null);
   }
 
   @override
@@ -117,7 +138,7 @@ class _PfxPasswordDialogState extends State<PfxPasswordDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Get.back(result: null),
+          onPressed: _cancel,
           child: Text(LocalStrings.no.tr),
         ),
         ElevatedButton(

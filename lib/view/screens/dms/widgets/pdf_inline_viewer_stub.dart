@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:chanhung/core/helper/external_url_helper.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
@@ -12,6 +12,8 @@ import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/style.dart';
 import 'package:chanhung/data/services/api_service.dart';
 
+/// Mobile/desktop: dùng flutter_pdfview (PdfRenderer native).
+/// Syncfusion thường crash native với PDF đã ký số — không dùng ở đây.
 class PdfInlineViewer extends StatefulWidget {
   const PdfInlineViewer({
     super.key,
@@ -27,10 +29,11 @@ class PdfInlineViewer extends StatefulWidget {
 }
 
 class _PdfInlineViewerState extends State<PdfInlineViewer> {
-  final GlobalKey<SfPdfViewerState> _pdfViewerKey = GlobalKey();
   bool _isLoading = true;
   String? _errorMessage;
   Uint8List? _pdfBytes;
+  int? _pages;
+  int _currentPage = 0;
 
   @override
   void initState() {
@@ -61,6 +64,8 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
       _isLoading = true;
       _errorMessage = null;
       _pdfBytes = null;
+      _pages = null;
+      _currentPage = 0;
     });
 
     try {
@@ -138,6 +143,52 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
     await openExternalUrl(widget.url);
   }
 
+  Widget _errorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.picture_as_pdf_outlined, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              LocalStrings.openFileFailed.tr,
+              textAlign: TextAlign.center,
+              style: mediumLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage ?? LocalStrings.openFileFailed.tr,
+              textAlign: TextAlign.center,
+              style: regularSmall.copyWith(
+                color: ColorResources.blueGreyColor,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _loadPdf,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: Text(LocalStrings.retry.tr),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _openInNewTab,
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: Text(LocalStrings.openInBrowser.tr),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -149,67 +200,90 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
     }
 
     if (_errorMessage != null || _pdfBytes == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.picture_as_pdf_outlined, size: 48),
-              const SizedBox(height: 12),
-              Text(
-                LocalStrings.openFileFailed.tr,
-                textAlign: TextAlign.center,
-                style: mediumLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _errorMessage ?? LocalStrings.openFileFailed.tr,
-                textAlign: TextAlign.center,
-                style: regularSmall.copyWith(
-                  color: ColorResources.blueGreyColor,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _loadPdf,
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: Text(LocalStrings.retry.tr),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _openInNewTab,
-                    icon: const Icon(Icons.open_in_new, size: 18),
-                    label: Text(LocalStrings.openInBrowser.tr),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
+      return _errorView();
     }
 
-    return SfPdfViewer.memory(
-      _pdfBytes!,
-      key: _pdfViewerKey,
-      canShowScrollHead: false,
-      canShowScrollStatus: false,
-      onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-        if (!mounted) {
-          return;
-        }
-        setState(() {
-          _errorMessage = details.description.trim().isNotEmpty
-              ? details.description
-              : details.error;
-          _pdfBytes = null;
-        });
-      },
+    return Stack(
+      children: [
+        PDFView(
+          pdfData: _pdfBytes,
+          enableSwipe: true,
+          swipeHorizontal: false,
+          autoSpacing: true,
+          pageFling: true,
+          pageSnap: true,
+          fitPolicy: FitPolicy.BOTH,
+          preventLinkNavigation: false,
+          onRender: (pages) {
+            if (!mounted) {
+              return;
+            }
+            setState(() {
+              _pages = pages;
+            });
+          },
+          onError: (error) {
+            if (!mounted) {
+              return;
+            }
+            setState(() {
+              _errorMessage = error?.toString().trim().isNotEmpty == true
+                  ? error.toString()
+                  : LocalStrings.openFileFailed.tr;
+              _pdfBytes = null;
+            });
+          },
+          onPageError: (page, error) {
+            if (!mounted) {
+              return;
+            }
+            setState(() {
+              _errorMessage =
+                  'Lỗi trang ${page ?? '?'}: ${error ?? LocalStrings.openFileFailed.tr}';
+              _pdfBytes = null;
+            });
+          },
+          onPageChanged: (page, total) {
+            if (!mounted) {
+              return;
+            }
+            setState(() {
+              _currentPage = page ?? 0;
+              _pages = total;
+            });
+          },
+        ),
+        if (_pages != null && _pages! > 0)
+          Positioned(
+            right: 12,
+            bottom: 12,
+            child: Material(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                child: Text(
+                  '${_currentPage + 1}/$_pages',
+                  style: regularSmall.copyWith(color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        Positioned(
+          left: 12,
+          bottom: 12,
+          child: Material(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(16),
+            child: IconButton(
+              tooltip: LocalStrings.openInBrowser.tr,
+              onPressed: _openInNewTab,
+              icon: const Icon(Icons.open_in_new, color: Colors.white, size: 20),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

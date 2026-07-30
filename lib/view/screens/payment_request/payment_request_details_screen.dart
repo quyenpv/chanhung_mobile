@@ -1378,7 +1378,7 @@ class _SigningModalState extends State<_SigningModal> {
     var pwd = _passwordController.text.trim();
     // Bắt buộc có mật khẩu trước khi gọi API (mọi máy) — giống DMS.
     if (pwd.isEmpty) {
-      final typed = await PfxPasswordDialog.show();
+      final typed = await PfxPasswordDialog.show(context: context);
       if (typed == null) {
         return;
       }
