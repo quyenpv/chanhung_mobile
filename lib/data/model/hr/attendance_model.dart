@@ -1,3 +1,5 @@
+import 'package:chanhung/data/model/global/api_response_payload.dart';
+
 class AttendanceStatus {
   final bool checkedInToday;
   final bool checkedOutToday;
@@ -14,7 +16,19 @@ class AttendanceStatus {
   });
 
   factory AttendanceStatus.fromJson(Map<String, dynamic> json) {
-    final today = json['today'] as Map<String, dynamic>?;
+    final payload = apiPayload(json);
+    Map<String, dynamic>? today;
+    if (payload['today'] is Map) {
+      today = Map<String, dynamic>.from(payload['today'] as Map);
+    } else if (payload['data'] is Map &&
+        (payload['data'] as Map)['today'] is Map) {
+      today = Map<String, dynamic>.from(
+          (payload['data'] as Map)['today'] as Map);
+    } else if (payload['checked_in'] != null ||
+        payload['check_in_time'] != null) {
+      today = payload;
+    }
+
     return AttendanceStatus(
       checkedInToday: today?['checked_in'] == true,
       checkedOutToday: today?['checked_out'] == true,
@@ -64,12 +78,14 @@ class AttendanceHistoryModel {
   const AttendanceHistoryModel({required this.records, required this.total});
 
   factory AttendanceHistoryModel.fromJson(Map<String, dynamic> json) {
-    final list = (json['attendance'] as List<dynamic>? ?? [])
-        .map((e) => AttendanceRecord.fromJson(e as Map<String, dynamic>))
+    final list = apiListPayload(json, 'attendance')
+        .whereType<Map>()
+        .map((e) => AttendanceRecord.fromJson(Map<String, dynamic>.from(e)))
         .toList();
+    final payload = apiPayload(json);
     return AttendanceHistoryModel(
       records: list,
-      total: int.tryParse(json['total']?.toString() ?? '0') ?? list.length,
+      total: int.tryParse(payload['total']?.toString() ?? '0') ?? list.length,
     );
   }
 }

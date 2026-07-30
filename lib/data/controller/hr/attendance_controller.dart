@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:chanhung/core/helper/face_camera_helper.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
+import 'package:chanhung/data/model/global/api_response_payload.dart';
 import 'package:chanhung/data/model/global/response_model/response_model.dart';
 import 'package:chanhung/data/model/hr/attendance_model.dart';
 import 'package:chanhung/data/repo/hr/attendance_repo.dart';
@@ -83,7 +84,9 @@ class AttendanceController extends GetxController {
       }
     }
     if (permission == LocationPermission.deniedForever) {
-      CustomSnackBar.error(errorList: ['Quyền vị trí bị từ chối vĩnh viễn. Vui lòng bật trong Cài đặt.']);
+      CustomSnackBar.error(errorList: [
+        'Quyền vị trí bị từ chối vĩnh viễn. Vui lòng bật trong Cài đặt.'
+      ]);
       return null;
     }
 
@@ -95,6 +98,30 @@ class AttendanceController extends GetxController {
     );
   }
 
+  void _resetChecking() {
+    isChecking = false;
+    update();
+  }
+
+  bool _isApiSuccess(ResponseModel response) {
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      return false;
+    }
+    final decoded = _safeDecodeJson(response.responseJson);
+    if (decoded == null) return true;
+    final success = apiSuccess(decoded);
+    // null = không có cờ success lồng nhau → coi HTTP 2xx là thành công
+    return success != false;
+  }
+
+  String _errorMessage(ResponseModel response) {
+    final decoded = _safeDecodeJson(response.responseJson);
+    return apiMessage(decoded) ??
+        (response.message.isNotEmpty
+            ? response.message
+            : LocalStrings.somethingWentWrong.tr);
+  }
+
   // ─── CHECK-IN ────────────────────────────────────────────────────────────────
 
   Future<void> doCheckIn(BuildContext context) async {
@@ -102,49 +129,46 @@ class AttendanceController extends GetxController {
     update();
 
     try {
-      // 1. Lấy GPS location
       final position = await _getLocation();
       if (position == null) {
-        isChecking = false;
-        update();
+        _resetChecking();
         return;
       }
 
-      // 2. Chụp ảnh selfie + ML Kit face detection
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        _resetChecking();
+        return;
+      }
+
       final selfieBase64 = await FaceCameraHelper.captureVerifiedSelfie(context);
       if (selfieBase64 == null) {
-        // User cancelled camera
-        isChecking = false;
-        update();
+        _resetChecking();
         return;
       }
 
-      // 3. Gửi lên API
+      CustomSnackBar.success(
+          successList: ['Đang so khớp khuôn mặt với ảnh hồ sơ ERP...']);
+
       ResponseModel response = await attendanceRepo.checkIn(
         latitude: position.latitude,
         longitude: position.longitude,
         selfieBase64: selfieBase64,
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        CustomSnackBar.success(successList: [LocalStrings.checkInSuccess.tr]);
+      if (_isApiSuccess(response)) {
+        final decoded = _safeDecodeJson(response.responseJson);
+        final msg = apiMessage(decoded) ?? LocalStrings.checkInSuccess.tr;
+        CustomSnackBar.success(successList: [msg]);
         await loadTodayStatus();
         await loadHistory();
       } else {
-        final decoded = _safeDecodeJson(response.responseJson);
-        final msg = decoded?['message'] as String? ??
-            (response.message.isNotEmpty
-                ? response.message
-                : LocalStrings.somethingWentWrong.tr);
-        CustomSnackBar.error(errorList: [msg]);
+        CustomSnackBar.error(errorList: [_errorMessage(response)]);
       }
     } catch (e) {
       CustomSnackBar.error(errorList: ['Lỗi chấm công: ${e.toString()}']);
     }
 
-    isChecking = false;
-    update();
+    _resetChecking();
   }
 
   // ─── CHECK-OUT ───────────────────────────────────────────────────────────────
@@ -154,48 +178,46 @@ class AttendanceController extends GetxController {
     update();
 
     try {
-      // 1. Lấy GPS location
       final position = await _getLocation();
       if (position == null) {
-        isChecking = false;
-        update();
+        _resetChecking();
         return;
       }
 
-      // 2. Chụp ảnh selfie + ML Kit face detection
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        _resetChecking();
+        return;
+      }
+
       final selfieBase64 = await FaceCameraHelper.captureVerifiedSelfie(context);
       if (selfieBase64 == null) {
-        isChecking = false;
-        update();
+        _resetChecking();
         return;
       }
 
-      // 3. Gửi lên API
+      CustomSnackBar.success(
+          successList: ['Đang so khớp khuôn mặt với ảnh hồ sơ ERP...']);
+
       ResponseModel response = await attendanceRepo.checkOut(
         latitude: position.latitude,
         longitude: position.longitude,
         selfieBase64: selfieBase64,
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        CustomSnackBar.success(successList: [LocalStrings.checkOutSuccess.tr]);
+      if (_isApiSuccess(response)) {
+        final decoded = _safeDecodeJson(response.responseJson);
+        final msg = apiMessage(decoded) ?? LocalStrings.checkOutSuccess.tr;
+        CustomSnackBar.success(successList: [msg]);
         await loadTodayStatus();
         await loadHistory();
       } else {
-        final decoded = _safeDecodeJson(response.responseJson);
-        final msg = decoded?['message'] as String? ??
-            (response.message.isNotEmpty
-                ? response.message
-                : LocalStrings.somethingWentWrong.tr);
-        CustomSnackBar.error(errorList: [msg]);
+        CustomSnackBar.error(errorList: [_errorMessage(response)]);
       }
     } catch (e) {
       CustomSnackBar.error(errorList: ['Lỗi chấm công: ${e.toString()}']);
     }
 
-    isChecking = false;
-    update();
+    _resetChecking();
   }
 
   Map<String, dynamic>? _safeDecodeJson(String? raw) {
