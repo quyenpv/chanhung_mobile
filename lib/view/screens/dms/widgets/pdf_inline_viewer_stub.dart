@@ -1,19 +1,20 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:chanhung/core/helper/external_url_helper.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/style.dart';
 import 'package:chanhung/data/services/api_service.dart';
 
-/// Mobile/desktop: dùng flutter_pdfview (PdfRenderer native).
-/// Syncfusion thường crash native với PDF đã ký số — không dùng ở đây.
+/// Mobile: xem PDF bắt buộc trong app (flutter_pdfview + file tạm).
+/// Không mở trình duyệt / app ngoài.
 class PdfInlineViewer extends StatefulWidget {
   const PdfInlineViewer({
     super.key,
@@ -31,14 +32,21 @@ class PdfInlineViewer extends StatefulWidget {
 class _PdfInlineViewerState extends State<PdfInlineViewer> {
   bool _isLoading = true;
   String? _errorMessage;
-  Uint8List? _pdfBytes;
+  String? _localPath;
   int? _pages;
   int _currentPage = 0;
+  int _viewerKey = 0;
 
   @override
   void initState() {
     super.initState();
     _loadPdf();
+  }
+
+  @override
+  void dispose() {
+    _deleteTempFile(_localPath);
+    super.dispose();
   }
 
   Map<String, String> _headers() {
@@ -59,14 +67,37 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
     return headers;
   }
 
+  Future<void> _deleteTempFile(String? path) async {
+    if (path == null || path.isEmpty) {
+      return;
+    }
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
+  }
+
+  Future<String> _writeTempPdf(Uint8List bytes) async {
+    final dir = await getTemporaryDirectory();
+    final file = File(
+      '${dir.path}/chanhung_view_${DateTime.now().microsecondsSinceEpoch}.pdf',
+    );
+    await file.writeAsBytes(bytes, flush: true);
+    return file.path;
+  }
+
   Future<void> _loadPdf() async {
+    final previousPath = _localPath;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _pdfBytes = null;
+      _localPath = null;
       _pages = null;
       _currentPage = 0;
     });
+    await _deleteTempFile(previousPath);
 
     try {
       final response = await http.get(
@@ -85,11 +116,15 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
         throw Exception(_messageFromBody(bytes, response.statusCode));
       }
 
+      final path = await _writeTempPdf(bytes);
       if (!mounted) {
+        await _deleteTempFile(path);
         return;
       }
+
       setState(() {
-        _pdfBytes = bytes;
+        _localPath = path;
+        _viewerKey++;
         _isLoading = false;
         _errorMessage = null;
       });
@@ -99,7 +134,7 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
       }
       setState(() {
         _isLoading = false;
-        _pdfBytes = null;
+        _localPath = null;
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     }
@@ -139,10 +174,6 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
     return '$text (HTTP $statusCode)';
   }
 
-  Future<void> _openInNewTab() async {
-    await openExternalUrl(widget.url);
-  }
-
   Widget _errorView() {
     return Center(
       child: Padding(
@@ -166,22 +197,10 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
               ),
             ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _loadPdf,
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: Text(LocalStrings.retry.tr),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _openInNewTab,
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  label: Text(LocalStrings.openInBrowser.tr),
-                ),
-              ],
+            OutlinedButton.icon(
+              onPressed: _loadPdf,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(LocalStrings.retry.tr),
             ),
           ],
         ),
@@ -199,21 +218,22 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
       );
     }
 
-    if (_errorMessage != null || _pdfBytes == null) {
+    if (_errorMessage != null || _localPath == null) {
       return _errorView();
     }
 
     return Stack(
       children: [
         PDFView(
-          pdfData: _pdfBytes,
+          key: ValueKey('pdf-$_viewerKey-$_localPath'),
+          filePath: _localPath,
           enableSwipe: true,
           swipeHorizontal: false,
           autoSpacing: true,
           pageFling: true,
           pageSnap: true,
           fitPolicy: FitPolicy.BOTH,
-          preventLinkNavigation: false,
+          preventLinkNavigation: true,
           onRender: (pages) {
             if (!mounted) {
               return;
@@ -230,18 +250,12 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
               _errorMessage = error?.toString().trim().isNotEmpty == true
                   ? error.toString()
                   : LocalStrings.openFileFailed.tr;
-              _pdfBytes = null;
+              _localPath = null;
             });
           },
           onPageError: (page, error) {
-            if (!mounted) {
-              return;
-            }
-            setState(() {
-              _errorMessage =
-                  'Lỗi trang ${page ?? '?'}: ${error ?? LocalStrings.openFileFailed.tr}';
-              _pdfBytes = null;
-            });
+            // Không hủy toàn bộ viewer vì một trang lỗi — chỉ ghi nhận.
+            debugPrint('PDF page error $page: $error');
           },
           onPageChanged: (page, total) {
             if (!mounted) {
@@ -270,19 +284,6 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
               ),
             ),
           ),
-        Positioned(
-          left: 12,
-          bottom: 12,
-          child: Material(
-            color: Colors.black54,
-            borderRadius: BorderRadius.circular(16),
-            child: IconButton(
-              tooltip: LocalStrings.openInBrowser.tr,
-              onPressed: _openInNewTab,
-              icon: const Icon(Icons.open_in_new, color: Colors.white, size: 20),
-            ),
-          ),
-        ),
       ],
     );
   }

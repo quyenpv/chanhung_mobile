@@ -7,14 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:web/web.dart' as web;
-import 'package:chanhung/core/helper/external_url_helper.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/style.dart';
 import 'package:chanhung/data/services/api_service.dart';
 
-/// Web: dùng PDF viewer của trình duyệt (iframe + blob).
+/// Web: xem PDF trong app qua iframe + blob (không mở tab trình duyệt ngoài).
 /// Syncfusion trên web thường lỗi với PDF đã ký số.
 class PdfInlineViewer extends StatefulWidget {
   const PdfInlineViewer({
@@ -200,10 +199,6 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
     return '$text (HTTP $statusCode)';
   }
 
-  Future<void> _openInNewTab() async {
-    await openExternalUrl(widget.url);
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_errorMessage != null) {
@@ -229,22 +224,10 @@ class _PdfInlineViewerState extends State<PdfInlineViewer> {
                 ),
               ),
               const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                alignment: WrapAlignment.center,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _loadPdf,
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: Text(LocalStrings.retry.tr),
-                  ),
-                  FilledButton.icon(
-                    onPressed: _openInNewTab,
-                    icon: const Icon(Icons.open_in_new, size: 18),
-                    label: Text(LocalStrings.openInBrowser.tr),
-                  ),
-                ],
+              OutlinedButton.icon(
+                onPressed: _loadPdf,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: Text(LocalStrings.retry.tr),
               ),
             ],
           ),
