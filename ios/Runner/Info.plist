@@ -51,6 +51,12 @@
 	<string>Ứng dụng cần quyền vị trí theo nội quy công ty (chấm công và điều phối nhân sự khi Quản trị viên bật).</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Ứng dụng cần quyền vị trí theo nội quy công ty (chấm công và điều phối nhân sự khi Quản trị viên bật).</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

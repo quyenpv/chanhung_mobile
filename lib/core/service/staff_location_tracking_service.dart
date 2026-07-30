@@ -1,41 +1,39 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
-import 'package:chanhung/core/utils/method.dart';
 import 'package:chanhung/core/utils/url_container.dart';
-import 'package:chanhung/data/services/api_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Gửi vị trí định kỳ khi admin bật theo dõi trên web.
+/// Theo dõi vị trí nền: gửi GPS khi app tắt màn hình / vào nền (Android cần
+/// notification hệ thống bắt buộc; iOS cần quyền Always).
 class StaffLocationTrackingService extends GetxService
     with WidgetsBindingObserver {
-  ApiClient? _apiClient;
-  Timer? _timer;
-  Timer? _configTimer;
-  bool _enabled = false;
-  int _intervalSeconds = 60;
-  int _minDistanceM = 25;
-  bool _running = false;
-  bool _pingInFlight = false;
-  double? _lastLat;
-  double? _lastLng;
-  DateTime? _lastSentAt;
+  static const String _prefsEnabledKey = 'staff_location_bg_wanted';
+  static const String _prefsIntervalKey = 'staff_location_bg_interval';
+  static const String _prefsMinDistanceKey = 'staff_location_bg_min_distance';
+
+  final FlutterBackgroundService _bg = FlutterBackgroundService();
   String lastStatus = 'idle';
 
   Future<StaffLocationTrackingService> init() async {
     WidgetsBinding.instance.addObserver(this);
+    await _configureBackgroundService();
     return this;
   }
 
   @override
   void onClose() {
     WidgetsBinding.instance.removeObserver(this);
-    stop();
     super.onClose();
   }
 
@@ -46,64 +44,136 @@ class StaffLocationTrackingService extends GetxService
     }
   }
 
-  /// Gọi sau login / vào dashboard / splash (đã có token).
+  Future<void> _configureBackgroundService() async {
+    const channelId = 'chanhung_location_sync';
+    final notifications = FlutterLocalNotificationsPlugin();
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    await notifications.initialize(
+      const InitializationSettings(android: androidInit),
+    );
+    final androidPlugin = notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        channelId,
+        'ChanHung sync',
+        description: 'Đồng bộ dữ liệu ứng dụng',
+        importance: Importance.low,
+      ),
+    );
+
+    await _bg.configure(
+      androidConfiguration: AndroidConfiguration(
+        onStart: staffLocationBgOnStart,
+        autoStart: false,
+        isForegroundMode: true,
+        notificationChannelId: channelId,
+        initialNotificationTitle: 'ChanHung',
+        initialNotificationContent: 'Đồng bộ dữ liệu ứng dụng',
+        foregroundServiceNotificationId: 7741,
+        foregroundServiceTypes: [AndroidForegroundType.location],
+      ),
+      iosConfiguration: IosConfiguration(
+        autoStart: false,
+        onForeground: staffLocationBgOnStart,
+        onBackground: staffLocationBgOnIosBackground,
+      ),
+    );
+  }
+
+  /// Gọi sau login / dashboard / splash.
   Future<void> startIfNeeded() async {
     try {
-      if (!Get.isRegistered<ApiClient>()) {
-        _log('no ApiClient');
-        return;
-      }
-      _apiClient = Get.find<ApiClient>();
-      final token = _apiClient!.sharedPreferences
-              .getString(SharedPreferenceHelper.accessTokenKey) ??
-          '';
+      final prefs = await SharedPreferences.getInstance();
+      final token =
+          prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
       if (token.trim().isEmpty || token.trim().toLowerCase() == 'null') {
-        _log('no token');
-        stop();
+        await stopBackground();
+        lastStatus = 'no_token';
         return;
       }
 
-      await refreshConfig();
-      _configTimer?.cancel();
-      _configTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-        refreshConfig();
-      });
+      final config = await _fetchConfig(token);
+      if (config == null) {
+        lastStatus = 'config_error';
+        return;
+      }
+
+      final enabled = config['enabled'] == true;
+      final interval =
+          (int.tryParse('${config['interval_seconds']}') ?? 60).clamp(30, 600);
+      final minDistance =
+          (int.tryParse('${config['min_distance_m']}') ?? 25).clamp(0, 500);
+
+      await prefs.setBool(_prefsEnabledKey, enabled);
+      await prefs.setInt(_prefsIntervalKey, interval);
+      await prefs.setInt(_prefsMinDistanceKey, minDistance);
+
+      if (!enabled) {
+        await stopBackground();
+        lastStatus = 'disabled_by_server';
+        return;
+      }
+
+      final permitted = await _ensureAlwaysPermission();
+      if (!permitted) {
+        lastStatus = 'permission_denied';
+        _log('background permission denied');
+        return;
+      }
+
+      // Ping ngay trên UI isolate rồi start nền
+      await _pingOnce(token, minDistance, force: true);
+      await _startBackground();
+      lastStatus = 'bg_running';
+      _log('background tracking started interval=$interval');
     } catch (e) {
+      lastStatus = 'start_error';
       _log('startIfNeeded error: $e');
     }
   }
 
-  Future<void> refreshConfig() async {
-    if (_apiClient == null) return;
+  Future<void> stopBackground() async {
     try {
-      final url =
-          '${UrlContainer.baseUrl}${UrlContainer.locationTrackingConfigUrl}';
-      final res = await _apiClient!
-          .request(url, Method.getMethod, null, passHeader: true);
-      _log('config status=${res.statusCode}');
-      if (res.statusCode != 200 || res.responseJson.isEmpty) {
-        // Lỗi tạm: giữ trạng thái cũ, không tắt ngay
-        lastStatus = 'config_http_${res.statusCode}';
-        return;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefsEnabledKey, false);
+      final running = await _bg.isRunning();
+      if (running) {
+        _bg.invoke('stop');
+        await _bg.stopService();
       }
-      final json = jsonDecode(res.responseJson);
-      if (json is! Map) {
-        lastStatus = 'config_bad_json';
-        return;
+    } catch (_) {}
+    lastStatus = 'stopped';
+  }
+
+  Future<Map<String, dynamic>?> _fetchConfig(String token) async {
+    try {
+      final url = Uri.parse(
+          '${UrlContainer.baseUrl}${UrlContainer.locationTrackingConfigUrl}');
+      final res = await http.get(url, headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+        'X-Auth-Token': token,
+      }).timeout(const Duration(seconds: 20));
+      if (res.statusCode != 200) return null;
+      final json = jsonDecode(res.body);
+      if (json is! Map) return null;
+      final data = json['data'];
+      if (data is Map) {
+        return {
+          'enabled': _asBool(data['enabled']),
+          'interval_seconds': data['interval_seconds'],
+          'min_distance_m': data['min_distance_m'],
+        };
       }
-      final rawData = json['data'];
-      final data = rawData is Map ? rawData : json;
-      final enabled = _asBool(data['enabled']);
-      final interval = int.tryParse('${data['interval_seconds']}') ?? 60;
-      final minDistance = int.tryParse('${data['min_distance_m']}') ?? 25;
-      _intervalSeconds = interval.clamp(30, 600);
-      _minDistanceM = minDistance.clamp(0, 500);
-      lastStatus = enabled ? 'enabled' : 'disabled_by_server';
-      _log('config enabled=$enabled interval=$_intervalSeconds');
-      _setEnabled(enabled);
+      return {
+        'enabled': _asBool(json['enabled']),
+        'interval_seconds': json['interval_seconds'],
+        'min_distance_m': json['min_distance_m'],
+      };
     } catch (e) {
-      lastStatus = 'config_error';
-      _log('refreshConfig error: $e');
+      _log('fetchConfig error: $e');
+      return null;
     }
   }
 
@@ -114,48 +184,9 @@ class StaffLocationTrackingService extends GetxService
     return s == '1' || s == 'true' || s == 'yes' || s == 'on';
   }
 
-  void _setEnabled(bool enabled) {
-    _enabled = enabled;
-    if (!enabled) {
-      _timer?.cancel();
-      _timer = null;
-      _running = false;
-      return;
-    }
-    if (_running) {
-      _restartTimer();
-      // Vẫn ping ngay khi config xác nhận đang bật
-      _ensurePermissionAndPing();
-      return;
-    }
-    _running = true;
-    _ensurePermissionAndPing();
-    _restartTimer();
-  }
-
-  void _restartTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(Duration(seconds: _intervalSeconds), (_) {
-      _sendPing();
-    });
-  }
-
-  Future<void> _ensurePermissionAndPing() async {
-    final ok = await _ensurePermission();
-    if (ok) {
-      await _sendPing(force: true);
-    } else {
-      lastStatus = 'permission_denied';
-      _log('permission denied or location service off');
-    }
-  }
-
-  Future<bool> _ensurePermission() async {
+  Future<bool> _ensureAlwaysPermission() async {
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        return false;
-      }
+      if (!await Geolocator.isLocationServiceEnabled()) return false;
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -164,65 +195,46 @@ class StaffLocationTrackingService extends GetxService
           permission == LocationPermission.deniedForever) {
         return false;
       }
-      return true;
+      // Xin Always (Android 10+ / iOS) để chạy nền
+      if (permission == LocationPermission.whileInUse) {
+        permission = await Geolocator.requestPermission();
+      }
+      return permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse;
     } catch (e) {
       _log('permission error: $e');
       return false;
     }
   }
 
-  Future<Position?> _readPosition() async {
-    try {
-      return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 12),
-        ),
-      );
-    } catch (e) {
-      _log('getCurrentPosition failed: $e — try lastKnown');
-      try {
-        return await Geolocator.getLastKnownPosition();
-      } catch (_) {
-        return null;
-      }
+  Future<void> _startBackground() async {
+    final running = await _bg.isRunning();
+    if (!running) {
+      await _bg.startService();
+    } else {
+      _bg.invoke('refresh');
     }
   }
 
-  Future<void> _sendPing({bool force = false}) async {
-    if (!_enabled || _apiClient == null || _pingInFlight) return;
-    _pingInFlight = true;
+  Future<void> _pingOnce(String token, int minDistance,
+      {bool force = false}) async {
     try {
-      final ok = await _ensurePermission();
-      if (!ok) {
-        lastStatus = 'permission_denied';
-        return;
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 12),
+          ),
+        );
+      } catch (_) {
+        pos = await Geolocator.getLastKnownPosition();
       }
+      if (pos == null) return;
 
-      final pos = await _readPosition();
-      if (pos == null) {
-        lastStatus = 'no_position';
-        return;
-      }
-
-      if (!force &&
-          _lastLat != null &&
-          _lastLng != null &&
-          _minDistanceM > 0) {
-        final dist = Geolocator.distanceBetween(
-            _lastLat!, _lastLng!, pos.latitude, pos.longitude);
-        final secondsSince = _lastSentAt == null
-            ? 9999
-            : DateTime.now().difference(_lastSentAt!).inSeconds;
-        if (dist < _minDistanceM && secondsSince < 300) {
-          lastStatus = 'skipped_too_close';
-          return;
-        }
-      }
-
-      final url =
-          '${UrlContainer.baseUrl}${UrlContainer.locationTrackingPingUrl}';
-      final body = <String, dynamic>{
+      final url = Uri.parse(
+          '${UrlContainer.baseUrl}${UrlContainer.locationTrackingPingUrl}');
+      final body = {
         'latitude': pos.latitude.toString(),
         'longitude': pos.longitude.toString(),
         'accuracy_m': pos.accuracy.toStringAsFixed(1),
@@ -231,34 +243,19 @@ class StaffLocationTrackingService extends GetxService
         'heading': pos.heading.isFinite ? pos.heading.toStringAsFixed(1) : '0',
         'device_platform': Platform.isIOS ? 'ios' : 'android',
       };
-
-      final res = await _apiClient!
-          .request(url, Method.postMethod, body, passHeader: true);
-      _log('ping status=${res.statusCode} body=${res.responseJson}');
-      if (res.statusCode == 200) {
-        _lastLat = pos.latitude;
-        _lastLng = pos.longitude;
-        _lastSentAt = DateTime.now();
-        lastStatus = 'ping_ok';
-      } else {
-        lastStatus = 'ping_http_${res.statusCode}';
-      }
+      final res = await http
+          .post(url,
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': 'Bearer $token',
+                'X-Auth-Token': token,
+              },
+              body: body)
+          .timeout(const Duration(seconds: 20));
+      _log('ui ping ${res.statusCode}');
     } catch (e) {
-      lastStatus = 'ping_error';
-      _log('ping error: $e');
-    } finally {
-      _pingInFlight = false;
+      _log('ui ping error: $e');
     }
-  }
-
-  void stop() {
-    _enabled = false;
-    _running = false;
-    _timer?.cancel();
-    _timer = null;
-    _configTimer?.cancel();
-    _configTimer = null;
-    lastStatus = 'stopped';
   }
 
   void _log(String message) {
@@ -266,4 +263,126 @@ class StaffLocationTrackingService extends GetxService
       debugPrint('[StaffLocationTracking] $message');
     }
   }
+}
+
+@pragma('vm:entry-point')
+Future<bool> staffLocationBgOnIosBackground(ServiceInstance service) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized();
+  return true;
+}
+
+@pragma('vm:entry-point')
+void staffLocationBgOnStart(ServiceInstance service) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized();
+
+  if (service is AndroidServiceInstance) {
+    service.setAsForegroundService();
+    service.setForegroundNotificationInfo(
+      title: 'ChanHung',
+      content: 'Đồng bộ dữ liệu ứng dụng',
+    );
+  }
+
+  Future<void> tick() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final wanted = prefs.getBool('staff_location_bg_wanted') ?? false;
+      final token =
+          prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
+      if (!wanted ||
+          token.trim().isEmpty ||
+          token.trim().toLowerCase() == 'null') {
+        service.stopSelf();
+        return;
+      }
+
+      try {
+        final cfgUrl = Uri.parse(
+            '${UrlContainer.baseUrl}${UrlContainer.locationTrackingConfigUrl}');
+        final cfgRes = await http.get(cfgUrl, headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+          'X-Auth-Token': token,
+        }).timeout(const Duration(seconds: 15));
+        if (cfgRes.statusCode == 200) {
+          final json = jsonDecode(cfgRes.body);
+          final data = (json is Map && json['data'] is Map)
+              ? json['data'] as Map
+              : (json is Map ? json : null);
+          if (data != null) {
+            final enabled = data['enabled'] == true ||
+                data['enabled'] == 1 ||
+                '${data['enabled']}' == '1' ||
+                '${data['enabled']}' == 'true';
+            if (!enabled) {
+              await prefs.setBool('staff_location_bg_wanted', false);
+              service.stopSelf();
+              return;
+            }
+            final newInterval = int.tryParse('${data['interval_seconds']}');
+            if (newInterval != null) {
+              await prefs.setInt(
+                  'staff_location_bg_interval', newInterval.clamp(30, 600));
+            }
+            final minD = int.tryParse('${data['min_distance_m']}');
+            if (minD != null) {
+              await prefs.setInt(
+                  'staff_location_bg_min_distance', minD.clamp(0, 500));
+            }
+          }
+        }
+      } catch (_) {}
+
+      Position? pos;
+      try {
+        pos = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 15),
+          ),
+        );
+      } catch (_) {
+        pos = await Geolocator.getLastKnownPosition();
+      }
+      if (pos == null) return;
+
+      final pingUrl = Uri.parse(
+          '${UrlContainer.baseUrl}${UrlContainer.locationTrackingPingUrl}');
+      await http
+          .post(pingUrl,
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': 'Bearer $token',
+                'X-Auth-Token': token,
+              },
+              body: {
+                'latitude': pos.latitude.toString(),
+                'longitude': pos.longitude.toString(),
+                'accuracy_m': pos.accuracy.toStringAsFixed(1),
+                'speed_kmh': (pos.speed.isFinite ? (pos.speed * 3.6) : 0)
+                    .toStringAsFixed(1),
+                'heading':
+                    pos.heading.isFinite ? pos.heading.toStringAsFixed(1) : '0',
+                'device_platform': Platform.isIOS ? 'ios' : 'android',
+              })
+          .timeout(const Duration(seconds: 20));
+    } catch (_) {}
+  }
+
+  service.on('stop').listen((event) {
+    service.stopSelf();
+  });
+  service.on('refresh').listen((event) {
+    tick();
+  });
+
+  await tick();
+  final prefs = await SharedPreferences.getInstance();
+  final interval =
+      (prefs.getInt('staff_location_bg_interval') ?? 60).clamp(30, 600);
+  Timer.periodic(Duration(seconds: interval), (_) {
+    tick();
+  });
 }
