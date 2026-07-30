@@ -137,10 +137,9 @@ class StaffLocationTrackingService extends GetxService
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_prefsEnabledKey, false);
-      final running = await _bg.isRunning();
-      if (running) {
+      // FlutterBackgroundService không có stopService(); dừng qua invoke → stopSelf().
+      if (await _bg.isRunning()) {
         _bg.invoke('stop');
-        await _bg.stopService();
       }
     } catch (_) {}
     lastStatus = 'stopped';
