@@ -14,6 +14,125 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Hàng đợi bền vững dùng được ở cả UI isolate và background isolate.
+/// Điểm GPS luôn được ghi xuống máy trước khi thử gửi lên server.
+class _LocationOfflineQueue {
+  static const String _key = 'staff_location_offline_queue_v1';
+  static const int _maxPoints = 5000;
+
+  static Future<List<Map<String, String>>> _read(
+      SharedPreferences prefs) async {
+    await prefs.reload();
+    final raw = prefs.getString(_key);
+    if (raw == null || raw.isEmpty) return <Map<String, String>>[];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return <Map<String, String>>[];
+      return decoded
+          .whereType<Map>()
+          .map((item) => item
+              .map((key, value) => MapEntry(key.toString(), value.toString())))
+          .toList();
+    } catch (_) {
+      return <Map<String, String>>[];
+    }
+  }
+
+  static Future<void> _write(
+      SharedPreferences prefs, List<Map<String, String>> queue) async {
+    await prefs.setString(_key, jsonEncode(queue));
+  }
+
+  static Future<void> enqueue(Map<String, String> point) async {
+    final prefs = await SharedPreferences.getInstance();
+    final queue = await _read(prefs);
+    final pointId = point['client_point_id'];
+    if (pointId != null &&
+        queue.any((item) => item['client_point_id'] == pointId)) {
+      return;
+    }
+    queue.add(point);
+    queue.sort(
+        (a, b) => (a['recorded_at'] ?? '').compareTo(b['recorded_at'] ?? ''));
+    if (queue.length > _maxPoints) {
+      queue.removeRange(0, queue.length - _maxPoints);
+    }
+    await _write(prefs, queue);
+  }
+
+  static Future<int> flush(String token) async {
+    if (token.trim().isEmpty || token.trim().toLowerCase() == 'null') return 0;
+    final prefs = await SharedPreferences.getInstance();
+    final queue = await _read(prefs);
+    var sent = 0;
+
+    while (queue.isNotEmpty) {
+      try {
+        final url = Uri.parse(
+            '${UrlContainer.baseUrl}${UrlContainer.locationTrackingPingUrl}');
+        final body = Map<String, String>.from(queue.first)
+          ..remove('client_point_id');
+        final response = await http
+            .post(url,
+                headers: {
+                  'Accept': 'application/json',
+                  'Authorization': 'Bearer $token',
+                  'X-Auth-Token': token,
+                },
+                body: body)
+            .timeout(const Duration(seconds: 20));
+
+        if (response.statusCode < 200 || response.statusCode >= 300) break;
+        dynamic decoded;
+        try {
+          decoded = jsonDecode(response.body);
+        } catch (_) {}
+        final payload = decoded is Map && decoded['data'] is Map
+            ? decoded['data'] as Map
+            : (decoded is Map ? decoded : null);
+        final accepted = payload?['accepted'] == true ||
+            payload?['accepted'] == 1 ||
+            '${payload?['accepted']}' == 'true';
+        final reason = '${payload?['reason'] ?? ''}';
+        if (!accepted && reason != 'too_close' && reason != 'disabled') break;
+
+        queue.removeAt(0);
+        sent++;
+        await _write(prefs, queue);
+        if (reason == 'disabled') {
+          queue.clear();
+          await _write(prefs, queue);
+          break;
+        }
+      } catch (_) {
+        break;
+      }
+    }
+    return sent;
+  }
+}
+
+Map<String, String> _locationPayload(Position pos) {
+  final recordedAt = pos.timestamp.toUtc().toIso8601String();
+  return {
+    'client_point_id':
+        '${recordedAt}_${pos.latitude.toStringAsFixed(6)}_${pos.longitude.toStringAsFixed(6)}',
+    'latitude': pos.latitude.toString(),
+    'longitude': pos.longitude.toString(),
+    'accuracy_m': pos.accuracy.toStringAsFixed(1),
+    'speed_kmh':
+        (pos.speed.isFinite ? (pos.speed * 3.6) : 0).toStringAsFixed(1),
+    'heading': pos.heading.isFinite ? pos.heading.toStringAsFixed(1) : '0',
+    'device_platform': Platform.isIOS ? 'ios' : 'android',
+    'recorded_at': recordedAt,
+  };
+}
+
+bool _isFreshPosition(Position pos) {
+  return DateTime.now().toUtc().difference(pos.timestamp.toUtc()).abs() <=
+      const Duration(minutes: 5);
+}
+
 /// Theo dõi vị trí nền: gửi GPS khi app tắt màn hình / vào nền (Android cần
 /// notification hệ thống bắt buộc; iOS cần quyền Always).
 class StaffLocationTrackingService extends GetxService
@@ -218,40 +337,23 @@ class StaffLocationTrackingService extends GetxService
   Future<void> _pingOnce(String token, int minDistance,
       {bool force = false}) async {
     try {
+      await _LocationOfflineQueue.flush(token);
       Position? pos;
       try {
         pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
+            accuracy: LocationAccuracy.high,
             timeLimit: Duration(seconds: 12),
           ),
         );
       } catch (_) {
         pos = await Geolocator.getLastKnownPosition();
       }
-      if (pos == null) return;
+      if (pos == null || !_isFreshPosition(pos)) return;
 
-      final url = Uri.parse(
-          '${UrlContainer.baseUrl}${UrlContainer.locationTrackingPingUrl}');
-      final body = {
-        'latitude': pos.latitude.toString(),
-        'longitude': pos.longitude.toString(),
-        'accuracy_m': pos.accuracy.toStringAsFixed(1),
-        'speed_kmh': (pos.speed.isFinite ? (pos.speed * 3.6) : 0)
-            .toStringAsFixed(1),
-        'heading': pos.heading.isFinite ? pos.heading.toStringAsFixed(1) : '0',
-        'device_platform': Platform.isIOS ? 'ios' : 'android',
-      };
-      final res = await http
-          .post(url,
-              headers: {
-                'Accept': 'application/json',
-                'Authorization': 'Bearer $token',
-                'X-Auth-Token': token,
-              },
-              body: body)
-          .timeout(const Duration(seconds: 20));
-      _log('ui ping ${res.statusCode}');
+      await _LocationOfflineQueue.enqueue(_locationPayload(pos));
+      final sent = await _LocationOfflineQueue.flush(token);
+      _log('ui location queue flushed=$sent');
     } catch (e) {
       _log('ui ping error: $e');
     }
@@ -284,7 +386,10 @@ void staffLocationBgOnStart(ServiceInstance service) async {
     );
   }
 
+  var tickRunning = false;
   Future<void> tick() async {
+    if (tickRunning) return;
+    tickRunning = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       final wanted = prefs.getBool('staff_location_bg_wanted') ?? false;
@@ -338,36 +443,22 @@ void staffLocationBgOnStart(ServiceInstance service) async {
       try {
         pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
+            accuracy: LocationAccuracy.high,
             timeLimit: Duration(seconds: 15),
           ),
         );
       } catch (_) {
         pos = await Geolocator.getLastKnownPosition();
       }
-      if (pos == null) return;
-
-      final pingUrl = Uri.parse(
-          '${UrlContainer.baseUrl}${UrlContainer.locationTrackingPingUrl}');
-      await http
-          .post(pingUrl,
-              headers: {
-                'Accept': 'application/json',
-                'Authorization': 'Bearer $token',
-                'X-Auth-Token': token,
-              },
-              body: {
-                'latitude': pos.latitude.toString(),
-                'longitude': pos.longitude.toString(),
-                'accuracy_m': pos.accuracy.toStringAsFixed(1),
-                'speed_kmh': (pos.speed.isFinite ? (pos.speed * 3.6) : 0)
-                    .toStringAsFixed(1),
-                'heading':
-                    pos.heading.isFinite ? pos.heading.toStringAsFixed(1) : '0',
-                'device_platform': Platform.isIOS ? 'ios' : 'android',
-              })
-          .timeout(const Duration(seconds: 20));
-    } catch (_) {}
+      if (pos != null && _isFreshPosition(pos)) {
+        // Ghi xuống máy trước. Nếu request thất bại, điểm vẫn nằm trong queue.
+        await _LocationOfflineQueue.enqueue(_locationPayload(pos));
+      }
+      await _LocationOfflineQueue.flush(token);
+    } catch (_) {
+    } finally {
+      tickRunning = false;
+    }
   }
 
   service.on('stop').listen((event) {
