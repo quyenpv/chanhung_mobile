@@ -27,28 +27,38 @@ class SplashController extends GetxController {
   SplashController(
       {required this.splashRepo, required this.localizationController});
 
-  gotoNextPage() async {
-    await loadLanguage();
-    await checkAppUpdate();
-    bool isRemember = splashRepo.apiClient.sharedPreferences
-            .getBool(SharedPreferenceHelper.rememberMeKey) ??
-        false;
-    final savedToken = splashRepo.apiClient.sharedPreferences
-            .getString(SharedPreferenceHelper.accessTokenKey) ??
-        '';
-    final normalizedToken = savedToken.trim().toLowerCase();
-    if (isRemember && (normalizedToken.isEmpty || normalizedToken == 'null')) {
+  Future<void> gotoNextPage() async {
+    try {
+      await loadLanguage();
+      await checkAppUpdate();
+      bool isRemember = splashRepo.apiClient.sharedPreferences
+              .getBool(SharedPreferenceHelper.rememberMeKey) ??
+          false;
+      final savedToken = splashRepo.apiClient.sharedPreferences
+              .getString(SharedPreferenceHelper.accessTokenKey) ??
+          '';
+      final normalizedToken = savedToken.trim().toLowerCase();
+      if (isRemember &&
+          (normalizedToken.isEmpty || normalizedToken == 'null')) {
+        await splashRepo.apiClient.sharedPreferences
+            .setBool(SharedPreferenceHelper.rememberMeKey, false);
+        isRemember = false;
+      }
+      bool isOnBoard = splashRepo.apiClient.sharedPreferences
+              .getBool(SharedPreferenceHelper.onboardKey) ??
+          false;
+      noInternet = false;
+      update();
+
+      await getData(isRemember, isOnBoard);
+    } catch (_) {
+      isLoading = false;
+      noInternet = true;
+      update();
       await splashRepo.apiClient.sharedPreferences
           .setBool(SharedPreferenceHelper.rememberMeKey, false);
-      isRemember = false;
+      Get.offAllNamed(RouteHelper.loginScreen);
     }
-    bool isOnBoard = splashRepo.apiClient.sharedPreferences
-            .getBool(SharedPreferenceHelper.onboardKey) ??
-        false;
-    noInternet = false;
-    update();
-
-    getData(isRemember, isOnBoard);
   }
 
   Future<void> checkAppUpdate() async {
@@ -68,7 +78,9 @@ class SplashController extends GetxController {
         var json = jsonDecode(response.responseJson);
         if (json != null && json['success'] == true && json['data'] != null) {
           var config = json['data'];
-          String latestVersion = config['latest_app_version'] ?? config['current_app_version'] ?? '1.0.0';
+          String latestVersion = config['latest_app_version'] ??
+              config['current_app_version'] ??
+              '1.0.0';
           String minVersion = config['min_app_version'] ?? '1.0.0';
           String downloadUrl = config['apk_download_url'] ?? '';
           String changelog = config['update_changelog'] ?? '';
@@ -78,13 +90,14 @@ class SplashController extends GetxController {
           String currentVersion = packageInfo.version;
 
           if (_isVersionGreater(currentVersion, latestVersion)) {
-            bool isForceUpdate = remoteForceUpdate || _isVersionGreater(minVersion, currentVersion);
+            bool isForceUpdate = remoteForceUpdate ||
+                _isVersionGreater(minVersion, currentVersion);
 
             if (downloadUrl.isNotEmpty) {
               // Đánh dấu đã hiện dialog trong session này (trước khi await).
               _updateDialogShownThisSession = true;
 
-              bool? proceed = await Get.dialog<bool>(
+              await Get.dialog<bool>(
                 UpdateDialog(
                   isForceUpdate: isForceUpdate,
                   latestVersion: latestVersion,
@@ -92,30 +105,29 @@ class SplashController extends GetxController {
                   onUpdatePressed: () async {
                     final Uri url = Uri.parse(downloadUrl);
                     if (await canLaunchUrl(url)) {
-                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                      await launchUrl(url,
+                          mode: LaunchMode.externalApplication);
                       if (!isForceUpdate) {
                         Get.back(result: true);
                       }
                     } else {
-                      CustomSnackBar.error(errorList: ['Could not launch update URL']);
+                      CustomSnackBar.error(
+                          errorList: ['Could not launch update URL']);
                     }
                   },
                 ),
                 barrierDismissible: !isForceUpdate,
               );
-
-              if (isForceUpdate && (proceed == null || !proceed)) {
-                SystemNavigator.pop();
-                await Future.delayed(const Duration(seconds: 5));
-              }
             } else {
               if (showNoUpdateToast) {
-                CustomSnackBar.success(successList: ['You are using the latest version'.tr]);
+                CustomSnackBar.success(
+                    successList: ['You are using the latest version'.tr]);
               }
             }
           } else {
             if (showNoUpdateToast) {
-              CustomSnackBar.success(successList: ['You are using the latest version'.tr]);
+              CustomSnackBar.success(
+                  successList: ['You are using the latest version'.tr]);
             }
           }
         } else {
@@ -137,10 +149,14 @@ class SplashController extends GetxController {
 
   bool _isVersionGreater(String current, String latest) {
     try {
-      List<int> currentParts = current.split('.').map((e) => int.parse(e.trim())).toList();
-      List<int> latestParts = latest.split('.').map((e) => int.parse(e.trim())).toList();
+      List<int> currentParts =
+          current.split('.').map((e) => int.parse(e.trim())).toList();
+      List<int> latestParts =
+          latest.split('.').map((e) => int.parse(e.trim())).toList();
 
-      int length = currentParts.length > latestParts.length ? currentParts.length : latestParts.length;
+      int length = currentParts.length > latestParts.length
+          ? currentParts.length
+          : latestParts.length;
       for (int i = 0; i < length; i++) {
         int currentPart = i < currentParts.length ? currentParts[i] : 0;
         int latestPart = i < latestParts.length ? latestParts[i] : 0;
@@ -158,7 +174,7 @@ class SplashController extends GetxController {
   }
 
   bool noInternet = false;
-  void getData(bool isRemember, bool isOnBoard) async {
+  Future<void> getData(bool isRemember, bool isOnBoard) async {
     if (!isRemember) {
       isLoading = false;
       update();

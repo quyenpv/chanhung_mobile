@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:chanhung/core/service/notification_service.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
@@ -13,23 +15,49 @@ import 'package:chanhung/core/route/route.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/di_service/di_services.dart' as services;
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() {
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase (graceful fallback if google-services.json not yet configured)
-  try {
-    await Firebase.initializeApp();
-    await NotificationService.initialize();
-  } catch (_) {
-    // Firebase not configured yet — skip silently
-  }
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      debugPrintStack(
+        label: 'Unhandled Flutter error: ${details.exceptionAsString()}',
+        stackTrace: details.stack,
+      );
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      debugPrintStack(
+        label: 'Unhandled platform error: $error',
+        stackTrace: stack,
+      );
+      return true;
+    };
 
-  final sharedPreferences = await SharedPreferences.getInstance();
-  Get.lazyPut(() => sharedPreferences);
-  Map<String, Map<String, String>> languages = await services.init();
+    // Initialize Firebase (graceful fallback if google-services.json not yet configured)
+    try {
+      await Firebase.initializeApp();
+      await NotificationService.initialize();
+    } catch (error, stack) {
+      debugPrintStack(
+        label: 'Firebase initialization skipped: $error',
+        stackTrace: stack,
+      );
+      // Firebase not configured yet — skip silently
+    }
 
-  HttpOverrides.global = MyHttpOverrides();
-  runApp(MyApp(languages: languages));
+    final sharedPreferences = await SharedPreferences.getInstance();
+    Get.lazyPut(() => sharedPreferences);
+    final languages = await services.init();
+
+    HttpOverrides.global = MyHttpOverrides();
+    runApp(MyApp(languages: languages));
+  }, (error, stack) {
+    debugPrintStack(
+      label: 'Unhandled application error: $error',
+      stackTrace: stack,
+    );
+  });
 }
 
 class MyHttpOverrides extends HttpOverrides {
