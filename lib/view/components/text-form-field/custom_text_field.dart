@@ -1,5 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter/services.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/style.dart';
@@ -64,6 +65,15 @@ class CustomTextField extends StatefulWidget {
 class _CustomTextFieldState extends State<CustomTextField> {
   bool obscureText = true;
 
+  void _showKeyboard() {
+    if (widget.readOnly || !widget.isEnable) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return widget.needOutlineBorder
@@ -80,6 +90,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
                 textInputAction: widget.inputAction,
                 enabled: widget.isEnable,
                 focusNode: widget.focusNode,
+                onTap: _showKeyboard,
                 validator: widget.validator,
                 keyboardType: widget.textInputType,
                 obscureText: widget.isPassword ? obscureText : false,
@@ -137,7 +148,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
                 onFieldSubmitted: (text) => widget.nextFocus != null
                     ? FocusScope.of(context).requestFocus(widget.nextFocus)
                     : null,
-                onChanged: (text) => widget.onChanged!(text),
+                onChanged: (text) => widget.onChanged?.call(text),
               )
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,6 +169,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
                     textInputAction: widget.inputAction,
                     enabled: widget.isEnable,
                     focusNode: widget.focusNode,
+                    onTap: _showKeyboard,
                     validator: widget.validator,
                     keyboardType: widget.textInputType,
                     obscureText: widget.isPassword ? obscureText : false,
@@ -219,7 +231,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
                     onFieldSubmitted: (text) => widget.nextFocus != null
                         ? FocusScope.of(context).requestFocus(widget.nextFocus)
                         : null,
-                    onChanged: (text) => widget.onChanged!(text),
+                    onChanged: (text) => widget.onChanged?.call(text),
                   )
                 ],
               )
@@ -234,6 +246,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
             textInputAction: widget.inputAction,
             enabled: widget.isEnable,
             focusNode: widget.focusNode,
+            onTap: _showKeyboard,
             validator: widget.validator,
             keyboardType: widget.textInputType,
             obscureText: widget.isPassword ? obscureText : false,
@@ -286,7 +299,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
             onFieldSubmitted: (text) => widget.nextFocus != null
                 ? FocusScope.of(context).requestFocus(widget.nextFocus)
                 : null,
-            onChanged: (text) => widget.onChanged!(text),
+            onChanged: (text) => widget.onChanged?.call(text),
           );
   }
 

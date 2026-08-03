@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
 import 'package:chanhung/core/utils/style.dart';
@@ -10,10 +11,12 @@ class CreatePaymentRequestScreen extends StatefulWidget {
   const CreatePaymentRequestScreen({super.key});
 
   @override
-  State<CreatePaymentRequestScreen> createState() => _CreatePaymentRequestScreenState();
+  State<CreatePaymentRequestScreen> createState() =>
+      _CreatePaymentRequestScreenState();
 }
 
-class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen> {
+class _CreatePaymentRequestScreenState
+    extends State<CreatePaymentRequestScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
@@ -24,6 +27,14 @@ class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen>
 
   int? _selectedCompanyId;
   String _selectedPaymentMethod = 'cash';
+
+  void _showKeyboard() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -64,17 +75,21 @@ class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen>
                 children: [
                   Text(
                     'Thông tin đề nghị',
-                    style: semiBoldLarge.copyWith(color: ColorResources.primaryColor),
+                    style: semiBoldLarge.copyWith(
+                        color: ColorResources.primaryColor),
                   ),
                   const SizedBox(height: Dimensions.space15),
 
                   // Title
                   TextFormField(
                     controller: _titleController,
+                    onTap: _showKeyboard,
                     decoration: InputDecoration(
                       labelText: 'Tiêu đề *',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
                     ),
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
@@ -90,8 +105,10 @@ class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen>
                     value: _selectedCompanyId,
                     decoration: InputDecoration(
                       labelText: 'Đơn vị thành viên *',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
                     ),
                     items: controller.companiesList.map((c) {
                       return DropdownMenuItem<int>(
@@ -116,12 +133,15 @@ class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen>
                   // Amount
                   TextFormField(
                     controller: _amountController,
+                    onTap: _showKeyboard,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: 'Số tiền *',
                       suffixText: controller.currency ?? 'đ',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
                     ),
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
@@ -138,18 +158,22 @@ class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen>
                   // Description
                   TextFormField(
                     controller: _descController,
+                    onTap: _showKeyboard,
                     maxLines: 3,
                     decoration: InputDecoration(
                       labelText: 'Nội dung chi tiết',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
                     ),
                   ),
                   const SizedBox(height: Dimensions.space25),
 
                   Text(
                     'Thông tin thụ hưởng',
-                    style: semiBoldLarge.copyWith(color: ColorResources.primaryColor),
+                    style: semiBoldLarge.copyWith(
+                        color: ColorResources.primaryColor),
                   ),
                   const SizedBox(height: Dimensions.space15),
 
@@ -158,12 +182,15 @@ class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen>
                     value: _selectedPaymentMethod,
                     decoration: InputDecoration(
                       labelText: 'Phương thức thanh toán',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
                     ),
                     items: const [
                       DropdownMenuItem(value: 'cash', child: Text('Tiền mặt')),
-                      DropdownMenuItem(value: 'bank_transfer', child: Text('Chuyển khoản')),
+                      DropdownMenuItem(
+                          value: 'bank_transfer', child: Text('Chuyển khoản')),
                     ],
                     onChanged: (val) {
                       setState(() {
@@ -176,10 +203,13 @@ class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen>
                   // Beneficiary Name
                   TextFormField(
                     controller: _beneficiaryNameController,
+                    onTap: _showKeyboard,
                     decoration: InputDecoration(
                       labelText: 'Tên người thụ hưởng *',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
                     ),
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
@@ -194,13 +224,17 @@ class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen>
                     // Beneficiary Bank
                     TextFormField(
                       controller: _beneficiaryBankController,
+                      onTap: _showKeyboard,
                       decoration: InputDecoration(
                         labelText: 'Ngân hàng nhận',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
                       ),
                       validator: (val) {
-                        if (_selectedPaymentMethod == 'bank_transfer' && (val == null || val.trim().isEmpty)) {
+                        if (_selectedPaymentMethod == 'bank_transfer' &&
+                            (val == null || val.trim().isEmpty)) {
                           return 'Vui lòng nhập ngân hàng nhận';
                         }
                         return null;
@@ -211,13 +245,17 @@ class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen>
                     // Beneficiary Account
                     TextFormField(
                       controller: _beneficiaryAccountController,
+                      onTap: _showKeyboard,
                       decoration: InputDecoration(
                         labelText: 'Số tài khoản nhận',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 12),
                       ),
                       validator: (val) {
-                        if (_selectedPaymentMethod == 'bank_transfer' && (val == null || val.trim().isEmpty)) {
+                        if (_selectedPaymentMethod == 'bank_transfer' &&
+                            (val == null || val.trim().isEmpty)) {
                           return 'Vui lòng nhập số tài khoản nhận';
                         }
                         return null;
@@ -235,21 +273,31 @@ class _CreatePaymentRequestScreenState extends State<CreatePaymentRequestScreen>
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: ColorResources.primaryColor,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: controller.isCreating
                           ? null
                           : () async {
                               if (_formKey.currentState!.validate()) {
+                                final totalAmount = double.tryParse(
+                                    _amountController.text.trim());
+                                if (totalAmount == null ||
+                                    _selectedCompanyId == null) {
+                                  return;
+                                }
                                 final success = await controller.createRequest(
                                   title: _titleController.text.trim(),
                                   companyId: _selectedCompanyId!,
-                                  totalAmount: double.parse(_amountController.text.trim()),
+                                  totalAmount: totalAmount,
                                   description: _descController.text.trim(),
                                   paymentMethodCode: _selectedPaymentMethod,
-                                  beneficiaryName: _beneficiaryNameController.text.trim(),
-                                  beneficiaryBank: _beneficiaryBankController.text.trim(),
-                                  beneficiaryAccount: _beneficiaryAccountController.text.trim(),
+                                  beneficiaryName:
+                                      _beneficiaryNameController.text.trim(),
+                                  beneficiaryBank:
+                                      _beneficiaryBankController.text.trim(),
+                                  beneficiaryAccount:
+                                      _beneficiaryAccountController.text.trim(),
                                 );
                                 if (success) {
                                   Get.back();

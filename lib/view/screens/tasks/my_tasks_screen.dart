@@ -19,7 +19,6 @@ import 'package:chanhung/view/components/no_data.dart';
 import 'package:chanhung/view/components/divider/custom_divider.dart';
 import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 
-
 class MyTasksScreen extends StatefulWidget {
   const MyTasksScreen({super.key});
 
@@ -68,10 +67,12 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                       : ListView.separated(
                           padding: const EdgeInsets.all(Dimensions.space15),
                           itemCount: controller.tasksList.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: Dimensions.space10),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: Dimensions.space10),
                           itemBuilder: (ctx, idx) {
                             final task = controller.tasksList[idx];
-                            return _TaskCard(task: task, controller: controller);
+                            return _TaskCard(
+                                task: task, controller: controller);
                           },
                         ),
                 ),
@@ -92,7 +93,8 @@ class _FilterBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.space15, vertical: Dimensions.space10),
+      padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.space15, vertical: Dimensions.space10),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -100,11 +102,13 @@ class _FilterBar extends StatelessWidget {
             final filter = controller.statusFilters[i];
             final isSelected = controller.selectedFilterIndex == i;
             return Padding(
-              padding: const EdgeInsetsDirectional.only(end: Dimensions.space10),
+              padding:
+                  const EdgeInsetsDirectional.only(end: Dimensions.space10),
               child: ChoiceChip(
                 label: Text(filter['label'] ?? ''),
                 selected: isSelected,
-                selectedColor: ColorResources.secondaryColor.withValues(alpha: 0.15),
+                selectedColor:
+                    ColorResources.secondaryColor.withValues(alpha: 0.15),
                 labelStyle: regularSmall.copyWith(
                   color: isSelected
                       ? ColorResources.secondaryColor
@@ -166,13 +170,15 @@ class _TaskCard extends StatelessWidget {
                         child: Text(
                           task.title ?? '',
                           style: mediumLarge.copyWith(
-                              color: Theme.of(context).textTheme.bodyLarge!.color),
+                              color:
+                                  Theme.of(context).textTheme.bodyLarge!.color),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: statusColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
@@ -185,21 +191,25 @@ class _TaskCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: Dimensions.space5),
-                  if (task.projectTitle != null && task.projectTitle!.isNotEmpty) ...[
+                  if (task.projectTitle != null &&
+                      task.projectTitle!.isNotEmpty) ...[
                     Text(
                       task.projectTitle!,
-                      style: regularSmall.copyWith(color: ColorResources.blueGreyColor),
+                      style: regularSmall.copyWith(
+                          color: ColorResources.blueGreyColor),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: Dimensions.space5),
                   ],
-                  if (task.description != null && task.description!.isNotEmpty) ...[
+                  if (task.description != null &&
+                      task.description!.isNotEmpty) ...[
                     Text(
                       task.description!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: lightSmall.copyWith(color: ColorResources.contentTextColor),
+                      style: lightSmall.copyWith(
+                          color: ColorResources.contentTextColor),
                     ),
                     const SizedBox(height: Dimensions.space10),
                   ],
@@ -215,15 +225,18 @@ class _TaskCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Text(
                             task.deadline ?? '-',
-                            style: regularSmall.copyWith(color: ColorResources.blueGreyColor),
+                            style: regularSmall.copyWith(
+                                color: ColorResources.blueGreyColor),
                           ),
                         ],
                       ),
-                      if (task.priorityTitle != null && task.priorityTitle!.isNotEmpty)
+                      if (task.priorityTitle != null &&
+                          task.priorityTitle!.isNotEmpty)
                         Text(
                           task.priorityTitle!,
                           style: regularSmall.copyWith(
-                              color: ColorResources.taskPriorityColor(task.priorityId ?? '1')),
+                              color: ColorResources.taskPriorityColor(
+                                  task.priorityId ?? '1')),
                         ),
                     ],
                   ),
@@ -279,8 +292,9 @@ class _TaskDetailsSheetState extends State<_TaskDetailsSheet> {
               ),
             ),
             const SizedBox(height: Dimensions.space15),
-            Text('Chi Tiết Công Việc', style: semiBoldLarge.copyWith(
-                color: Theme.of(context).textTheme.bodyLarge!.color)),
+            Text('Chi Tiết Công Việc',
+                style: semiBoldLarge.copyWith(
+                    color: Theme.of(context).textTheme.bodyLarge!.color)),
             const SizedBox(height: Dimensions.space15),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -296,7 +310,8 @@ class _TaskDetailsSheetState extends State<_TaskDetailsSheet> {
               ],
             ),
             const SizedBox(height: Dimensions.space10),
-            if (widget.task.projectTitle != null && widget.task.projectTitle!.isNotEmpty) ...[
+            if (widget.task.projectTitle != null &&
+                widget.task.projectTitle!.isNotEmpty) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -327,7 +342,8 @@ class _TaskDetailsSheetState extends State<_TaskDetailsSheet> {
                 Text(
                   widget.task.priorityTitle ?? '-',
                   style: regularDefault.copyWith(
-                      color: ColorResources.taskPriorityColor(widget.task.priorityId ?? '1')),
+                      color: ColorResources.taskPriorityColor(
+                          widget.task.priorityId ?? '1')),
                 ),
               ],
             ),
@@ -344,7 +360,8 @@ class _TaskDetailsSheetState extends State<_TaskDetailsSheet> {
               ],
             ),
             const SizedBox(height: Dimensions.space15),
-            if (widget.task.description != null && widget.task.description!.isNotEmpty) ...[
+            if (widget.task.description != null &&
+                widget.task.description!.isNotEmpty) ...[
               Text('Mô tả:', style: lightSmall),
               const SizedBox(height: 4),
               Container(
@@ -360,7 +377,9 @@ class _TaskDetailsSheetState extends State<_TaskDetailsSheet> {
             ],
             const Divider(),
             const SizedBox(height: Dimensions.space10),
-            Text('Chuyển Trạng Thái:', style: mediumSmall.copyWith(color: ColorResources.blueGreyColor)),
+            Text('Chuyển Trạng Thái:',
+                style:
+                    mediumSmall.copyWith(color: ColorResources.blueGreyColor)),
             const SizedBox(height: Dimensions.space10),
             Row(
               children: [
@@ -392,13 +411,10 @@ class _TaskDetailsSheetState extends State<_TaskDetailsSheet> {
             Row(
               children: [
                 Container(
-                    width: 3,
-                    height: 16,
-                    color: ColorResources.primaryColor),
+                    width: 3, height: 16, color: ColorResources.primaryColor),
                 const SizedBox(width: 6),
                 Text('Bình luận & Tiến độ',
-                    style: regularLarge.copyWith(
-                        fontWeight: FontWeight.bold)),
+                    style: regularLarge.copyWith(fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: Dimensions.space10),
@@ -413,7 +429,10 @@ class _TaskDetailsSheetState extends State<_TaskDetailsSheet> {
   Future<void> _updateStatus(String statusId) async {
     if (statusId == _currentStatusId) return;
     Navigator.pop(context);
-    final ok = await widget.controller.updateStatus(widget.task.id ?? '', int.parse(statusId));
+    final parsedStatusId = int.tryParse(statusId);
+    if (parsedStatusId == null) return;
+    final ok = await widget.controller
+        .updateStatus(widget.task.id ?? '', parsedStatusId);
     if (ok) {
       setState(() {
         _currentStatusId = statusId;
@@ -559,8 +578,8 @@ class _TaskCommentSectionState extends State<_TaskCommentSection> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text('Chưa có bình luận nào',
-                style: regularSmall.copyWith(
-                    color: ColorResources.blueGreyColor)),
+                style:
+                    regularSmall.copyWith(color: ColorResources.blueGreyColor)),
           )
         else
           ...List.generate(_comments.length, (i) {
@@ -572,12 +591,10 @@ class _TaskCommentSectionState extends State<_TaskCommentSection> {
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: ColorResources.primaryColor
-                        .withValues(alpha: 0.18),
+                    backgroundColor:
+                        ColorResources.primaryColor.withValues(alpha: 0.18),
                     child: Text(
-                      c.userName.isNotEmpty
-                          ? c.userName[0].toUpperCase()
-                          : '?',
+                      c.userName.isNotEmpty ? c.userName[0].toUpperCase() : '?',
                       style: mediumSmall.copyWith(
                           color: ColorResources.primaryColor),
                     ),
@@ -612,8 +629,7 @@ class _TaskCommentSectionState extends State<_TaskCommentSection> {
                               spacing: 6,
                               children: c.attachments
                                   .map((url) => ClipRRect(
-                                        borderRadius:
-                                            BorderRadius.circular(6),
+                                        borderRadius: BorderRadius.circular(6),
                                         child: Image.network(url,
                                             width: 60,
                                             height: 60,
@@ -659,8 +675,8 @@ class _TaskCommentSectionState extends State<_TaskCommentSection> {
                         child: const CircleAvatar(
                           radius: 9,
                           backgroundColor: Colors.red,
-                          child: Icon(Icons.close,
-                              size: 10, color: Colors.white),
+                          child:
+                              Icon(Icons.close, size: 10, color: Colors.white),
                         ),
                       ),
                     ),
@@ -703,8 +719,8 @@ class _TaskCommentSectionState extends State<_TaskCommentSection> {
                       color: ColorResources.blueGreyColor),
                   filled: true,
                   fillColor: Theme.of(context).cardColor,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none,
@@ -742,4 +758,3 @@ class _TaskCommentSectionState extends State<_TaskCommentSection> {
     );
   }
 }
-

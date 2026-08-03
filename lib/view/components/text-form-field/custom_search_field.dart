@@ -1,5 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter/services.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/style.dart';
@@ -72,6 +73,8 @@ class _CustomSearchFieldState extends State<CustomSearchField> {
                     setState(() {
                       isFocus = true;
                     });
+                    SystemChannels.textInput
+                        .invokeMethod<void>('TextInput.show');
                   },
                   decoration: InputDecoration(
                       contentPadding: const EdgeInsets.only(bottom: 12),

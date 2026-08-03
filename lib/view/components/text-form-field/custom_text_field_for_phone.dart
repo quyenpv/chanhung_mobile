@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
@@ -158,7 +158,12 @@ class _CustomTextFieldForPhoneState extends State<CustomTextFieldForPhone> {
                         : null
                 : null,
           ),
-          onTap: widget.onTap,
+          onTap: () {
+            if (widget.isEnabled) {
+              SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+            }
+            widget.onTap?.call();
+          },
           onFieldSubmitted: (text) => widget.nextFocus != null
               ? FocusScope.of(context).requestFocus(widget.nextFocus)
               : widget.onSubmit != null

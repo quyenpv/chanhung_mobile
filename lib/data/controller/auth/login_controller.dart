@@ -96,7 +96,8 @@ class LoginController extends GetxController {
       final platform = Platform.isIOS ? 'ios' : 'android';
       final url = '${UrlContainer.baseUrl}${UrlContainer.saveDeviceTokenUrl}';
       final body = {'token': token, 'platform': platform};
-      await loginRepo.apiClient.request(url, Method.postMethod, body, passHeader: true);
+      await loginRepo.apiClient
+          .request(url, Method.postMethod, body, passHeader: true);
     } catch (_) {
       // Firebase not configured or error — skip silently
     }
@@ -129,7 +130,8 @@ class LoginController extends GetxController {
     if (model.statusCode == 200) {
       LoginModel loginModel =
           LoginModel.fromJson(jsonDecode(model.responseJson));
-      if (loginModel.success! && (loginModel.data?.token ?? '').isNotEmpty) {
+      if (loginModel.success == true &&
+          (loginModel.data?.token ?? '').isNotEmpty) {
         checkAndGotoNextStep(loginModel);
       } else {
         CustomSnackBar.error(errorList: [LocalStrings.loginFailedTryAgain.tr]);

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/data/model/estimate/estimate_details_model.dart';
@@ -45,9 +45,10 @@ class EstimateController extends GetxController {
     if (responseModel.statusCode == 200) {
       estimateDetailsModel =
           EstimateDetailsModel.fromJson(jsonDecode(responseModel.responseJson));
-      estimateDetailsModel.data!.items?.forEach((item) {
-        subtotal = subtotal + int.parse(item.total!);
-      });
+      subtotal = 0;
+      for (final item in estimateDetailsModel.data?.items ?? const []) {
+        subtotal += int.tryParse(item.total ?? '') ?? 0;
+      }
     } else {
       CustomSnackBar.error(errorList: [responseModel.message]);
     }

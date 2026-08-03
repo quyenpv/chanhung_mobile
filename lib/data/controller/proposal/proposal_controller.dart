@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/data/model/proposal/proposal_details_model.dart';
@@ -46,9 +46,10 @@ class ProposalController extends GetxController {
       proposalDetailsModel =
           ProposalDetailsModel.fromJson(jsonDecode(responseModel.responseJson));
 
-      proposalDetailsModel.data!.items?.forEach((item) {
-        subtotal = subtotal + int.parse(item.total!);
-      });
+      subtotal = 0;
+      for (final item in proposalDetailsModel.data?.items ?? const []) {
+        subtotal += int.tryParse(item.total ?? '') ?? 0;
+      }
     } else {
       CustomSnackBar.error(errorList: [responseModel.message]);
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter/services.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/style.dart';
@@ -79,6 +80,11 @@ class _CustomAmountTextFieldState extends State<CustomAmountTextField> {
                       //textAlign: TextAlign.left,
                       keyboardType: TextInputType.number,
                       textInputAction: widget.inputAction,
+                      onTap: () {
+                        if (widget.readOnly) return;
+                        SystemChannels.textInput
+                            .invokeMethod<void>('TextInput.show');
+                      },
                       onChanged: widget.onChanged,
                       decoration: InputDecoration(
                           contentPadding: const EdgeInsets.only(bottom: 16),
