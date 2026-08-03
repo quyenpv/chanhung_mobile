@@ -1,4 +1,4 @@
-package com.chanhung.customer
+package com.chanhung.erp
 
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
