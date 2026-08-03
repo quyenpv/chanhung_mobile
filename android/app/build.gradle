@@ -16,6 +16,16 @@ def releaseSigningConfigured = ['keyAlias', 'keyPassword', 'storeFile', 'storePa
     keystoreProperties[it]?.trim()
 }
 
+def releaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.toLowerCase().contains('release')
+}
+
+if (releaseTaskRequested && !releaseSigningConfigured) {
+    throw new GradleException(
+        'Release signing is not configured. Run tool/generate_android_upload_key.ps1 or provide android/key.properties.'
+    )
+}
+
 android {
     namespace = "com.chanhung.erp"
     compileSdk = flutter.compileSdkVersion
@@ -52,8 +62,7 @@ android {
 
     buildTypes {
         release {
-            // Use the private upload key locally and retain a debug-key fallback for CI.
-            signingConfig = releaseSigningConfigured ? signingConfigs.release : signingConfigs.debug
+            signingConfig = signingConfigs.release
         }
     }
 }
