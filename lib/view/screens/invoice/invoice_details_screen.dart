@@ -6,7 +6,6 @@ import 'package:chanhung/data/controller/invoice/invoice_controller.dart';
 import 'package:chanhung/data/repo/invoice/invoice_repo.dart';
 import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
-import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/card/custom_card.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
@@ -22,6 +21,17 @@ class InvoiceDetailsScreen extends StatefulWidget {
 
   @override
   State<InvoiceDetailsScreen> createState() => _InvoiceDetailsScreenState();
+}
+
+num _safeTaxAmount(num subtotal, String? percentage) {
+  final value = num.tryParse(percentage?.trim() ?? '');
+  return value == null || value == 0 ? 0 : subtotal / value;
+}
+
+num _safeBalance(String? invoiceValue, String? paymentReceived) {
+  final total = num.tryParse(invoiceValue?.trim() ?? '') ?? 0;
+  final paid = num.tryParse(paymentReceived?.trim() ?? '') ?? 0;
+  return total - paid;
 }
 
 class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
@@ -229,7 +239,7 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
                                           style: lightDefault,
                                         ),
                                         Text(
-                                          '${controller.currency ?? ''}${controller.subtotal / int.parse(controller.invoiceDetailsModel.data!.taxPercentage!)}',
+                                          '${controller.currency ?? ''}${_safeTaxAmount(controller.subtotal, controller.invoiceDetailsModel.data!.taxPercentage)}',
                                           style: regularDefault,
                                         ),
                                       ],
@@ -250,7 +260,7 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
                                           style: lightDefault,
                                         ),
                                         Text(
-                                          '${controller.currency ?? ''}${controller.subtotal / int.parse(controller.invoiceDetailsModel.data!.taxPercentage2!)}',
+                                          '${controller.currency ?? ''}${_safeTaxAmount(controller.subtotal, controller.invoiceDetailsModel.data!.taxPercentage2)}',
                                           style: regularDefault,
                                         ),
                                       ],
@@ -290,7 +300,7 @@ class _InvoiceDetailsScreenState extends State<InvoiceDetailsScreen> {
                                             style: regularLarge,
                                           ),
                                           Text(
-                                            '${controller.currency ?? ''}${int.parse(controller.invoiceDetailsModel.data!.invoiceValue!) - int.parse(controller.invoiceDetailsModel.data!.paymentReceived!)}',
+                                            '${controller.currency ?? ''}${_safeBalance(controller.invoiceDetailsModel.data!.invoiceValue, controller.invoiceDetailsModel.data!.paymentReceived)}',
                                             style: mediumLarge,
                                           ),
                                         ],

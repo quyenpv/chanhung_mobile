@@ -6,7 +6,6 @@ import 'package:chanhung/data/controller/estimate/estimate_controller.dart';
 import 'package:chanhung/data/repo/estimate/estimate_repo.dart';
 import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
-import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/card/custom_card.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
@@ -21,6 +20,11 @@ class EstimateDetailsScreen extends StatefulWidget {
 
   @override
   State<EstimateDetailsScreen> createState() => _EstimateDetailsScreenState();
+}
+
+num _safeTaxAmount(num subtotal, String? percentage) {
+  final value = num.tryParse(percentage?.trim() ?? '');
+  return value == null || value == 0 ? 0 : subtotal / value;
 }
 
 class _EstimateDetailsScreenState extends State<EstimateDetailsScreen> {
@@ -225,7 +229,7 @@ class _EstimateDetailsScreenState extends State<EstimateDetailsScreen> {
                                           style: lightDefault,
                                         ),
                                         Text(
-                                          '${controller.currency ?? ''}${controller.subtotal / int.parse(controller.estimateDetailsModel.data!.taxPercentage!)}',
+                                          '${controller.currency ?? ''}${_safeTaxAmount(controller.subtotal, controller.estimateDetailsModel.data!.taxPercentage)}',
                                           style: regularDefault,
                                         ),
                                       ],
@@ -246,7 +250,7 @@ class _EstimateDetailsScreenState extends State<EstimateDetailsScreen> {
                                           style: lightDefault,
                                         ),
                                         Text(
-                                          '${controller.currency ?? ''}${controller.subtotal / int.parse(controller.estimateDetailsModel.data!.taxPercentage2!)}',
+                                          '${controller.currency ?? ''}${_safeTaxAmount(controller.subtotal, controller.estimateDetailsModel.data!.taxPercentage2)}',
                                           style: regularDefault,
                                         ),
                                       ],

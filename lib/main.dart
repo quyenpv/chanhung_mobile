@@ -12,7 +12,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/route/route.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'core/di_service/di_services.dart' as services;
 
 void main() {
@@ -46,18 +45,49 @@ void main() {
       // Firebase not configured yet — skip silently
     }
 
-    final sharedPreferences = await SharedPreferences.getInstance();
-    Get.lazyPut(() => sharedPreferences);
-    final languages = await services.init();
-
     HttpOverrides.global = MyHttpOverrides();
-    runApp(MyApp(languages: languages));
+    try {
+      final languages = await services.init();
+      runApp(MyApp(languages: languages));
+    } catch (error, stack) {
+      debugPrintStack(
+        label: 'Application bootstrap failed: $error',
+        stackTrace: stack,
+      );
+      // Never leave the process without a Flutter view when local storage or
+      // bundled language data is temporarily unavailable/corrupt.
+      runApp(const BootstrapFailureApp());
+    }
   }, (error, stack) {
     debugPrintStack(
       label: 'Unhandled application error: $error',
       stackTrace: stack,
     );
   });
+}
+
+class BootstrapFailureApp extends StatelessWidget {
+  const BootstrapFailureApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Khong the khoi dong ung dung. Vui long dong va mo lai ung dung.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyHttpOverrides extends HttpOverrides {

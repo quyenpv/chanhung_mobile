@@ -10,7 +10,17 @@ import 'package:flutter/material.dart';
 /// xác minh lại trên ảnh chụp rồi trả về base64.
 class FaceCameraHelper {
   static Future<String?> captureVerifiedSelfie(BuildContext context) async {
-    final cameras = await availableCameras();
+    final List<CameraDescription> cameras;
+    try {
+      cameras = await availableCameras();
+    } catch (error, stack) {
+      debugPrintStack(
+        label: 'Unable to enumerate cameras: $error',
+        stackTrace: stack,
+      );
+      return null;
+    }
+    if (!context.mounted) return null;
     if (cameras.isEmpty) {
       return null;
     }

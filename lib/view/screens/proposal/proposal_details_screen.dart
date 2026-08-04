@@ -6,7 +6,6 @@ import 'package:chanhung/data/controller/proposal/proposal_controller.dart';
 import 'package:chanhung/data/repo/proposal/proposal_repo.dart';
 import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
-import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/card/custom_card.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
@@ -21,6 +20,11 @@ class ProposalDetailsScreen extends StatefulWidget {
 
   @override
   State<ProposalDetailsScreen> createState() => _ProposalDetailsScreenState();
+}
+
+num _safeTaxAmount(num subtotal, String? percentage) {
+  final value = num.tryParse(percentage?.trim() ?? '');
+  return value == null || value == 0 ? 0 : subtotal / value;
 }
 
 class _ProposalDetailsScreenState extends State<ProposalDetailsScreen> {
@@ -225,7 +229,7 @@ class _ProposalDetailsScreenState extends State<ProposalDetailsScreen> {
                                           style: lightDefault,
                                         ),
                                         Text(
-                                          '${controller.currency ?? ''}${controller.subtotal / int.parse(controller.proposalDetailsModel.data!.taxPercentage!)}',
+                                          '${controller.currency ?? ''}${_safeTaxAmount(controller.subtotal, controller.proposalDetailsModel.data!.taxPercentage)}',
                                           style: regularDefault,
                                         ),
                                       ],
@@ -246,7 +250,7 @@ class _ProposalDetailsScreenState extends State<ProposalDetailsScreen> {
                                           style: lightDefault,
                                         ),
                                         Text(
-                                          '${controller.currency ?? ''}${controller.subtotal / int.parse(controller.proposalDetailsModel.data!.taxPercentage2!)}',
+                                          '${controller.currency ?? ''}${_safeTaxAmount(controller.subtotal, controller.proposalDetailsModel.data!.taxPercentage2)}',
                                           style: regularDefault,
                                         ),
                                       ],

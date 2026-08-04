@@ -33,7 +33,8 @@ class TasksController extends GetxController {
 
   Future<void> loadMyTasks() async {
     final dashboardController = Get.find<DashboardController>();
-    final userIdStr = dashboardController.dashboardModel.data?.clientData?.clientId;
+    final userIdStr =
+        dashboardController.dashboardModel.data?.clientData?.clientId;
     final userId = int.tryParse(userIdStr ?? '');
 
     if (userId == null) {
@@ -42,8 +43,12 @@ class TasksController extends GetxController {
       return;
     }
 
-    String? statusId = statusFilters[selectedFilterIndex]['id'];
-    int? statId = statusId!.isNotEmpty ? int.tryParse(statusId) : null;
+    final safeFilterIndex =
+        selectedFilterIndex >= 0 && selectedFilterIndex < statusFilters.length
+            ? selectedFilterIndex
+            : 0;
+    final statusId = statusFilters[safeFilterIndex]['id'] ?? '';
+    final statId = statusId.isNotEmpty ? int.tryParse(statusId) : null;
 
     ResponseModel response = await tasksRepo.getTasks(
       assignedTo: userId,
@@ -52,7 +57,8 @@ class TasksController extends GetxController {
 
     if (response.statusCode == 200) {
       try {
-        final tasksModel = TasksModel.fromJson(jsonDecode(response.responseJson));
+        final tasksModel =
+            TasksModel.fromJson(jsonDecode(response.responseJson));
         tasksList = tasksModel.data ?? [];
       } catch (_) {
         tasksList = [];
@@ -64,6 +70,7 @@ class TasksController extends GetxController {
   }
 
   void setFilter(int index) {
+    if (index < 0 || index >= statusFilters.length) return;
     selectedFilterIndex = index;
     update();
     loadMyTasks();
@@ -79,12 +86,15 @@ class TasksController extends GetxController {
     update();
 
     if (response.statusCode == 200) {
-      CustomSnackBar.success(successList: ['Cập nhật trạng thái công việc thành công']);
+      CustomSnackBar.success(
+          successList: ['Cập nhật trạng thái công việc thành công']);
       await loadMyTasks();
       return true;
     } else {
       CustomSnackBar.error(errorList: [
-        response.message.isNotEmpty ? response.message : 'Không thể cập nhật trạng thái'
+        response.message.isNotEmpty
+            ? response.message
+            : 'Không thể cập nhật trạng thái'
       ]);
       return false;
     }

@@ -9,7 +9,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   geolocator_windows
   local_auth_windows
   nb_utils
-  syncfusion_pdfviewer_windows
   url_launcher_windows
 )
 

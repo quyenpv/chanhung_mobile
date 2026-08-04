@@ -10,7 +10,6 @@ import 'package:chanhung/data/controller/payment_request/payment_request_control
 import 'package:chanhung/data/model/payment_request/payment_request_model.dart';
 import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
-import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:chanhung/view/components/dialog/app_alert_dialog.dart';
@@ -26,11 +25,13 @@ class PaymentRequestDetailsScreen extends StatefulWidget {
   const PaymentRequestDetailsScreen({super.key, this.id});
 
   @override
-  State<PaymentRequestDetailsScreen> createState() => _PaymentRequestDetailsScreenState();
+  State<PaymentRequestDetailsScreen> createState() =>
+      _PaymentRequestDetailsScreenState();
 }
 
-class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScreen> {
-  late final dynamic _requestId;
+class _PaymentRequestDetailsScreenState
+    extends State<PaymentRequestDetailsScreen> {
+  late final int? _requestId;
   bool isPermissionLoading = false;
   Map<String, dynamic>? signPermissionData;
 
@@ -42,8 +43,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_requestId != null) {
         final controller = Get.find<PaymentRequestsController>();
-        controller.loadDetails(int.parse(_requestId.toString())).then((_) {
-          if (controller.details?.canSign == true) {
+        controller.loadDetails(_requestId).then((_) {
+          if (mounted && controller.details?.canSign == true) {
             fetchSignPermission();
           }
         });
@@ -51,30 +52,34 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
     });
   }
 
-  dynamic _resolveRequestId() {
+  int? _resolveRequestId() {
     final directId = widget.id?.toString().trim();
     if (directId != null && directId.isNotEmpty) {
-      return directId;
+      return int.tryParse(directId);
     }
     final argument = Get.arguments;
     if (argument != null) {
-      return argument;
+      return int.tryParse(argument.toString().trim());
     }
-    return Get.parameters['id'];
+    return int.tryParse(Get.parameters['id']?.trim() ?? '');
   }
 
   Future<void> fetchSignPermission() async {
     if (_requestId == null) return;
+    if (!mounted) return;
     setState(() {
       isPermissionLoading = true;
     });
     try {
       final controller = Get.find<PaymentRequestsController>();
-      final response = await controller.repo.getSignPermission(int.parse(_requestId.toString()));
+      final response = await controller.repo.getSignPermission(_requestId);
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.responseJson);
+        if (!mounted) return;
         setState(() {
-          if (decoded['success'] == true && decoded['data'] != null && decoded['data']['permission'] != null) {
+          if (decoded['success'] == true &&
+              decoded['data'] != null &&
+              decoded['data']['permission'] != null) {
             signPermissionData = decoded['data']['permission'];
           } else if (decoded['permission'] != null) {
             signPermissionData = decoded['permission'];
@@ -84,9 +89,11 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
     } catch (e) {
       // ignore
     } finally {
-      setState(() {
-        isPermissionLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isPermissionLoading = false;
+        });
+      }
     }
   }
 
@@ -115,11 +122,12 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
           }
 
           final currency = controller.currency ?? 'đ';
-          final formatter = NumberFormat.currency(locale: 'vi_VN', symbol: currency);
+          final formatter =
+              NumberFormat.currency(locale: 'vi_VN', symbol: currency);
 
           return RefreshIndicator(
             onRefresh: () async {
-              await controller.loadDetails(int.parse(_requestId.toString()));
+              await controller.loadDetails(_requestId);
               if (controller.details?.canSign == true) {
                 await fetchSignPermission();
               }
@@ -154,13 +162,15 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
 
                     // Files & attachments card
                     if ((details.files != null && details.files!.isNotEmpty) ||
-                        (details.attachments != null && details.attachments!.isNotEmpty)) ...[
+                        (details.attachments != null &&
+                            details.attachments!.isNotEmpty)) ...[
                       _buildFilesCard(details),
                       const SizedBox(height: Dimensions.space12),
                     ],
 
                     // Signers status checklist
-                    if (details.signers != null && details.signers!.isNotEmpty) ...[
+                    if (details.signers != null &&
+                        details.signers!.isNotEmpty) ...[
                       _buildSignersCard(details.signers!),
                       const SizedBox(height: Dimensions.space12),
                     ],
@@ -183,7 +193,9 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
   Widget _buildHeaderCard(PaymentRequestDetailModel details) {
     final statusColor = _statusColor(details.status);
     final statusText = _statusText(details.status ?? '');
-    final typeText = details.requestType == 'advance_settlement' ? 'Quyết toán hoàn ứng' : 'Đề nghị thanh toán/tạm ứng';
+    final typeText = details.requestType == 'advance_settlement'
+        ? 'Quyết toán hoàn ứng'
+        : 'Đề nghị thanh toán/tạm ứng';
 
     return Container(
       width: double.infinity,
@@ -208,7 +220,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
             children: [
               Text(
                 details.requestCode ?? 'N/A',
-                style: semiBoldLarge.copyWith(color: ColorResources.primaryColor),
+                style:
+                    semiBoldLarge.copyWith(color: ColorResources.primaryColor),
               ),
               _buildStatusPill(statusText, statusColor),
             ],
@@ -228,7 +241,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
     );
   }
 
-  Widget _buildBaseInfoCard(PaymentRequestDetailModel details, NumberFormat formatter) {
+  Widget _buildBaseInfoCard(
+      PaymentRequestDetailModel details, NumberFormat formatter) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(Dimensions.space15),
@@ -247,19 +261,28 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Thông tin chung", style: boldLarge.copyWith(color: ColorResources.primaryColor)),
+          Text("Thông tin chung",
+              style: boldLarge.copyWith(color: ColorResources.primaryColor)),
           const SizedBox(height: Dimensions.space8),
           const Divider(height: 1),
           const SizedBox(height: Dimensions.space8),
           _buildInfoRow("Ngày lập:", details.requestDate ?? '-'),
-          _buildInfoRow("Người đề nghị:", "${details.requesterName ?? ''} (${details.requesterRoleTitle ?? ''})"),
+          _buildInfoRow("Người đề nghị:",
+              "${details.requesterName ?? ''} (${details.requesterRoleTitle ?? ''})"),
           _buildInfoRow("Bộ phận:", details.departmentTitle ?? '-'),
-          _buildInfoRow("Đơn vị thành viên:", details.companyName != null && details.companyCode != null ? "${details.companyName} (${details.companyCode})" : (details.companyName ?? '-')),
+          _buildInfoRow(
+              "Đơn vị thành viên:",
+              details.companyName != null && details.companyCode != null
+                  ? "${details.companyName} (${details.companyCode})"
+                  : (details.companyName ?? '-')),
           _buildInfoRow("Nguồn vốn:", details.fundSource ?? '-'),
           _buildInfoRow("Mã ngân sách:", details.budgetCode ?? '-'),
           _buildInfoRow("Hạn thanh toán:", details.paymentDeadline ?? '-'),
-          _buildInfoRow("Phương thức thanh toán:", details.paymentMethod ?? '-'),
-          _buildInfoRow("Tổng số tiền:", formatter.format(details.totalAmount ?? 0.0), isBoldValue: true, valueColor: ColorResources.primaryColor),
+          _buildInfoRow(
+              "Phương thức thanh toán:", details.paymentMethod ?? '-'),
+          _buildInfoRow(
+              "Tổng số tiền:", formatter.format(details.totalAmount ?? 0.0),
+              isBoldValue: true, valueColor: ColorResources.primaryColor),
           _buildInfoRow("Số tiền bằng chữ:", details.amountInWords ?? '-'),
           const SizedBox(height: Dimensions.space10),
           const Text("Thông tin thụ hưởng", style: boldLarge),
@@ -273,7 +296,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
     );
   }
 
-  Widget _buildLinesCard(List<PaymentRequestLine> lines, NumberFormat formatter) {
+  Widget _buildLinesCard(
+      List<PaymentRequestLine> lines, NumberFormat formatter) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(Dimensions.space15),
@@ -292,7 +316,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Chi tiết khoản mục đề nghị", style: boldLarge.copyWith(color: ColorResources.primaryColor)),
+          Text("Chi tiết khoản mục đề nghị",
+              style: boldLarge.copyWith(color: ColorResources.primaryColor)),
           const SizedBox(height: Dimensions.space8),
           const Divider(height: 1),
           const SizedBox(height: Dimensions.space8),
@@ -304,7 +329,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
             itemBuilder: (context, index) {
               final line = lines[index];
               return Padding(
-                padding: const EdgeInsets.symmetric(vertical: Dimensions.space8),
+                padding:
+                    const EdgeInsets.symmetric(vertical: Dimensions.space8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -313,17 +339,22 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
                       children: [
                         CircleAvatar(
                           radius: 10,
-                          backgroundColor: ColorResources.primaryColor.withValues(alpha: 0.1),
+                          backgroundColor: ColorResources.primaryColor
+                              .withValues(alpha: 0.1),
                           child: Text(
                             "${line.lineNo ?? (index + 1)}",
-                            style: lightSmall.copyWith(fontSize: 10, color: ColorResources.primaryColor, fontWeight: FontWeight.bold),
+                            style: lightSmall.copyWith(
+                                fontSize: 10,
+                                color: ColorResources.primaryColor,
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
                         const SizedBox(width: Dimensions.space8),
                         Expanded(
                           child: Text(
                             line.title ?? '',
-                            style: mediumDefault.copyWith(fontWeight: FontWeight.bold),
+                            style: mediumDefault.copyWith(
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
@@ -333,11 +364,17 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
                       padding: const EdgeInsets.only(left: 28.0),
                       child: Column(
                         children: [
-                          _buildDetailRowItem("Số lượng:", "${line.quantity} ${line.unitType ?? ''}"),
-                          _buildDetailRowItem("Đơn giá:", formatter.format(line.rate ?? 0.0)),
-                          _buildDetailRowItem("Thành tiền:", formatter.format(line.amount ?? 0.0)),
-                          _buildDetailRowItem("Thuế suất:", "${line.taxPercentage ?? 0}% (${formatter.format(line.taxAmount ?? 0.0)})"),
-                          _buildDetailRowItem("Tổng tiền:", formatter.format(line.totalAmount ?? 0.0), isBold: true),
+                          _buildDetailRowItem("Số lượng:",
+                              "${line.quantity} ${line.unitType ?? ''}"),
+                          _buildDetailRowItem(
+                              "Đơn giá:", formatter.format(line.rate ?? 0.0)),
+                          _buildDetailRowItem("Thành tiền:",
+                              formatter.format(line.amount ?? 0.0)),
+                          _buildDetailRowItem("Thuế suất:",
+                              "${line.taxPercentage ?? 0}% (${formatter.format(line.taxAmount ?? 0.0)})"),
+                          _buildDetailRowItem("Tổng tiền:",
+                              formatter.format(line.totalAmount ?? 0.0),
+                              isBold: true),
                           if (line.note != null && line.note!.isNotEmpty)
                             _buildDetailRowItem("Ghi chú:", line.note!),
                         ],
@@ -353,7 +390,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
     );
   }
 
-  Widget _buildSettlementCard(PaymentRequestDetailModel details, NumberFormat formatter) {
+  Widget _buildSettlementCard(
+      PaymentRequestDetailModel details, NumberFormat formatter) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(Dimensions.space15),
@@ -372,81 +410,101 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Thông tin quyết toán hoàn ứng", style: boldLarge.copyWith(color: ColorResources.primaryColor)),
+          Text("Thông tin quyết toán hoàn ứng",
+              style: boldLarge.copyWith(color: ColorResources.primaryColor)),
           const SizedBox(height: Dimensions.space8),
           const Divider(height: 1),
           const SizedBox(height: Dimensions.space8),
-          _buildInfoRow("Kỳ quyết toán:", "Tháng ${details.settlementPeriodMonth ?? '-'}/${details.settlementPeriodYear ?? '-'}"),
-          _buildInfoRow("Số tiền tạm ứng các kỳ trước chưa thanh toán:", formatter.format(details.settlementPreviousAmount ?? 0.0)),
-          _buildInfoRow("Số tiền tạm ứng kỳ này:", formatter.format(details.settlementAdvanceAmount ?? 0.0)),
-          _buildInfoRow("Tổng số tiền tạm ứng:", formatter.format(details.settlementTotalAdvanceAmount ?? 0.0), isBoldValue: true),
-          _buildInfoRow("Số tiền thực chi theo hóa đơn:", formatter.format(details.settlementSpentAmount ?? 0.0), isBoldValue: true),
-          _buildInfoRow("Số tiền thừa nộp lại quỹ:", formatter.format(details.settlementReturnAmount ?? 0.0)),
-          _buildInfoRow("Số tiền thiếu đề nghị thanh toán thêm:", formatter.format(details.settlementExtraPaymentAmount ?? 0.0), valueColor: Colors.red),
-
-          if (details.settlementSources != null && details.settlementSources!.isNotEmpty) ...[
+          _buildInfoRow("Kỳ quyết toán:",
+              "Tháng ${details.settlementPeriodMonth ?? '-'}/${details.settlementPeriodYear ?? '-'}"),
+          _buildInfoRow("Số tiền tạm ứng các kỳ trước chưa thanh toán:",
+              formatter.format(details.settlementPreviousAmount ?? 0.0)),
+          _buildInfoRow("Số tiền tạm ứng kỳ này:",
+              formatter.format(details.settlementAdvanceAmount ?? 0.0)),
+          _buildInfoRow("Tổng số tiền tạm ứng:",
+              formatter.format(details.settlementTotalAdvanceAmount ?? 0.0),
+              isBoldValue: true),
+          _buildInfoRow("Số tiền thực chi theo hóa đơn:",
+              formatter.format(details.settlementSpentAmount ?? 0.0),
+              isBoldValue: true),
+          _buildInfoRow("Số tiền thừa nộp lại quỹ:",
+              formatter.format(details.settlementReturnAmount ?? 0.0)),
+          _buildInfoRow("Số tiền thiếu đề nghị thanh toán thêm:",
+              formatter.format(details.settlementExtraPaymentAmount ?? 0.0),
+              valueColor: Colors.red),
+          if (details.settlementSources != null &&
+              details.settlementSources!.isNotEmpty) ...[
             const SizedBox(height: Dimensions.space15),
             const Text("Nguồn thanh toán tạm ứng", style: boldLarge),
             const SizedBox(height: Dimensions.space8),
             ...details.settlementSources!.map((src) => Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade200),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(src.sourceCode ?? '', style: mediumDefault.copyWith(fontWeight: FontWeight.bold)),
-                        Text(formatter.format(src.amount ?? 0.0), style: boldLarge.copyWith(color: ColorResources.primaryColor)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(src.sourceCode ?? '',
+                                style: mediumDefault.copyWith(
+                                    fontWeight: FontWeight.bold)),
+                            Text(formatter.format(src.amount ?? 0.0),
+                                style: boldLarge.copyWith(
+                                    color: ColorResources.primaryColor)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(src.sourceTitle ?? '', style: regularSmall),
+                        if (src.sourceDate != null)
+                          Text("Ngày: ${src.sourceDate}", style: lightSmall),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(src.sourceTitle ?? '', style: regularSmall),
-                    if (src.sourceDate != null)
-                      Text("Ngày: ${src.sourceDate}", style: lightSmall),
-                  ],
-                ),
-              ),
-            )),
+                  ),
+                )),
           ],
-          if (details.settlementExpenses != null && details.settlementExpenses!.isNotEmpty) ...[
+          if (details.settlementExpenses != null &&
+              details.settlementExpenses!.isNotEmpty) ...[
             const SizedBox(height: Dimensions.space15),
             const Text("Chi tiết chứng từ thực chi", style: boldLarge),
             const SizedBox(height: Dimensions.space8),
             ...details.settlementExpenses!.map((exp) => Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade200),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Số HĐ: ${exp.voucherNo ?? ''}", style: mediumDefault.copyWith(fontWeight: FontWeight.bold)),
-                        Text(formatter.format(exp.amount ?? 0.0), style: boldLarge.copyWith(color: ColorResources.primaryColor)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("Số HĐ: ${exp.voucherNo ?? ''}",
+                                style: mediumDefault.copyWith(
+                                    fontWeight: FontWeight.bold)),
+                            Text(formatter.format(exp.amount ?? 0.0),
+                                style: boldLarge.copyWith(
+                                    color: ColorResources.primaryColor)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(exp.description ?? '', style: regularSmall),
+                        if (exp.voucherDate != null)
+                          Text("Ngày: ${exp.voucherDate}", style: lightSmall),
+                        if (exp.note != null && exp.note!.isNotEmpty)
+                          Text("Ghi chú: ${exp.note}", style: lightSmall),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(exp.description ?? '', style: regularSmall),
-                    if (exp.voucherDate != null)
-                      Text("Ngày: ${exp.voucherDate}", style: lightSmall),
-                    if (exp.note != null && exp.note!.isNotEmpty)
-                      Text("Ghi chú: ${exp.note}", style: lightSmall),
-                  ],
-                ),
-              ),
-            )),
+                  ),
+                )),
           ],
         ],
       ),
@@ -454,8 +512,10 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
   }
 
   Widget _buildFilesCard(PaymentRequestDetailModel details) {
-    final signingFiles = details.files?.where((f) => f.isSigningFile == true).toList() ?? [];
-    final otherFiles = details.files?.where((f) => f.isSigningFile != true).toList() ?? [];
+    final signingFiles =
+        details.files?.where((f) => f.isSigningFile == true).toList() ?? [];
+    final otherFiles =
+        details.files?.where((f) => f.isSigningFile != true).toList() ?? [];
     final attachments = details.attachments ?? [];
 
     return Container(
@@ -476,52 +536,60 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Tài liệu & đính kèm", style: boldLarge.copyWith(color: ColorResources.primaryColor)),
+          Text("Tài liệu & đính kèm",
+              style: boldLarge.copyWith(color: ColorResources.primaryColor)),
           const SizedBox(height: Dimensions.space8),
           const Divider(height: 1),
           const SizedBox(height: Dimensions.space8),
-
           if (signingFiles.isNotEmpty) ...[
-            Text("File trình ký", style: regularSmall.copyWith(color: ColorResources.blueGreyColor)),
+            Text("File trình ký",
+                style:
+                    regularSmall.copyWith(color: ColorResources.blueGreyColor)),
             const SizedBox(height: 6),
-            ...signingFiles.map((file) => _buildFileRow(file.fileName ?? '', file.fileExt ?? 'pdf', file.fileSize ?? 0,
+            ...signingFiles.map((file) => _buildFileRow(
+                file.fileName ?? '', file.fileExt ?? 'pdf', file.fileSize ?? 0,
                 onView: () => _viewPrFile(file),
-                onDownload: () => _openExternalFileUrl(file.downloadUrl ?? file.serveUrl)
-            )),
+                onDownload: () =>
+                    _openExternalFileUrl(file.downloadUrl ?? file.serveUrl))),
             const SizedBox(height: 12),
           ],
-
           if (otherFiles.isNotEmpty || attachments.isNotEmpty) ...[
-            Text("File phụ lục đính kèm", style: regularSmall.copyWith(color: ColorResources.blueGreyColor)),
+            Text("File phụ lục đính kèm",
+                style:
+                    regularSmall.copyWith(color: ColorResources.blueGreyColor)),
             const SizedBox(height: 6),
-            ...otherFiles.map((file) => _buildFileRow(file.fileName ?? '', file.fileExt ?? 'pdf', file.fileSize ?? 0,
+            ...otherFiles.map((file) => _buildFileRow(
+                file.fileName ?? '', file.fileExt ?? 'pdf', file.fileSize ?? 0,
                 onView: () => _viewPrFile(file),
-                onDownload: () => _openExternalFileUrl(file.downloadUrl ?? file.serveUrl)
-            )),
-            ...attachments.map((file) => _buildFileRow(file.fileName ?? '', file.filePath?.split('.').last ?? 'pdf', file.fileSize ?? 0,
+                onDownload: () =>
+                    _openExternalFileUrl(file.downloadUrl ?? file.serveUrl))),
+            ...attachments.map((file) => _buildFileRow(file.fileName ?? '',
+                file.filePath?.split('.').last ?? 'pdf', file.fileSize ?? 0,
                 onView: null,
-                onDownload: () => _openExternalFileUrl(file.filePath)
-            )),
+                onDownload: () => _openExternalFileUrl(file.filePath))),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildFileRow(String name, String ext, int size, {VoidCallback? onView, required VoidCallback onDownload}) {
+  Widget _buildFileRow(String name, String ext, int size,
+      {VoidCallback? onView, required VoidCallback onDownload}) {
     final displayExt = ext.toLowerCase();
     final formattedSize = size > 0 ? _formatFileSize(size) : '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: Dimensions.space8),
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.space10, vertical: Dimensions.space8),
+      padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.space10, vertical: Dimensions.space8),
       decoration: BoxDecoration(
         border: Border.all(color: ColorResources.borderColor),
         borderRadius: BorderRadius.circular(Dimensions.cardRadius),
       ),
       child: Row(
         children: [
-          Icon(_fileIcon(displayExt), color: ColorResources.primaryColor, size: 22),
+          Icon(_fileIcon(displayExt),
+              color: ColorResources.primaryColor, size: 22),
           const SizedBox(width: Dimensions.space10),
           Expanded(
             child: Column(
@@ -539,7 +607,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
                       if (displayExt.isNotEmpty) displayExt.toUpperCase(),
                       if (formattedSize.isNotEmpty) formattedSize,
                     ].join(' - '),
-                    style: lightSmall.copyWith(color: ColorResources.blueGreyColor),
+                    style: lightSmall.copyWith(
+                        color: ColorResources.blueGreyColor),
                   ),
               ],
             ),
@@ -629,40 +698,52 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Tiến trình ký duyệt", style: boldLarge.copyWith(color: ColorResources.primaryColor)),
+          Text("Tiến trình ký duyệt",
+              style: boldLarge.copyWith(color: ColorResources.primaryColor)),
           const SizedBox(height: Dimensions.space8),
           const Divider(height: 1),
           const SizedBox(height: Dimensions.space8),
           ...signers.map((signer) => Padding(
-            padding: const EdgeInsets.only(bottom: Dimensions.space10),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: ColorResources.primaryColor.withValues(alpha: 0.12),
-                  child: Text(
-                    "${signer.signingOrder ?? ''}",
-                    style: regularSmall.copyWith(color: ColorResources.primaryColor, fontWeight: FontWeight.bold),
-                  ),
+                padding: const EdgeInsets.only(bottom: Dimensions.space10),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor:
+                          ColorResources.primaryColor.withValues(alpha: 0.12),
+                      child: Text(
+                        "${signer.signingOrder ?? ''}",
+                        style: regularSmall.copyWith(
+                            color: ColorResources.primaryColor,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: Dimensions.space10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(signer.userName ?? '',
+                              style: mediumDefault.copyWith(
+                                  fontWeight: FontWeight.bold)),
+                          Text(signer.roleTitle ?? '',
+                              style: lightSmall.copyWith(
+                                  color: ColorResources.blueGreyColor)),
+                          if (signer.note != null && signer.note!.isNotEmpty)
+                            Text("Ghi chú: ${signer.note}",
+                                style: lightSmall.copyWith(
+                                    color: Colors.blueGrey,
+                                    fontStyle: FontStyle.italic)),
+                          if (signer.signedAt != null)
+                            Text("Ngày ký: ${signer.signedAt}",
+                                style: lightSmall.copyWith(color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                    _buildSignerStatusPill(signer.status ?? ''),
+                  ],
                 ),
-                const SizedBox(width: Dimensions.space10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(signer.userName ?? '', style: mediumDefault.copyWith(fontWeight: FontWeight.bold)),
-                      Text(signer.roleTitle ?? '', style: lightSmall.copyWith(color: ColorResources.blueGreyColor)),
-                      if (signer.note != null && signer.note!.isNotEmpty)
-                        Text("Ghi chú: ${signer.note}", style: lightSmall.copyWith(color: Colors.blueGrey, fontStyle: FontStyle.italic)),
-                      if (signer.signedAt != null)
-                        Text("Ngày ký: ${signer.signedAt}", style: lightSmall.copyWith(color: Colors.grey)),
-                    ],
-                  ),
-                ),
-                _buildSignerStatusPill(signer.status ?? ''),
-              ],
-            ),
-          )),
+              )),
         ],
       ),
     );
@@ -706,7 +787,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
     );
   }
 
-  Widget _buildSignatureActionCard(PaymentRequestsController controller, PaymentRequestDetailModel details) {
+  Widget _buildSignatureActionCard(
+      PaymentRequestsController controller, PaymentRequestDetailModel details) {
     if (isPermissionLoading) {
       return Container(
         width: double.infinity,
@@ -721,8 +803,10 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
       );
     }
 
-    final alertMessage = signPermissionData?['message'] ?? 'Sẵn sàng ký duyệt hồ sơ.';
-    final canSign = signPermissionData?['can_sign'] == true || details.canSign == true;
+    final alertMessage =
+        signPermissionData?['message'] ?? 'Sẵn sàng ký duyệt hồ sơ.';
+    final canSign =
+        signPermissionData?['can_sign'] == true || details.canSign == true;
     final canReject = signPermissionData?['can_reject'] == true;
 
     return Container(
@@ -747,14 +831,15 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
             ],
           ),
           const SizedBox(height: Dimensions.space8),
-          Text(alertMessage, style: regularSmall.copyWith(color: Colors.grey.shade800)),
+          Text(alertMessage,
+              style: regularSmall.copyWith(color: Colors.grey.shade800)),
           const SizedBox(height: Dimensions.space12),
-
           if (controller.isSigning) ...[
             const SizedBox(height: Dimensions.space5),
             const LinearProgressIndicator(),
             const SizedBox(height: Dimensions.space8),
-            const Text("Đang thực hiện quy trình ký duyệt số...", style: TextStyle(fontStyle: FontStyle.italic)),
+            const Text("Đang thực hiện quy trình ký duyệt số...",
+                style: TextStyle(fontStyle: FontStyle.italic)),
           ] else ...[
             Row(
               children: [
@@ -763,13 +848,17 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ColorResources.primaryColor,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     onPressed: canSign
-                        ? () => _showSigningBottomSheet(context, controller, details)
+                        ? () => _showSigningBottomSheet(
+                            context, controller, details)
                         : null,
                     icon: const Icon(Icons.draw, color: Colors.white),
-                    label: const Text("Ký duyệt hồ sơ", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    label: const Text("Ký duyệt hồ sơ",
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),
                 if (canReject) ...[
@@ -780,9 +869,11 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
                         foregroundColor: ColorResources.colorRed,
                         side: const BorderSide(color: ColorResources.colorRed),
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
-                      onPressed: () => _confirmAndReject(context, controller, details),
+                      onPressed: () =>
+                          _confirmAndReject(context, controller, details),
                       icon: const Icon(Icons.cancel_outlined, size: 18),
                       label: Text(
                         LocalStrings.rejectSignDocument.tr,
@@ -829,7 +920,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
                 decoration: InputDecoration(
                   hintText: LocalStrings.rejectSignPaymentRequestReasonHint.tr,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(Dimensions.defaultRadius),
+                    borderRadius:
+                        BorderRadius.circular(Dimensions.defaultRadius),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -868,7 +960,7 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
 
     if (shouldReject == true) {
       final ok = await controller.rejectSigning(
-        details.id ?? int.parse(_requestId.toString()),
+        details.id ?? _requestId!,
         reason: reason,
       );
       if (ok && mounted) {
@@ -879,7 +971,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
     }
   }
 
-  void _showSigningBottomSheet(BuildContext context, PaymentRequestsController controller, PaymentRequestDetailModel details) {
+  void _showSigningBottomSheet(BuildContext context,
+      PaymentRequestsController controller, PaymentRequestDetailModel details) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -892,8 +985,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
           onSuccess: () {
             Navigator.of(builderContext).pop();
             // refresh data
-            controller.loadDetails(int.parse(_requestId.toString())).then((_) {
-              if (controller.details?.canSign == true) {
+            controller.loadDetails(_requestId!).then((_) {
+              if (mounted && controller.details?.canSign == true) {
                 fetchSignPermission();
               }
             });
@@ -903,7 +996,8 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {bool isBoldValue = false, Color? valueColor}) {
+  Widget _buildInfoRow(String label, String value,
+      {bool isBoldValue = false, Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: Dimensions.space8),
       child: Row(
@@ -920,8 +1014,12 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
             child: Text(
               value,
               style: isBoldValue
-                  ? boldLarge.copyWith(color: valueColor ?? Theme.of(context).textTheme.bodyMedium?.color)
-                  : regularDefault.copyWith(color: valueColor ?? Theme.of(context).textTheme.bodyMedium?.color),
+                  ? boldLarge.copyWith(
+                      color: valueColor ??
+                          Theme.of(context).textTheme.bodyMedium?.color)
+                  : regularDefault.copyWith(
+                      color: valueColor ??
+                          Theme.of(context).textTheme.bodyMedium?.color),
             ),
           ),
         ],
@@ -929,14 +1027,17 @@ class _PaymentRequestDetailsScreenState extends State<PaymentRequestDetailsScree
     );
   }
 
-  Widget _buildDetailRowItem(String label, String value, {bool isBold = false}) {
+  Widget _buildDetailRowItem(String label, String value,
+      {bool isBold = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
       child: Row(
         children: [
-          Text(label, style: lightSmall.copyWith(color: ColorResources.blueGreyColor)),
+          Text(label,
+              style: lightSmall.copyWith(color: ColorResources.blueGreyColor)),
           const SizedBox(width: 4),
-          Text(value, style: isBold ? boldLarge.copyWith(fontSize: 12) : regularSmall),
+          Text(value,
+              style: isBold ? boldLarge.copyWith(fontSize: 12) : regularSmall),
         ],
       ),
     );
@@ -1058,7 +1159,8 @@ class _SigningModalState extends State<_SigningModal> {
   void initState() {
     super.initState();
     // Default PFX slug from backend suggestions
-    final suggested = widget.permissionData?['suggested_pfx_profile_slug']?.toString();
+    final suggested =
+        widget.permissionData?['suggested_pfx_profile_slug']?.toString();
     if (suggested != null && suggested.isNotEmpty) {
       _selectedPfxSlug = suggested;
     }
@@ -1100,7 +1202,9 @@ class _SigningModalState extends State<_SigningModal> {
 
     final hasPfx = widget.permissionData?['has_pfx_certificate'] == true;
     final hasEsign = widget.permissionData?['has_esign_token'] == true;
-    final esignCertName = widget.permissionData?['esign_cert']?['certName']?.toString() ?? 'eSign';
+    final esignCertName =
+        widget.permissionData?['esign_cert']?['certName']?.toString() ??
+            'eSign';
 
     return Container(
       decoration: const BoxDecoration(
@@ -1131,7 +1235,8 @@ class _SigningModalState extends State<_SigningModal> {
             const SizedBox(height: Dimensions.space15),
             Text(
               "Xác thực chữ ký số",
-              style: boldLarge.copyWith(fontSize: 18, color: ColorResources.primaryColor),
+              style: boldLarge.copyWith(
+                  fontSize: 18, color: ColorResources.primaryColor),
             ),
             const SizedBox(height: Dimensions.space15),
 
@@ -1150,7 +1255,9 @@ class _SigningModalState extends State<_SigningModal> {
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
-                            color: _selectedTab == 0 ? ColorResources.primaryColor : Colors.transparent,
+                            color: _selectedTab == 0
+                                ? ColorResources.primaryColor
+                                : Colors.transparent,
                             width: 2,
                           ),
                         ),
@@ -1159,7 +1266,9 @@ class _SigningModalState extends State<_SigningModal> {
                         child: Text(
                           "Chứng thư PFX Server",
                           style: boldLarge.copyWith(
-                            color: _selectedTab == 0 ? ColorResources.primaryColor : Colors.grey,
+                            color: _selectedTab == 0
+                                ? ColorResources.primaryColor
+                                : Colors.grey,
                           ),
                         ),
                       ),
@@ -1178,7 +1287,9 @@ class _SigningModalState extends State<_SigningModal> {
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
-                            color: _selectedTab == 1 ? ColorResources.primaryColor : Colors.transparent,
+                            color: _selectedTab == 1
+                                ? ColorResources.primaryColor
+                                : Colors.transparent,
                             width: 2,
                           ),
                         ),
@@ -1187,7 +1298,9 @@ class _SigningModalState extends State<_SigningModal> {
                         child: Text(
                           "MISA eSign (Remote)",
                           style: boldLarge.copyWith(
-                            color: _selectedTab == 1 ? ColorResources.primaryColor : Colors.grey,
+                            color: _selectedTab == 1
+                                ? ColorResources.primaryColor
+                                : Colors.grey,
                           ),
                         ),
                       ),
@@ -1207,10 +1320,12 @@ class _SigningModalState extends State<_SigningModal> {
                     Text(
                       _localSigningProgressText,
                       textAlign: TextAlign.center,
-                      style: boldLarge.copyWith(color: ColorResources.primaryColor),
+                      style: boldLarge.copyWith(
+                          color: ColorResources.primaryColor),
                     ),
                     const SizedBox(height: 10),
-                    const Text("Vui lòng không đóng cửa sổ này...", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    const Text("Vui lòng không đóng cửa sổ này...",
+                        style: TextStyle(color: Colors.grey, fontSize: 12)),
                   ],
                 ),
               ),
@@ -1232,7 +1347,8 @@ class _SigningModalState extends State<_SigningModal> {
                 else ...[
                   // Dropdown to select PFX profile
                   if (profiles.isNotEmpty) ...[
-                    const Text("Chọn chứng thư số PFX", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text("Chọn chứng thư số PFX",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1265,15 +1381,18 @@ class _SigningModalState extends State<_SigningModal> {
 
                   // Luôn hiện ô mật khẩu (giống DMS) — không ẩn khi has_pfx_saved_password
                   // để tránh gửi mật khẩu rỗng khi bản lưu trên server hỏng.
-                  const Text("Mật khẩu chứng thư (*)", style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text("Mật khẩu chứng thư (*)",
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _passwordController,
                     obscureText: true,
                     decoration: InputDecoration(
                       hintText: "Nhập mật khẩu tệp PFX của bạn",
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
                     ),
                   ),
                   const SizedBox(height: Dimensions.space15),
@@ -1308,8 +1427,11 @@ class _SigningModalState extends State<_SigningModal> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Đã kết nối chứng thư số MISA eSign:", style: TextStyle(fontWeight: FontWeight.bold)),
-                              Text(esignCertName, style: const TextStyle(fontSize: 13)),
+                              const Text("Đã kết nối chứng thư số MISA eSign:",
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              Text(esignCertName,
+                                  style: const TextStyle(fontSize: 13)),
                             ],
                           ),
                         ),
@@ -1321,26 +1443,32 @@ class _SigningModalState extends State<_SigningModal> {
               ],
 
               // Shared fields: Instruction and Comment Keyword
-              const Text("Ý kiến / Chỉ thị ký", style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text("Ý kiến / Chỉ thị ký",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
               TextField(
                 controller: _instructionController,
                 decoration: InputDecoration(
                   hintText: "Nhập ý kiến duyệt hồ sơ",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
               const SizedBox(height: Dimensions.space15),
 
-              const Text("Từ khóa vị trí ký (PDF comment)", style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text("Từ khóa vị trí ký (PDF comment)",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
               TextField(
                 controller: _keywordController,
                 decoration: InputDecoration(
                   hintText: "Để trống = thứ tự hiển thị tự động",
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
               const SizedBox(height: Dimensions.space25),
@@ -1351,19 +1479,24 @@ class _SigningModalState extends State<_SigningModal> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text("Hủy", style: TextStyle(color: Colors.grey)),
+                    child:
+                        const Text("Hủy", style: TextStyle(color: Colors.grey)),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ColorResources.primaryColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 12),
                     ),
                     onPressed: _selectedTab == 0
                         ? (hasPfx ? _executePfxSign : null)
                         : (hasEsign ? _executeEsignSign : null),
-                    child: const Text("Xác nhận ký", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text("Xác nhận ký",
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -1434,7 +1567,9 @@ class _SigningModalState extends State<_SigningModal> {
 
     if (_isDisposed) return;
 
-    if (startRes == null || startRes['success'] != true || startRes['transaction_id'] == null) {
+    if (startRes == null ||
+        startRes['success'] != true ||
+        startRes['transaction_id'] == null) {
       setState(() {
         _isLocalSigning = false;
       });
@@ -1451,7 +1586,8 @@ class _SigningModalState extends State<_SigningModal> {
     while (pollCount < maxPolls && !_isDisposed) {
       if (_isDisposed) break;
       setState(() {
-        _localSigningProgressText = "Chờ bạn phê duyệt trên app MISA eSign...\nLượt kiểm tra: ${pollCount + 1}/$maxPolls";
+        _localSigningProgressText =
+            "Chờ bạn phê duyệt trên app MISA eSign...\nLượt kiểm tra: ${pollCount + 1}/$maxPolls";
       });
 
       await Future.delayed(const Duration(seconds: 5));
@@ -1463,7 +1599,9 @@ class _SigningModalState extends State<_SigningModal> {
       if (status == 'SUCCESS') {
         isSuccess = true;
         break;
-      } else if (status == 'FAILED' || status == 'REJECTED' || status == 'EXPIRED') {
+      } else if (status == 'FAILED' ||
+          status == 'REJECTED' ||
+          status == 'EXPIRED') {
         break;
       }
       pollCount++;
@@ -1479,7 +1617,8 @@ class _SigningModalState extends State<_SigningModal> {
       CustomSnackBar.success(successList: ["Ký eSign thành công!"]);
       widget.onSuccess();
     } else {
-      CustomSnackBar.error(errorList: ["Quy trình ký eSign không thành công hoặc đã hết hạn"]);
+      CustomSnackBar.error(
+          errorList: ["Quy trình ký eSign không thành công hoặc đã hết hạn"]);
     }
   }
 }
