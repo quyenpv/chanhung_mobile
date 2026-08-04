@@ -109,6 +109,33 @@ jobs:
           path: build/app/outputs/bundle/release/app-release.aab
           retention-days: 14
 
+      - name: Check Google Play publishing credentials
+        id: play
+        if: steps.signing.outputs.configured == 'true'
+        shell: bash
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [[ -n "$PLAY_SERVICE_ACCOUNT_JSON" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::PLAY_SERVICE_ACCOUNT_JSON is missing; AAB is ready as an artifact but was not published to Google Play."
+            echo "### Google Play publish skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "Add the repository secret \`PLAY_SERVICE_ACCOUNT_JSON\` to publish automatically to Internal testing." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Publish AAB to Google Play Internal testing
+        if: steps.play.outputs.configured == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.chanhung.erp
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+          inAppUpdatePriority: 2
+
       - name: Upload debug APK artifact
         if: steps.signing.outputs.configured != 'true'
         uses: actions/upload-artifact@v4
