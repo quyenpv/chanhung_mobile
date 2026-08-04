@@ -33,6 +33,7 @@ import 'package:chanhung/view/screens/ticket/ticket_screen.dart';
 import 'package:chanhung/view/screens/payment_request/payment_requests_screen.dart';
 import 'package:chanhung/view/screens/payment_request/payment_request_details_screen.dart';
 import 'package:chanhung/view/screens/tasks/my_tasks_screen.dart';
+import 'package:chanhung/view/screens/dept_daily_work/dept_daily_work_screen.dart';
 import 'package:get/get.dart';
 
 class RouteHelper {
@@ -73,6 +74,7 @@ class RouteHelper {
   static const String profileScreen = "/profile_screen";
   static const String privacyScreen = "/privacy_screen";
   static const String myTasksScreen = "/my_tasks_screen";
+  static const String deptDailyWorkScreen = "/dept_daily_work_screen";
 
   static String withId(String route, Object? id) {
     return '$route?id=${Uri.encodeComponent(id?.toString() ?? '')}';
@@ -131,6 +133,7 @@ class RouteHelper {
     GetPage(name: settingsScreen, page: () => const MenuScreen()),
     GetPage(name: privacyScreen, page: () => const PrivacyPolicyScreen()),
     GetPage(name: myTasksScreen, page: () => const MyTasksScreen()),
+    GetPage(name: deptDailyWorkScreen, page: () => const DeptDailyWorkScreen()),
   ];
 }
 

@@ -137,6 +137,29 @@ class HomeDrawer extends StatelessWidget {
                   Get.toNamed(RouteHelper.myTasksScreen);
                 },
               ),
+              ListTile(
+                leading: const Icon(
+                  Icons.assignment_ind_outlined,
+                  color: ColorResources.primaryColor,
+                ),
+                title: Text(
+                  'Quản lý giao việc',
+                  style: regularDefault.copyWith(
+                      color: Theme.of(context)
+                          .textTheme
+                          .bodyMedium!
+                          .color),
+                ),
+                trailing: const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: Dimensions.space12,
+                  color: ColorResources.contentTextColor,
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Get.toNamed(RouteHelper.deptDailyWorkScreen);
+                },
+              ),
               if (controller.isContractsEnable)
                 ListTile(
                   leading: const Icon(
