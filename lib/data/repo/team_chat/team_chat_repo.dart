@@ -34,4 +34,53 @@ class TeamChatRepo {
       'conversation_id': conversationId.toString(),
     }, passHeader: true);
   }
+
+  Future<ResponseModel> createConversation({
+    required String type,
+    required String name,
+    required List<int> memberIds,
+    String description = '',
+  }) {
+    return apiClient.request(
+      '${UrlContainer.baseUrl}${UrlContainer.teamChatCreateUrl}',
+      Method.postMethod,
+      {
+        'type': type,
+        'name': name,
+        'description': description,
+        'member_ids': memberIds.join(','),
+      },
+      passHeader: true,
+    );
+  }
+
+  Future<ResponseModel> details(int conversationId) => apiClient.request(
+        '${UrlContainer.baseUrl}${UrlContainer.teamChatDetailsUrl}?conversation_id=$conversationId',
+        Method.getMethod,
+        null,
+        passHeader: true,
+      );
+
+  Future<ResponseModel> addMembers(int conversationId, List<int> memberIds) =>
+      apiClient.request(
+        '${UrlContainer.baseUrl}${UrlContainer.teamChatAddMembersUrl}',
+        Method.postMethod,
+        {'conversation_id': '$conversationId', 'member_ids': memberIds.join(',')},
+        passHeader: true,
+      );
+
+  Future<ResponseModel> removeMember(int conversationId, int userId) =>
+      apiClient.request(
+        '${UrlContainer.baseUrl}${UrlContainer.teamChatRemoveMemberUrl}',
+        Method.postMethod,
+        {'conversation_id': '$conversationId', 'user_id': '$userId'},
+        passHeader: true,
+      );
+
+  Future<ResponseModel> leaveGroup(int conversationId) => apiClient.request(
+        '${UrlContainer.baseUrl}${UrlContainer.teamChatLeaveGroupUrl}',
+        Method.postMethod,
+        {'conversation_id': '$conversationId'},
+        passHeader: true,
+      );
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:chanhung/core/service/notification_service.dart';
+import 'package:chanhung/core/config/app_mode.dart';
 import 'package:chanhung/core/service/staff_location_tracking_service.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/method.dart';
@@ -79,9 +80,13 @@ class LoginController extends GetxController {
 
     // Đăng ký FCM device token sau khi đăng nhập thành công
     _registerFcmToken();
-    _startLocationTracking();
+    if (!AppMode.chatOnly) {
+      _startLocationTracking();
+    }
 
-    Get.offAndToNamed(RouteHelper.dashboardScreen);
+    Get.offAllNamed(AppMode.chatOnly
+        ? RouteHelper.teamChatScreen
+        : RouteHelper.dashboardScreen);
 
     if (remember) {
       changeRememberMe();

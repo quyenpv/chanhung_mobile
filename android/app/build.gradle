@@ -51,6 +51,20 @@ android {
         versionName = flutter.versionName
     }
 
+    flavorDimensions "app"
+    productFlavors {
+        erp {
+            dimension "app"
+            applicationId "com.chanhung.erp"
+            resValue "string", "app_name", "ChanHung ERP"
+        }
+        chat {
+            dimension "app"
+            applicationId "com.chanhung.chat"
+            resValue "string", "app_name", "ChanHung Chat"
+        }
+    }
+
     signingConfigs {
         release {
             keyAlias = keystoreProperties['keyAlias']

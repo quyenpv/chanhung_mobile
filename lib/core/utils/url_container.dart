@@ -61,6 +61,11 @@ class UrlContainer {
   static const String teamChatMessagesUrl = 'team_chat/messages';
   static const String teamChatSendUrl = 'team_chat/send';
   static const String teamChatVideoUrl = 'team_chat/video_meeting';
+  static const String teamChatCreateUrl = 'team_chat/create_conversation';
+  static const String teamChatDetailsUrl = 'team_chat/details';
+  static const String teamChatAddMembersUrl = 'team_chat/add_members';
+  static const String teamChatRemoveMemberUrl = 'team_chat/remove_member';
+  static const String teamChatLeaveGroupUrl = 'team_chat/leave_group';
   
   // Dept Daily Work (Quản lý giao việc)
   static const String deptDailyWorkUrl = 'dept_daily_work';

@@ -81,32 +81,58 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK release
+      - name: Build ERP APK release
         if: steps.signing.outputs.configured == 'true'
-        run: flutter build apk --release
+        run: flutter build apk --release --flavor erp -t lib/main.dart
 
-      - name: Build Android App Bundle release
+      - name: Build Chat APK release
         if: steps.signing.outputs.configured == 'true'
-        run: flutter build appbundle --release
+        run: flutter build apk --release --flavor chat -t lib/main_chat.dart
 
-      - name: Build debug APK fallback
+      - name: Build ERP Android App Bundle release
+        if: steps.signing.outputs.configured == 'true'
+        run: flutter build appbundle --release --flavor erp -t lib/main.dart
+
+      - name: Build Chat Android App Bundle release
+        if: steps.signing.outputs.configured == 'true'
+        run: flutter build appbundle --release --flavor chat -t lib/main_chat.dart
+
+      - name: Build debug APKs fallback
         if: steps.signing.outputs.configured != 'true'
-        run: flutter build apk --debug
+        run: |
+          flutter build apk --debug --flavor erp -t lib/main.dart
+          flutter build apk --debug --flavor chat -t lib/main_chat.dart
 
-      - name: Upload APK artifact
+      - name: Upload ERP APK artifact
         if: steps.signing.outputs.configured == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: android-app-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: chanhung-erp-release-apk
+          path: build/app/outputs/flutter-apk/app-erp-release.apk
           retention-days: 14
 
-      - name: Upload AAB artifact for Google Play
+      - name: Upload Chat APK artifact
         if: steps.signing.outputs.configured == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: android-app-release-aab
-          path: build/app/outputs/bundle/release/app-release.aab
+          name: chanhung-chat-release-apk
+          path: build/app/outputs/flutter-apk/app-chat-release.apk
+          retention-days: 14
+
+      - name: Upload ERP AAB artifact for Google Play
+        if: steps.signing.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: chanhung-erp-release-aab
+          path: build/app/outputs/bundle/erpRelease/app-erp-release.aab
+          retention-days: 14
+
+      - name: Upload Chat AAB artifact for Google Play
+        if: steps.signing.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: chanhung-chat-release-aab
+          path: build/app/outputs/bundle/chatRelease/app-chat-release.aab
           retention-days: 14
 
       - name: Check Google Play publishing credentials
@@ -131,15 +157,23 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.chanhung.erp
-          releaseFiles: build/app/outputs/bundle/release/app-release.aab
-          track: internal
+          releaseFiles: build/app/outputs/bundle/erpRelease/app-erp-release.aab
+          tracks: internal
           status: completed
           inAppUpdatePriority: 2
 
-      - name: Upload debug APK artifact
+      - name: Upload ERP debug APK artifact
         if: steps.signing.outputs.configured != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: android-app-debug-apk-unsigned-release-fallback
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: chanhung-erp-debug-apk
+          path: build/app/outputs/flutter-apk/app-erp-debug.apk
+          retention-days: 7
+
+      - name: Upload Chat debug APK artifact
+        if: steps.signing.outputs.configured != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: chanhung-chat-debug-apk
+          path: build/app/outputs/flutter-apk/app-chat-debug.apk
           retention-days: 7

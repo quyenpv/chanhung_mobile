@@ -13,6 +13,7 @@ class TeamChatController extends GetxController {
 
   bool isLoading = true;
   List<dynamic> conversations = [];
+  List<dynamic> users = [];
   int currentUserId = 0;
 
   Map<String, dynamic> _payload(dynamic map) {
@@ -34,10 +35,24 @@ class TeamChatController extends GetxController {
       if (payload.isNotEmpty) {
         currentUserId = int.tryParse('${payload['current_user_id']}') ?? 0;
         conversations = payload['conversations'] is List ? payload['conversations'] as List : [];
+        users = payload['users'] is List ? payload['users'] as List : [];
       }
     }
     isLoading = false;
     update();
+  }
+
+  Future<int?> createConversation({
+    required String type,
+    required String name,
+    required List<int> memberIds,
+  }) async {
+    final res = await repo.createConversation(
+        type: type, name: name, memberIds: memberIds);
+    if (res.statusCode != 200 && res.statusCode != 201) return null;
+    final payload = _payload(jsonDecode(res.responseJson));
+    await load();
+    return int.tryParse('${payload['conversation_id']}');
   }
 }
 
@@ -60,6 +75,10 @@ class TeamChatRoomController extends GetxController {
   bool isLoading = true;
   bool isSending = false;
   List<dynamic> messages = [];
+  List<dynamic> members = [];
+  List<dynamic> availableUsers = [];
+  String conversationType = 'direct';
+  bool canManageMembers = false;
   final TextEditingController inputController = TextEditingController();
   Timer? _pollTimer;
 
@@ -77,6 +96,37 @@ class TeamChatRoomController extends GetxController {
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) => loadMessages(silent: true));
     loadMessages();
+    loadDetails();
+  }
+
+  Future<void> loadDetails() async {
+    final res = await repo.details(conversationId);
+    if (res.statusCode != 200) return;
+    final payload = _payload(jsonDecode(res.responseJson));
+    members = payload['members'] is List ? payload['members'] as List : [];
+    final conversation = payload['conversation'];
+    if (conversation is Map) conversationType = '${conversation['type'] ?? 'direct'}';
+    canManageMembers = payload['can_manage_members'] == true;
+    update();
+  }
+
+  Future<bool> addMembers(List<int> ids) async {
+    final res = await repo.addMembers(conversationId, ids);
+    if (res.statusCode != 200) return false;
+    await loadDetails();
+    return true;
+  }
+
+  Future<bool> removeMember(int userId) async {
+    final res = await repo.removeMember(conversationId, userId);
+    if (res.statusCode != 200) return false;
+    await loadDetails();
+    return true;
+  }
+
+  Future<bool> leaveGroup() async {
+    final res = await repo.leaveGroup(conversationId);
+    return res.statusCode == 200;
   }
 
   Future<void> loadMessages({bool silent = false}) async {

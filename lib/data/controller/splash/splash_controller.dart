@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:chanhung/core/utils/local_strings.dart';
+import 'package:chanhung/core/config/app_mode.dart';
 import 'package:chanhung/core/utils/messages.dart';
 import 'package:chanhung/data/controller/localization/localization_controller.dart';
 import 'package:chanhung/data/model/global/overview_model.dart';
@@ -252,8 +253,10 @@ class SplashController extends GetxController {
     } else {
       if (isRemember) {
         Future.delayed(const Duration(seconds: 1), () async {
-          Get.offAndToNamed(RouteHelper.dashboardScreen);
-          try {
+          Get.offAndToNamed(AppMode.chatOnly
+              ? RouteHelper.teamChatScreen
+              : RouteHelper.dashboardScreen);
+          if (!AppMode.chatOnly) try {
             if (!Get.isRegistered<StaffLocationTrackingService>()) {
               final service = await Get.putAsync(
                   () => StaffLocationTrackingService().init(),
