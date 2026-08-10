@@ -8,6 +8,7 @@ import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -204,6 +205,33 @@ class _MessageAttachments extends StatelessWidget {
   }
 }
 
+class _ActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _ActionTile(
+      {required this.icon,
+      required this.label,
+      required this.color,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, color: color, size: 30),
+            const SizedBox(height: 8),
+            Text(label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                style: const TextStyle(fontSize: 12))
+          ])));
+}
+
 class _TeamChatRoomScreenState extends State<TeamChatRoomScreen> {
   late TeamChatRoomController controller;
 
@@ -216,6 +244,8 @@ class _TeamChatRoomScreenState extends State<TeamChatRoomScreen> {
     final args = Get.arguments as Map<String, dynamic>? ?? {};
     controller.availableUsers =
         args['users'] is List ? args['users'] as List : [];
+    controller.availableConversations =
+        args['conversations'] is List ? args['conversations'] as List : [];
     controller.initRoom(
         int.tryParse('${args['id']}') ?? 0, '${args['name'] ?? 'Chat'}',
         userId: int.tryParse('${args['current_user_id']}') ?? 0);
@@ -255,49 +285,97 @@ class _TeamChatRoomScreenState extends State<TeamChatRoomScreen> {
                                 Map<String, dynamic>.from(c.messages[i] as Map);
                             final mine =
                                 '${m['sender_id']}' == '${c.currentUserId}';
-                            return Align(
-                                alignment: mine
-                                    ? Alignment.centerRight
-                                    : Alignment.centerLeft,
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
-                                  constraints: BoxConstraints(
-                                      maxWidth:
-                                          MediaQuery.of(context).size.width *
+                            return GestureDetector(
+                                onLongPress: () =>
+                                    _showMessageActions(context, c, m, mine),
+                                child: Align(
+                                    alignment: mine
+                                        ? Alignment.centerRight
+                                        : Alignment.centerLeft,
+                                    child: Container(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
+                                      constraints: BoxConstraints(
+                                          maxWidth: MediaQuery.of(context)
+                                                  .size
+                                                  .width *
                                               .78),
-                                  decoration: BoxDecoration(
-                                      color: mine
-                                          ? ColorResources.primaryColor
-                                              .withValues(alpha: .15)
-                                          : Colors.grey.shade200,
-                                      borderRadius: BorderRadius.circular(12)),
-                                  child: Column(
-                                      crossAxisAlignment: mine
-                                          ? CrossAxisAlignment.end
-                                          : CrossAxisAlignment.start,
-                                      children: [
-                                        if (!mine)
-                                          Text('${m['sender_name']}',
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  fontSize: 12)),
-                                        if ('${m['body'] ?? ''}'.isNotEmpty)
-                                          _RichMessageText(
-                                              body: '${m['body']}',
-                                              members: c.members),
-                                        if (m['files'] is List &&
-                                            (m['files'] as List).isNotEmpty)
-                                          _MessageAttachments(
-                                              files: m['files'] as List),
-                                        Text(
-                                            '${m['created_at_relative'] ?? ''}',
-                                            style: TextStyle(
-                                                fontSize: 10,
-                                                color: Colors.grey.shade600)),
-                                      ]),
-                                ));
+                                      decoration: BoxDecoration(
+                                          color: mine
+                                              ? ColorResources.primaryColor
+                                                  .withValues(alpha: .15)
+                                              : Colors.grey.shade200,
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
+                                      child: Column(
+                                          crossAxisAlignment: mine
+                                              ? CrossAxisAlignment.end
+                                              : CrossAxisAlignment.start,
+                                          children: [
+                                            if (!mine)
+                                              Text('${m['sender_name']}',
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      fontSize: 12)),
+                                            if (m['parent'] is Map)
+                                              Container(
+                                                  width: double.infinity,
+                                                  margin: const EdgeInsets.only(
+                                                      bottom: 6),
+                                                  padding:
+                                                      const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                      color: Colors.black
+                                                          .withValues(
+                                                              alpha: .06),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8)),
+                                                  child: Text(
+                                                      '${m['parent']['sender_name']}: ${m['parent']['body']}',
+                                                      maxLines: 2,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                          fontSize: 11))),
+                                            if ('${m['body'] ?? ''}'.isNotEmpty)
+                                              _RichMessageText(
+                                                  body: '${m['body']}',
+                                                  members: c.members),
+                                            if (m['files'] is List &&
+                                                (m['files'] as List).isNotEmpty)
+                                              _MessageAttachments(
+                                                  files: m['files'] as List),
+                                            if (m['reactions'] is List &&
+                                                (m['reactions'] as List)
+                                                    .isNotEmpty)
+                                              Wrap(
+                                                  spacing: 4,
+                                                  children: (m['reactions']
+                                                          as List)
+                                                      .map((reaction) => ActionChip(
+                                                          visualDensity:
+                                                              VisualDensity
+                                                                  .compact,
+                                                          label: Text(
+                                                              '${reaction['emoji']} ${reaction['count']}'),
+                                                          onPressed: () =>
+                                                              c.toggleReaction(
+                                                                  int.tryParse(
+                                                                          '${m['id']}') ??
+                                                                      0,
+                                                                  '${reaction['emoji']}')))
+                                                      .toList()),
+                                            Text(
+                                                '${m['created_at_relative'] ?? ''}',
+                                                style: TextStyle(
+                                                    fontSize: 10,
+                                                    color:
+                                                        Colors.grey.shade600)),
+                                          ]),
+                                    )));
                           },
                         )),
               if (c.mentionSuggestions.isNotEmpty)
@@ -339,6 +417,25 @@ class _TeamChatRoomScreenState extends State<TeamChatRoomScreen> {
                                 child: Text(c.pendingAttachments[i].name,
                                     overflow: TextOverflow.ellipsis)),
                             onDeleted: () => c.removeAttachment(i)))),
+              if (c.replyTo != null)
+                Container(
+                    margin: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Row(children: [
+                      const Icon(Icons.reply, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                          child: Text(
+                              'Trả lời ${c.replyTo!['sender_name']}: ${c.replyTo!['body']}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis)),
+                      IconButton(
+                          onPressed: c.cancelReply,
+                          icon: const Icon(Icons.close, size: 18))
+                    ])),
               SafeArea(
                   child: Padding(
                       padding: const EdgeInsets.all(8),
@@ -372,6 +469,308 @@ class _TeamChatRoomScreenState extends State<TeamChatRoomScreen> {
                       ]))),
             ]),
           ));
+
+  Future<void> _showMessageActions(BuildContext context,
+      TeamChatRoomController c, Map<String, dynamic> message, bool mine) async {
+    final messageId = int.tryParse('${message['id']}') ?? 0;
+    final quickEmoji = ['❤️', '👍', '😂', '😮', '😢', '😡'];
+    await showGeneralDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: 'Đóng',
+        barrierColor: Colors.black54,
+        pageBuilder: (dialogContext, _, __) => SafeArea(
+            child: Center(
+                child: Material(
+                    color: Colors.transparent,
+                    child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(18),
+                        child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 520),
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                          color: Theme.of(context).cardColor,
+                                          borderRadius:
+                                              BorderRadius.circular(16)),
+                                      child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text('${message['sender_name']}',
+                                                style: const TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w700)),
+                                            const SizedBox(height: 4),
+                                            _RichMessageText(
+                                                body:
+                                                    '${message['body'] ?? ''}',
+                                                members: c.members),
+                                          ])),
+                                  const SizedBox(height: 12),
+                                  Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                          color: Theme.of(context).cardColor,
+                                          borderRadius:
+                                              BorderRadius.circular(18)),
+                                      child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceAround,
+                                          children: [
+                                            ...quickEmoji.map((emoji) =>
+                                                InkWell(
+                                                    borderRadius: BorderRadius
+                                                        .circular(24),
+                                                    onTap: () async {
+                                                      Navigator.pop(
+                                                          dialogContext);
+                                                      await c.toggleReaction(
+                                                          messageId, emoji);
+                                                    },
+                                                    child: Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .all(8),
+                                                        child: Text(emoji,
+                                                            style:
+                                                                const TextStyle(
+                                                                    fontSize:
+                                                                        28))))),
+                                            IconButton(
+                                                icon: const Icon(Icons.add,
+                                                    size: 30),
+                                                onPressed: () {
+                                                  Navigator.pop(dialogContext);
+                                                  _showAllEmoji(
+                                                      context, c, messageId);
+                                                })
+                                          ])),
+                                  const SizedBox(height: 12),
+                                  Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 16, horizontal: 8),
+                                      decoration: BoxDecoration(
+                                          color: Theme.of(context).cardColor,
+                                          borderRadius:
+                                              BorderRadius.circular(18)),
+                                      child: GridView.count(
+                                          shrinkWrap: true,
+                                          physics:
+                                              const NeverScrollableScrollPhysics(),
+                                          crossAxisCount: 4,
+                                          childAspectRatio: .9,
+                                          children: [
+                                            _ActionTile(
+                                                icon: Icons.reply,
+                                                label: 'Trả lời',
+                                                color: Colors.deepPurple,
+                                                onTap: () {
+                                                  Navigator.pop(dialogContext);
+                                                  c.setReply(message);
+                                                }),
+                                            _ActionTile(
+                                                icon: Icons.forward,
+                                                label: 'Chuyển tiếp',
+                                                color: Colors.blue,
+                                                onTap: () {
+                                                  Navigator.pop(dialogContext);
+                                                  _showForward(
+                                                      context, c, messageId);
+                                                }),
+                                            _ActionTile(
+                                                icon: Icons.copy_outlined,
+                                                label: 'Sao chép',
+                                                color: Colors.indigo,
+                                                onTap: () async {
+                                                  await Clipboard.setData(
+                                                      ClipboardData(
+                                                          text:
+                                                              '${message['body'] ?? ''}'));
+                                                  if (dialogContext.mounted) {
+                                                    Navigator.pop(
+                                                        dialogContext);
+                                                  }
+                                                }),
+                                            _ActionTile(
+                                                icon: Icons.push_pin_outlined,
+                                                label: 'Ghim',
+                                                color: Colors.orange,
+                                                onTap: () async {
+                                                  Navigator.pop(dialogContext);
+                                                  await c.pinMessage(messageId);
+                                                }),
+                                            if (mine)
+                                              _ActionTile(
+                                                  icon: Icons.edit_outlined,
+                                                  label: 'Sửa',
+                                                  color: Colors.teal,
+                                                  onTap: () {
+                                                    Navigator.pop(
+                                                        dialogContext);
+                                                    _showEdit(
+                                                        context, c, message);
+                                                  }),
+                                            _ActionTile(
+                                                icon: Icons.info_outline,
+                                                label: 'Chi tiết',
+                                                color: Colors.grey,
+                                                onTap: () {
+                                                  Navigator.pop(dialogContext);
+                                                  _showDetails(
+                                                      context, message);
+                                                }),
+                                            if (mine)
+                                              _ActionTile(
+                                                  icon: Icons.delete_outline,
+                                                  label: 'Thu hồi',
+                                                  color: Colors.red,
+                                                  onTap: () async {
+                                                    Navigator.pop(
+                                                        dialogContext);
+                                                    await _confirmDelete(
+                                                        context, c, messageId);
+                                                  }),
+                                          ]))
+                                ])))))));
+  }
+
+  Future<void> _showAllEmoji(
+      BuildContext context, TeamChatRoomController c, int messageId) async {
+    const emoji = ['👍', '❤️', '😂', '😮', '😢', '😡', '🙏', '🎉', '👏', '🔥'];
+    await showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+                child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Wrap(
+                  spacing: 18,
+                  runSpacing: 18,
+                  children: emoji
+                      .map((item) => InkWell(
+                            onTap: () async {
+                              Navigator.pop(sheetContext);
+                              await c.toggleReaction(messageId, item);
+                            },
+                            child: Text(item,
+                                style: const TextStyle(fontSize: 36)),
+                          ))
+                      .toList()),
+            )));
+  }
+
+  Future<void> _showEdit(BuildContext context, TeamChatRoomController c,
+      Map<String, dynamic> message) async {
+    final input = TextEditingController(text: '${message['body'] ?? ''}');
+    await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+              title: const Text('Sửa tin nhắn'),
+              content: TextField(
+                  controller: input, autofocus: true, minLines: 2, maxLines: 6),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Hủy')),
+                FilledButton(
+                    onPressed: () async {
+                      if (await c.editMessage(
+                              int.tryParse('${message['id']}') ?? 0,
+                              input.text) &&
+                          dialogContext.mounted) {
+                        Navigator.pop(dialogContext);
+                      }
+                    },
+                    child: const Text('Lưu'))
+              ],
+            ));
+    input.dispose();
+  }
+
+  Future<void> _showForward(
+      BuildContext context, TeamChatRoomController c, int messageId) async {
+    final targets = c.availableConversations
+        .where((item) => '${item['id']}' != '${c.conversationId}')
+        .toList();
+    await showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+                child: SizedBox(
+              height: MediaQuery.of(context).size.height * .6,
+              child: Column(children: [
+                const Text('Chuyển tiếp đến',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                Expanded(
+                    child: ListView.builder(
+                        itemCount: targets.length,
+                        itemBuilder: (_, i) => ListTile(
+                              leading: const CircleAvatar(
+                                  child: Icon(Icons.chat_bubble_outline)),
+                              title: Text('${targets[i]['name']}'),
+                              onTap: () async {
+                                if (await c.forwardMessage(
+                                        messageId,
+                                        int.tryParse('${targets[i]['id']}') ??
+                                            0) &&
+                                    sheetContext.mounted) {
+                                  Navigator.pop(sheetContext);
+                                }
+                              },
+                            )))
+              ]),
+            )));
+  }
+
+  Future<void> _showDetails(
+          BuildContext context, Map<String, dynamic> message) =>
+      showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+                title: const Text('Chi tiết tin nhắn'),
+                content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Người gửi: ${message['sender_name']}'),
+                      Text(
+                          'Thời gian: ${message['created_at_relative'] ?? ''}'),
+                      Text('Mã tin nhắn: ${message['id']}'),
+                      Text(
+                          'Số tệp: ${message['files'] is List ? (message['files'] as List).length : 0}'),
+                    ]),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Đóng'))
+                ],
+              ));
+
+  Future<void> _confirmDelete(
+      BuildContext context, TeamChatRoomController c, int messageId) async {
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+              title: const Text('Thu hồi tin nhắn?'),
+              content: const Text('Tin nhắn sẽ bị thu hồi với mọi thành viên.'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Hủy')),
+                FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('Thu hồi'))
+              ],
+            ));
+    if (confirmed == true) await c.deleteMessage(messageId);
+  }
 
   Future<void> _showMembers(
       BuildContext context, TeamChatRoomController c) async {

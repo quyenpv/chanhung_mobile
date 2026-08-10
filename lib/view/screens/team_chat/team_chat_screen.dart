@@ -104,6 +104,7 @@ class _TeamChatScreenState extends State<TeamChatScreen> {
                   'name': '${item['name']}',
                   'current_user_id': c.currentUserId,
                   'users': c.users,
+                  'conversations': c.conversations,
                 });
               },
             );
@@ -199,6 +200,7 @@ class _TeamChatScreenState extends State<TeamChatScreen> {
                                           : 'Chat',
                                       'current_user_id': c.currentUserId,
                                       'users': c.users,
+                                      'conversations': c.conversations,
                                     });
                               }
                             },

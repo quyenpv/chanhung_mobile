@@ -66,7 +66,12 @@ class UrlContainer {
   static const String teamChatAddMembersUrl = 'team_chat/add_members';
   static const String teamChatRemoveMemberUrl = 'team_chat/remove_member';
   static const String teamChatLeaveGroupUrl = 'team_chat/leave_group';
-  
+  static const String teamChatReactionUrl = 'team_chat/toggle_reaction';
+  static const String teamChatEditMessageUrl = 'team_chat/edit_message';
+  static const String teamChatDeleteMessageUrl = 'team_chat/delete_message';
+  static const String teamChatPinMessageUrl = 'team_chat/pin_message';
+  static const String teamChatForwardMessageUrl = 'team_chat/forward_message';
+
   // Dept Daily Work (Quản lý giao việc)
   static const String deptDailyWorkUrl = 'dept_daily_work';
 }

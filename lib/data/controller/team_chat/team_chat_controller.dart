@@ -83,6 +83,8 @@ class TeamChatRoomController extends GetxController {
   final Map<String, int> _selectedMentions = {};
   List<dynamic> members = [];
   List<dynamic> availableUsers = [];
+  List<dynamic> availableConversations = [];
+  Map<String, dynamic>? replyTo;
   String conversationType = 'direct';
   bool canManageMembers = false;
   final TextEditingController inputController = TextEditingController();
@@ -170,16 +172,55 @@ class TeamChatRoomController extends GetxController {
       encodedBody = encodedBody.replaceAll('@$name', '@[uid:$id]');
     });
     final res = await repo.sendMessage(conversationId, encodedBody,
-        attachments: pendingAttachments);
+        attachments: pendingAttachments,
+        parentId: int.tryParse('${replyTo?['id'] ?? 0}') ?? 0);
     if (res.statusCode == 200 || res.statusCode == 201) {
       inputController.clear();
       pendingAttachments = [];
       mentionSuggestions = [];
       _selectedMentions.clear();
+      replyTo = null;
       await loadMessages();
     }
     isSending = false;
     update();
+  }
+
+  void setReply(Map<String, dynamic> message) {
+    replyTo = message;
+    update();
+  }
+
+  void cancelReply() {
+    replyTo = null;
+    update();
+  }
+
+  Future<void> toggleReaction(int messageId, String emoji) async {
+    final res = await repo.toggleReaction(messageId, emoji);
+    if (res.statusCode == 200) await loadMessages(silent: true);
+  }
+
+  Future<bool> editMessage(int messageId, String body) async {
+    final res = await repo.editMessage(messageId, body);
+    if (res.statusCode == 200) await loadMessages(silent: true);
+    return res.statusCode == 200;
+  }
+
+  Future<bool> deleteMessage(int messageId) async {
+    final res = await repo.deleteMessage(messageId);
+    if (res.statusCode == 200) await loadMessages(silent: true);
+    return res.statusCode == 200;
+  }
+
+  Future<bool> pinMessage(int messageId) async {
+    final res = await repo.pinMessage(conversationId, messageId);
+    return res.statusCode == 200;
+  }
+
+  Future<bool> forwardMessage(int messageId, int targetConversationId) async {
+    final res = await repo.forwardMessage(messageId, targetConversationId);
+    return res.statusCode == 200;
   }
 
   Future<void> pickAttachments() async {

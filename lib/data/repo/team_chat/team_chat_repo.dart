@@ -30,7 +30,7 @@ class TeamChatRepo {
   }
 
   Future<ResponseModel> sendMessage(int conversationId, String body,
-      {List<PlatformFile> attachments = const []}) async {
+      {List<PlatformFile> attachments = const [], int parentId = 0}) async {
     final url = '${UrlContainer.baseUrl}${UrlContainer.teamChatSendUrl}';
     if (attachments.isNotEmpty) {
       apiClient.initToken();
@@ -43,6 +43,7 @@ class TeamChatRepo {
           })
           ..fields['conversation_id'] = '$conversationId'
           ..fields['body'] = body;
+        if (parentId > 0) request.fields['parent_id'] = '$parentId';
         for (final file in attachments) {
           if (file.path == null) continue;
           request.files.add(await http.MultipartFile.fromPath(
@@ -71,9 +72,48 @@ class TeamChatRepo {
         {
           'conversation_id': conversationId.toString(),
           'body': body,
+          if (parentId > 0) 'parent_id': '$parentId',
         },
         passHeader: true);
   }
+
+  Future<ResponseModel> toggleReaction(int messageId, String emoji) =>
+      apiClient.request(
+          '${UrlContainer.baseUrl}${UrlContainer.teamChatReactionUrl}',
+          Method.postMethod,
+          {'message_id': '$messageId', 'emoji': emoji},
+          passHeader: true);
+
+  Future<ResponseModel> editMessage(int messageId, String body) =>
+      apiClient.request(
+          '${UrlContainer.baseUrl}${UrlContainer.teamChatEditMessageUrl}',
+          Method.postMethod,
+          {'message_id': '$messageId', 'body': body},
+          passHeader: true);
+
+  Future<ResponseModel> deleteMessage(int messageId) => apiClient.request(
+      '${UrlContainer.baseUrl}${UrlContainer.teamChatDeleteMessageUrl}',
+      Method.postMethod,
+      {'message_id': '$messageId'},
+      passHeader: true);
+
+  Future<ResponseModel> pinMessage(int conversationId, int messageId) =>
+      apiClient.request(
+          '${UrlContainer.baseUrl}${UrlContainer.teamChatPinMessageUrl}',
+          Method.postMethod,
+          {'conversation_id': '$conversationId', 'message_id': '$messageId'},
+          passHeader: true);
+
+  Future<ResponseModel> forwardMessage(
+          int messageId, int targetConversationId) =>
+      apiClient.request(
+          '${UrlContainer.baseUrl}${UrlContainer.teamChatForwardMessageUrl}',
+          Method.postMethod,
+          {
+            'message_id': '$messageId',
+            'target_conversation_id': '$targetConversationId'
+          },
+          passHeader: true);
 
   Future<ResponseModel> videoMeeting(int conversationId) async {
     final url = '${UrlContainer.baseUrl}${UrlContainer.teamChatVideoUrl}';
