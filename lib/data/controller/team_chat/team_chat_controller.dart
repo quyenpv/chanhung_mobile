@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:chanhung/data/model/global/api_response_payload.dart';
 import 'package:chanhung/data/repo/team_chat/team_chat_repo.dart';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -34,7 +35,9 @@ class TeamChatController extends GetxController {
       final payload = _payload(map);
       if (payload.isNotEmpty) {
         currentUserId = int.tryParse('${payload['current_user_id']}') ?? 0;
-        conversations = payload['conversations'] is List ? payload['conversations'] as List : [];
+        conversations = payload['conversations'] is List
+            ? payload['conversations'] as List
+            : [];
         users = payload['users'] is List ? payload['users'] as List : [];
       }
     }
@@ -75,6 +78,9 @@ class TeamChatRoomController extends GetxController {
   bool isLoading = true;
   bool isSending = false;
   List<dynamic> messages = [];
+  List<PlatformFile> pendingAttachments = [];
+  List<dynamic> mentionSuggestions = [];
+  final Map<String, int> _selectedMentions = {};
   List<dynamic> members = [];
   List<dynamic> availableUsers = [];
   String conversationType = 'direct';
@@ -94,7 +100,8 @@ class TeamChatRoomController extends GetxController {
     title = name;
     currentUserId = userId;
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 8), (_) => loadMessages(silent: true));
+    _pollTimer = Timer.periodic(
+        const Duration(seconds: 8), (_) => loadMessages(silent: true));
     loadMessages();
     loadDetails();
   }
@@ -105,7 +112,9 @@ class TeamChatRoomController extends GetxController {
     final payload = _payload(jsonDecode(res.responseJson));
     members = payload['members'] is List ? payload['members'] as List : [];
     final conversation = payload['conversation'];
-    if (conversation is Map) conversationType = '${conversation['type'] ?? 'direct'}';
+    if (conversation is Map) {
+      conversationType = '${conversation['type'] ?? 'direct'}';
+    }
     canManageMembers = payload['can_manage_members'] == true;
     update();
   }
@@ -153,15 +162,103 @@ class TeamChatRoomController extends GetxController {
 
   Future<void> send() async {
     final body = inputController.text.trim();
-    if (body.isEmpty || isSending) return;
+    if ((body.isEmpty && pendingAttachments.isEmpty) || isSending) return;
     isSending = true;
     update();
-    final res = await repo.sendMessage(conversationId, body);
+    var encodedBody = body;
+    _selectedMentions.forEach((name, id) {
+      encodedBody = encodedBody.replaceAll('@$name', '@[uid:$id]');
+    });
+    final res = await repo.sendMessage(conversationId, encodedBody,
+        attachments: pendingAttachments);
     if (res.statusCode == 200 || res.statusCode == 201) {
       inputController.clear();
+      pendingAttachments = [];
+      mentionSuggestions = [];
+      _selectedMentions.clear();
       await loadMessages();
     }
     isSending = false;
+    update();
+  }
+
+  Future<void> pickAttachments() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      allowedExtensions: [
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'webp',
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'ppt',
+        'pptx',
+        'csv',
+        'txt',
+        'zip'
+      ],
+      type: FileType.custom,
+    );
+    if (result == null) return;
+    final available = 5 - pendingAttachments.length;
+    pendingAttachments
+        .addAll(result.files.where((f) => f.path != null).take(available));
+    update();
+  }
+
+  void removeAttachment(int index) {
+    if (index >= 0 && index < pendingAttachments.length) {
+      pendingAttachments.removeAt(index);
+      update();
+    }
+  }
+
+  void onComposerChanged(String value) {
+    if (conversationType == 'direct') {
+      mentionSuggestions = [];
+      return;
+    }
+    final cursor = inputController.selection.baseOffset;
+    final beforeCursor = cursor >= 0 && cursor <= value.length
+        ? value.substring(0, cursor)
+        : value;
+    final match = RegExp(r'(?:^|\s)@([^@\s]{0,30})$').firstMatch(beforeCursor);
+    if (match == null) {
+      if (mentionSuggestions.isNotEmpty) {
+        mentionSuggestions = [];
+        update();
+      }
+      return;
+    }
+    final query = (match.group(1) ?? '').toLowerCase();
+    mentionSuggestions = members
+        .where((member) =>
+            int.tryParse('${member['id']}') != currentUserId &&
+            '${member['name']}'.toLowerCase().contains(query))
+        .take(8)
+        .toList();
+    update();
+  }
+
+  void selectMention(Map<String, dynamic> member) {
+    final value = inputController.text;
+    final cursor = inputController.selection.baseOffset;
+    final beforeCursor = value.substring(0, cursor.clamp(0, value.length));
+    final match = RegExp(r'(?:^|\s)@([^@\s]{0,30})$').firstMatch(beforeCursor);
+    if (match == null) return;
+    final name = '${member['name']}'.trim();
+    final replacement = '${match.group(0)!.startsWith(' ') ? ' ' : ''}@$name ';
+    final next = value.replaceRange(match.start, cursor, replacement);
+    inputController.text = next;
+    inputController.selection =
+        TextSelection.collapsed(offset: match.start + replacement.length);
+    _selectedMentions[name] = int.tryParse('${member['id']}') ?? 0;
+    mentionSuggestions = [];
     update();
   }
 
