@@ -285,97 +285,116 @@ class _TeamChatRoomScreenState extends State<TeamChatRoomScreen> {
                                 Map<String, dynamic>.from(c.messages[i] as Map);
                             final mine =
                                 '${m['sender_id']}' == '${c.currentUserId}';
-                            return GestureDetector(
-                                onLongPress: () =>
-                                    _showMessageActions(context, c, m, mine),
-                                child: Align(
-                                    alignment: mine
-                                        ? Alignment.centerRight
-                                        : Alignment.centerLeft,
-                                    child: Container(
-                                      margin: const EdgeInsets.only(bottom: 8),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
-                                      constraints: BoxConstraints(
-                                          maxWidth: MediaQuery.of(context)
-                                                  .size
-                                                  .width *
-                                              .78),
-                                      decoration: BoxDecoration(
-                                          color: mine
-                                              ? ColorResources.primaryColor
-                                                  .withValues(alpha: .15)
-                                              : Colors.grey.shade200,
-                                          borderRadius:
-                                              BorderRadius.circular(12)),
-                                      child: Column(
-                                          crossAxisAlignment: mine
-                                              ? CrossAxisAlignment.end
-                                              : CrossAxisAlignment.start,
-                                          children: [
-                                            if (!mine)
-                                              Text('${m['sender_name']}',
-                                                  style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontSize: 12)),
-                                            if (m['parent'] is Map)
-                                              Container(
-                                                  width: double.infinity,
-                                                  margin: const EdgeInsets.only(
-                                                      bottom: 6),
-                                                  padding:
-                                                      const EdgeInsets.all(8),
-                                                  decoration: BoxDecoration(
-                                                      color: Colors.black
-                                                          .withValues(
-                                                              alpha: .06),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8)),
-                                                  child: Text(
-                                                      '${m['parent']['sender_name']}: ${m['parent']['body']}',
-                                                      maxLines: 2,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: const TextStyle(
-                                                          fontSize: 11))),
-                                            if ('${m['body'] ?? ''}'.isNotEmpty)
-                                              _RichMessageText(
-                                                  body: '${m['body']}',
-                                                  members: c.members),
-                                            if (m['files'] is List &&
-                                                (m['files'] as List).isNotEmpty)
-                                              _MessageAttachments(
-                                                  files: m['files'] as List),
-                                            if (m['reactions'] is List &&
-                                                (m['reactions'] as List)
-                                                    .isNotEmpty)
-                                              Wrap(
-                                                  spacing: 4,
-                                                  children: (m['reactions']
-                                                          as List)
-                                                      .map((reaction) => ActionChip(
-                                                          visualDensity:
-                                                              VisualDensity
-                                                                  .compact,
-                                                          label: Text(
-                                                              '${reaction['emoji']} ${reaction['count']}'),
-                                                          onPressed: () =>
-                                                              c.toggleReaction(
-                                                                  int.tryParse(
-                                                                          '${m['id']}') ??
-                                                                      0,
-                                                                  '${reaction['emoji']}')))
-                                                      .toList()),
-                                            Text(
-                                                '${m['created_at_relative'] ?? ''}',
-                                                style: TextStyle(
-                                                    fontSize: 10,
-                                                    color:
-                                                        Colors.grey.shade600)),
-                                          ]),
-                                    )));
+                            final previousDate = i > 0
+                                ? '${(c.messages[i - 1] as Map)['date_key'] ?? ''}'
+                                : '';
+                            final showDate = i == 0 ||
+                                previousDate != '${m['date_key'] ?? ''}';
+                            return Column(children: [
+                              if (showDate)
+                                Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
+                                    child: Chip(
+                                        visualDensity: VisualDensity.compact,
+                                        label: Text(
+                                            '${m['date_label'] ?? m['date_key'] ?? ''}',
+                                            style: const TextStyle(
+                                                fontSize: 12)))),
+                              GestureDetector(
+                                  onLongPress: () =>
+                                      _showMessageActions(context, c, m, mine),
+                                  child: Align(
+                                      alignment: mine
+                                          ? Alignment.centerRight
+                                          : Alignment.centerLeft,
+                                      child: Container(
+                                        margin:
+                                            const EdgeInsets.only(bottom: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        constraints: BoxConstraints(
+                                            maxWidth: MediaQuery.of(context)
+                                                    .size
+                                                    .width *
+                                                .78),
+                                        decoration: BoxDecoration(
+                                            color: mine
+                                                ? ColorResources.primaryColor
+                                                    .withValues(alpha: .15)
+                                                : Colors.grey.shade200,
+                                            borderRadius:
+                                                BorderRadius.circular(12)),
+                                        child: Column(
+                                            crossAxisAlignment: mine
+                                                ? CrossAxisAlignment.end
+                                                : CrossAxisAlignment.start,
+                                            children: [
+                                              if (!mine)
+                                                Text('${m['sender_name']}',
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        fontSize: 12)),
+                                              if (m['parent'] is Map)
+                                                Container(
+                                                    width: double.infinity,
+                                                    margin: const EdgeInsets
+                                                        .only(bottom: 6),
+                                                    padding:
+                                                        const EdgeInsets.all(8),
+                                                    decoration: BoxDecoration(
+                                                        color: Colors.black
+                                                            .withValues(
+                                                                alpha: .06),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8)),
+                                                    child: Text(
+                                                        '${m['parent']['sender_name']}: ${m['parent']['body']}',
+                                                        maxLines: 2,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: const TextStyle(
+                                                            fontSize: 11))),
+                                              if ('${m['body'] ?? ''}'
+                                                  .isNotEmpty)
+                                                _RichMessageText(
+                                                    body: '${m['body']}',
+                                                    members: c.members),
+                                              if (m['files'] is List &&
+                                                  (m['files'] as List)
+                                                      .isNotEmpty)
+                                                _MessageAttachments(
+                                                    files: m['files'] as List),
+                                              if (m['reactions'] is List &&
+                                                  (m['reactions'] as List)
+                                                      .isNotEmpty)
+                                                Wrap(
+                                                    spacing: 4,
+                                                    children: (m['reactions']
+                                                            as List)
+                                                        .map((reaction) => ActionChip(
+                                                            visualDensity:
+                                                                VisualDensity
+                                                                    .compact,
+                                                            label: Text(
+                                                                '${reaction['emoji']} ${reaction['count']}'),
+                                                            onPressed: () => c
+                                                                .toggleReaction(
+                                                                    int.tryParse('${m['id']}') ??
+                                                                        0,
+                                                                    '${reaction['emoji']}')))
+                                                        .toList()),
+                                              Text(
+                                                  '${m['created_at_relative'] ?? ''}',
+                                                  style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: Colors
+                                                          .grey.shade600)),
+                                            ]),
+                                      )))
+                            ]);
                           },
                         )),
               if (c.mentionSuggestions.isNotEmpty)

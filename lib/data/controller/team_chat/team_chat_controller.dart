@@ -15,6 +15,7 @@ class TeamChatController extends GetxController {
   bool isLoading = true;
   List<dynamic> conversations = [];
   List<dynamic> users = [];
+  String searchQuery = '';
   int currentUserId = 0;
 
   Map<String, dynamic> _payload(dynamic map) {
@@ -42,6 +43,23 @@ class TeamChatController extends GetxController {
       }
     }
     isLoading = false;
+    update();
+  }
+
+  List<dynamic> get filteredConversations {
+    final query = searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return conversations;
+    return conversations.where((item) {
+      final map = item is Map ? item : const {};
+      return '${map['name'] ?? ''}'.toLowerCase().contains(query) ||
+          '${map['last_message'] ?? ''}'.toLowerCase().contains(query) ||
+          '${map['last_sender'] ?? ''}'.toLowerCase().contains(query) ||
+          '${map['type'] ?? ''}'.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  void setSearchQuery(String value) {
+    searchQuery = value;
     update();
   }
 

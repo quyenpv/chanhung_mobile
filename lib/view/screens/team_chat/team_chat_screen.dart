@@ -39,6 +39,15 @@ class _TeamChatScreenState extends State<TeamChatScreen> {
               title: const Text('ChanHung Chat'),
               actions: [
                 IconButton(
+                  tooltip: 'Tìm kiếm',
+                  icon: const Icon(Icons.search),
+                  onPressed: () => showSearch<void>(
+                    context: context,
+                    delegate: _ConversationSearchDelegate(
+                        controller: Get.find<TeamChatController>()),
+                  ),
+                ),
+                IconButton(
                   tooltip: 'Đăng xuất',
                   icon: const Icon(Icons.logout),
                   onPressed: () async {
@@ -54,6 +63,20 @@ class _TeamChatScreenState extends State<TeamChatScreen> {
             )
           : CustomAppBar(isShowBackBtn: true, title: 'ChanHung Chat'),
       drawer: AppMode.chatOnly ? null : const AppDrawer(),
+      bottomNavigationBar: AppMode.chatOnly
+          ? NavigationBar(
+              selectedIndex: 0,
+              onDestinationSelected: (index) {
+                if (index == 1) Get.offAllNamed(RouteHelper.timelineScreen);
+              },
+              destinations: const [
+                NavigationDestination(
+                    icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+                NavigationDestination(
+                    icon: Icon(Icons.dynamic_feed_outlined), label: 'Timeline'),
+              ],
+            )
+          : null,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateConversation(context),
         icon: const Icon(Icons.add_comment_outlined),
@@ -209,5 +232,70 @@ class _TeamChatScreenState extends State<TeamChatScreen> {
                   ],
                 )));
     name.dispose();
+  }
+}
+
+class _ConversationSearchDelegate extends SearchDelegate<void> {
+  final TeamChatController controller;
+  _ConversationSearchDelegate({required this.controller});
+
+  @override
+  String get searchFieldLabel => 'Tìm cá nhân, nhóm hoặc kênh';
+
+  @override
+  List<Widget> buildActions(BuildContext context) => [
+        if (query.isNotEmpty)
+          IconButton(
+              icon: const Icon(Icons.close), onPressed: () => query = ''),
+      ];
+
+  @override
+  Widget buildLeading(BuildContext context) => IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () => close(context, null));
+
+  @override
+  Widget buildResults(BuildContext context) => _results(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _results(context);
+
+  Widget _results(BuildContext context) {
+    final q = query.trim().toLowerCase();
+    final rows = controller.conversations.where((raw) {
+      final item = Map<String, dynamic>.from(raw as Map);
+      return q.isEmpty ||
+          '${item['name'] ?? ''}'.toLowerCase().contains(q) ||
+          '${item['last_message'] ?? ''}'.toLowerCase().contains(q) ||
+          '${item['last_sender'] ?? ''}'.toLowerCase().contains(q);
+    }).toList();
+    return ListView.builder(
+        itemCount: rows.length,
+        itemBuilder: (_, i) {
+          final item = Map<String, dynamic>.from(rows[i] as Map);
+          final type = '${item['type']}';
+          return ListTile(
+              leading: CircleAvatar(
+                  child: Icon(type == 'direct'
+                      ? Icons.person_outline
+                      : type == 'channel'
+                          ? Icons.tag
+                          : Icons.groups_outlined)),
+              title: Text('${item['name']}'),
+              subtitle: Text(
+                  '${item['last_sender'] ?? ''}: ${item['last_message'] ?? ''}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              onTap: () {
+                close(context, null);
+                Get.toNamed(RouteHelper.teamChatRoomScreen, arguments: {
+                  'id': int.tryParse('${item['id']}') ?? 0,
+                  'name': '${item['name']}',
+                  'current_user_id': controller.currentUserId,
+                  'users': controller.users,
+                  'conversations': controller.conversations,
+                });
+              });
+        });
   }
 }

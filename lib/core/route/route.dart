@@ -28,6 +28,7 @@ import 'package:chanhung/view/screens/proposal/proposal_screen.dart';
 import 'package:chanhung/view/screens/splash/splash_screen.dart';
 import 'package:chanhung/view/screens/team_chat/team_chat_room_screen.dart';
 import 'package:chanhung/view/screens/team_chat/team_chat_screen.dart';
+import 'package:chanhung/view/screens/timeline/timeline_screen.dart';
 import 'package:chanhung/view/screens/ticket/ticket_details_screen.dart';
 import 'package:chanhung/view/screens/ticket/ticket_screen.dart';
 import 'package:chanhung/view/screens/payment_request/payment_requests_screen.dart';
@@ -65,11 +66,13 @@ class RouteHelper {
   static const String paymentScreen = "/payment_screen";
   static const String paymentDetailsScreen = "/payment_details_screen";
   static const String paymentRequestScreen = "/payment_request_screen";
-  static const String paymentRequestDetailsScreen = "/payment_request_details_screen";
+  static const String paymentRequestDetailsScreen =
+      "/payment_request_details_screen";
   static const String proposalScreen = "/proposal_screen";
   static const String proposalDetailsScreen = "/proposal_details_screen";
   static const String teamChatScreen = "/team_chat_screen";
   static const String teamChatRoomScreen = "/team_chat_room_screen";
+  static const String timelineScreen = "/timeline_screen";
   static const String settingsScreen = "/settings_screen";
   static const String profileScreen = "/profile_screen";
   static const String privacyScreen = "/privacy_screen";
@@ -121,14 +124,18 @@ class RouteHelper {
     GetPage(
         name: paymentDetailsScreen,
         page: () => PaymentDetailsScreen(id: _routeId())),
-    GetPage(name: paymentRequestScreen, page: () => const PaymentRequestsScreen()),
-    GetPage(name: paymentRequestDetailsScreen, page: () => const PaymentRequestDetailsScreen()),
+    GetPage(
+        name: paymentRequestScreen, page: () => const PaymentRequestsScreen()),
+    GetPage(
+        name: paymentRequestDetailsScreen,
+        page: () => const PaymentRequestDetailsScreen()),
     GetPage(name: proposalScreen, page: () => const ProposalScreen()),
     GetPage(
         name: proposalDetailsScreen,
         page: () => ProposalDetailsScreen(id: _routeId())),
     GetPage(name: teamChatScreen, page: () => const TeamChatScreen()),
     GetPage(name: teamChatRoomScreen, page: () => const TeamChatRoomScreen()),
+    GetPage(name: timelineScreen, page: () => const TimelineScreen()),
     GetPage(name: profileScreen, page: () => const ProfileScreen()),
     GetPage(name: settingsScreen, page: () => const MenuScreen()),
     GetPage(name: privacyScreen, page: () => const PrivacyPolicyScreen()),
