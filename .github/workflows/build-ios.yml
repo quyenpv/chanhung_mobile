@@ -9,6 +9,18 @@ on:
 jobs:
   build-ios:
     runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - id: erp
+            entrypoint: lib/main.dart
+            bundle_id: com.chanhung.erp
+            display_name: ChanHung ERP
+          - id: chat
+            entrypoint: lib/main_chat.dart
+            bundle_id: com.chanhung.chat
+            display_name: ChanHung Chat
 
     steps:
       - name: Checkout repository
@@ -28,9 +40,15 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build iOS App Bundle (Unsigned)
+      - name: Configure ${{ matrix.app.display_name }} identity
         run: |
-          flutter build ios --release --no-codesign
+          perl -0pi -e 's/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/PRODUCT_BUNDLE_IDENTIFIER = ${{ matrix.app.bundle_id }};/g' ios/Runner.xcodeproj/project.pbxproj
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${{ matrix.app.display_name }}" ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleName ${{ matrix.app.id }}" ios/Runner/Info.plist
+
+      - name: Build ${{ matrix.app.display_name }} (Unsigned)
+        run: |
+          flutter build ios --release --no-codesign -t ${{ matrix.app.entrypoint }}
         env:
           # Tránh Flutter tự ép deployment target xuống 13.0 khi thiếu Podfile cấu hình.
           FLUTTER_XCODE_ONLY_ACTIVE_ARCH: NO
@@ -39,11 +57,11 @@ jobs:
         run: |
           mkdir -p Payload
           cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -r app-release.ipa Payload
+          zip -r chanhung-${{ matrix.app.id }}-release-unsigned.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-app-release-ipa
-          path: app-release.ipa
-          retention-days: 7
+          name: chanhung-${{ matrix.app.id }}-ios-release-unsigned
+          path: chanhung-${{ matrix.app.id }}-release-unsigned.ipa
+          retention-days: 14
