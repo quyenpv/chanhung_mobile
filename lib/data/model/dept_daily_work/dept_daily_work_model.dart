@@ -14,16 +14,16 @@ class DeptDailyWorkResponseModel {
   });
 
   DeptDailyWorkResponseModel.fromJson(Map<String, dynamic> json) {
-    success = json['success'];
-    message = json['message'];
-    departmentId = json['department_id'] != null ? int.tryParse(json['department_id'].toString()) : null;
-    isManager = json['is_manager'];
-    if (json['data'] != null) {
-      data = <DeptDailyWorkModel>[];
-      json['data'].forEach((v) {
-        data!.add(DeptDailyWorkModel.fromJson(v));
-      });
-    }
+    final payload = _unwrapApiPayload(json);
+    success = payload['success'];
+    message = payload['message'];
+    departmentId = payload['department_id'] != null
+        ? int.tryParse(payload['department_id'].toString())
+        : null;
+    isManager = payload['is_manager'];
+    data = _jsonObjectList(
+      payload['data'],
+    ).map(DeptDailyWorkModel.fromJson).toList();
   }
 }
 
@@ -66,7 +66,9 @@ class DeptDailyWorkModel {
     deadline = json['deadline']?.toString();
     completedAt = json['completed_at']?.toString();
     assigneeNames = json['assignee_names']?.toString();
-    progressPercent = json['progress_percent'] != null ? int.tryParse(json['progress_percent'].toString()) : 0;
+    progressPercent = json['progress_percent'] != null
+        ? int.tryParse(json['progress_percent'].toString())
+        : 0;
     listTitle = json['list_title']?.toString();
     origin = json['origin']?.toString();
   }
@@ -80,14 +82,12 @@ class DepartmentResponseModel {
   DepartmentResponseModel({this.success, this.message, this.data});
 
   DepartmentResponseModel.fromJson(Map<String, dynamic> json) {
-    success = json['success'];
-    message = json['message'];
-    if (json['data'] != null) {
-      data = <DepartmentModel>[];
-      json['data'].forEach((v) {
-        data!.add(DepartmentModel.fromJson(v));
-      });
-    }
+    final payload = _unwrapApiPayload(json);
+    success = payload['success'];
+    message = payload['message'];
+    data = _jsonObjectList(
+      payload['data'],
+    ).map(DepartmentModel.fromJson).toList();
   }
 }
 
@@ -99,6 +99,30 @@ class DepartmentModel {
 
   DepartmentModel.fromJson(Map<String, dynamic> json) {
     id = json['id']?.toString();
-    name = json['name']?.toString();
+    name = (json['name'] ?? json['title'])?.toString();
   }
+}
+
+Map<String, dynamic> _unwrapApiPayload(Map<String, dynamic> json) {
+  final nested = json['data'];
+  if (nested is Map && nested.containsKey('data')) {
+    return Map<String, dynamic>.from(nested);
+  }
+  return json;
+}
+
+List<Map<String, dynamic>> _jsonObjectList(dynamic value) {
+  final Iterable<dynamic> entries;
+  if (value is List) {
+    entries = value;
+  } else if (value is Map) {
+    entries = value.values;
+  } else {
+    return const [];
+  }
+
+  return entries
+      .whereType<Map>()
+      .map((entry) => Map<String, dynamic>.from(entry))
+      .toList();
 }

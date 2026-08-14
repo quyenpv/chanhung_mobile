@@ -38,33 +38,37 @@ class _DeptDailyWorkScreenState extends State<DeptDailyWorkScreen> {
           isShowBackBtn: true,
           actionWidget: controller.departmentList.isNotEmpty
               ? Container(
-                margin: const EdgeInsets.only(right: Dimensions.space15),
-                padding: const EdgeInsets.symmetric(horizontal: Dimensions.space10),
-                decoration: BoxDecoration(
-                  color: ColorResources.colorWhite,
-                  borderRadius: BorderRadius.circular(Dimensions.defaultRadius),
-                ),
-                child: DropdownButton<String>(
-                  value: controller.selectedDepartmentId,
-                  underline: const SizedBox(),
-                  icon: const Icon(Icons.keyboard_arrow_down),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      controller.changeDepartment(newValue);
-                    }
-                  },
-                  items: controller.departmentList
-                      .map<DropdownMenuItem<String>>((model) {
-                    return DropdownMenuItem<String>(
-                      value: model.id,
-                      child: Text(
-                        model.name ?? '',
-                        style: regularDefault.copyWith(color: ColorResources.colorBlack),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ) : const SizedBox.shrink(),
+                  margin: const EdgeInsets.only(right: Dimensions.space15),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Dimensions.space10),
+                  decoration: BoxDecoration(
+                    color: ColorResources.colorWhite,
+                    borderRadius:
+                        BorderRadius.circular(Dimensions.defaultRadius),
+                  ),
+                  child: DropdownButton<String>(
+                    value: controller.selectedDepartmentId,
+                    underline: const SizedBox(),
+                    icon: const Icon(Icons.keyboard_arrow_down),
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        controller.changeDepartment(newValue);
+                      }
+                    },
+                    items: controller.departmentList
+                        .map<DropdownMenuItem<String>>((model) {
+                      return DropdownMenuItem<String>(
+                        value: model.id,
+                        child: Text(
+                          model.name ?? '',
+                          style: regularDefault.copyWith(
+                              color: ColorResources.colorBlack),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                )
+              : const SizedBox.shrink(),
         ),
         body: controller.isLoading
             ? const CustomLoader()
@@ -82,21 +86,26 @@ class _DeptDailyWorkScreenState extends State<DeptDailyWorkScreen> {
                         final task = controller.taskList[index];
                         return GestureDetector(
                           onTap: () {
-                            Get.to(() => DeptDailyWorkDetailScreen(task: task))?.then((value) {
+                            Get.to(() => DeptDailyWorkDetailScreen(task: task))
+                                ?.then((value) {
                               if (value == true) {
                                 controller.loadTasks();
                               }
                             });
                           },
                           child: Container(
-                            margin: const EdgeInsets.only(bottom: Dimensions.space15),
+                            margin: const EdgeInsets.only(
+                                bottom: Dimensions.space15),
                             padding: const EdgeInsets.all(Dimensions.space15),
                             decoration: BoxDecoration(
                               color: ColorResources.colorWhite,
-                              borderRadius: BorderRadius.circular(Dimensions.defaultRadius),
+                              borderRadius: BorderRadius.circular(
+                                  Dimensions.defaultRadius),
                               boxShadow: [
                                 BoxShadow(
-                                  color: ColorResources.colorBlack.withOpacity(0.05),
+                                  color: ColorResources.colorBlack.withValues(
+                                    alpha: 0.05,
+                                  ),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 )
@@ -106,23 +115,30 @@ class _DeptDailyWorkScreenState extends State<DeptDailyWorkScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
                                       child: Text(
                                         task.title ?? '',
-                                        style: semiBoldDefault.copyWith(fontSize: Dimensions.fontLarge),
+                                        style: semiBoldDefault.copyWith(
+                                            fontSize: Dimensions.fontLarge),
                                       ),
                                     ),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: _getStatusColor(task.status).withOpacity(0.1),
+                                        color: _getStatusColor(
+                                          task.status,
+                                        ).withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
                                         _getStatusText(task.status),
-                                        style: regularSmall.copyWith(color: _getStatusColor(task.status)),
+                                        style: regularSmall.copyWith(
+                                            color:
+                                                _getStatusColor(task.status)),
                                       ),
                                     )
                                   ],
@@ -130,12 +146,15 @@ class _DeptDailyWorkScreenState extends State<DeptDailyWorkScreen> {
                                 const SizedBox(height: Dimensions.space10),
                                 Row(
                                   children: [
-                                    const Icon(Icons.person_outline, size: 16, color: ColorResources.colorGrey),
+                                    const Icon(Icons.person_outline,
+                                        size: 16,
+                                        color: ColorResources.colorGrey),
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(
                                         task.assigneeNames ?? 'Chưa giao',
-                                        style: regularSmall.copyWith(color: ColorResources.colorGrey),
+                                        style: regularSmall.copyWith(
+                                            color: ColorResources.colorGrey),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -147,29 +166,42 @@ class _DeptDailyWorkScreenState extends State<DeptDailyWorkScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text('Tiến độ', style: regularSmall.copyWith(color: ColorResources.colorGrey)),
-                                        Text('${task.progressPercent ?? 0}%', style: semiBoldSmall),
+                                        Text('Tiến độ',
+                                            style: regularSmall.copyWith(
+                                                color:
+                                                    ColorResources.colorGrey)),
+                                        Text('${task.progressPercent ?? 0}%',
+                                            style: semiBoldSmall),
                                       ],
                                     ),
                                     const SizedBox(height: 4),
                                     LinearProgressIndicator(
                                       value: (task.progressPercent ?? 0) / 100,
-                                      backgroundColor: ColorResources.colorGrey.withOpacity(0.2),
-                                      valueColor: AlwaysStoppedAnimation<Color>(_getProgressBarColor(task.progressPercent ?? 0)),
+                                      backgroundColor: ColorResources.colorGrey
+                                          .withValues(alpha: 0.2),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          _getProgressBarColor(
+                                              task.progressPercent ?? 0)),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: Dimensions.space10),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text('Hạn: ${task.deadline ?? "-"}', style: regularSmall.copyWith(color: ColorResources.colorGrey)),
+                                    Text('Hạn: ${task.deadline ?? "-"}',
+                                        style: regularSmall.copyWith(
+                                            color: ColorResources.colorGrey)),
                                     if (task.priority != null)
                                       Text(
                                         _getPriorityText(task.priority),
-                                        style: regularSmall.copyWith(color: _getPriorityColor(task.priority)),
+                                        style: regularSmall.copyWith(
+                                            color: _getPriorityColor(
+                                                task.priority)),
                                       ),
                                   ],
                                 )
