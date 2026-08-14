@@ -5,6 +5,8 @@ import 'package:chanhung/core/utils/dimensions.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/style.dart';
 import 'package:chanhung/core/utils/url_container.dart';
+import 'package:chanhung/core/utils/app_design.dart';
+import 'package:chanhung/core/utils/images.dart';
 import 'package:chanhung/view/components/app-bar/action_button_icon_widget.dart';
 import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/circle_image_button.dart';
@@ -73,15 +75,17 @@ class _HomeScreenState extends State<HomeScreen> {
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             appBar: AppBar(
-              toolbarHeight: 50,
+              toolbarHeight: 72,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              surfaceTintColor: Colors.transparent,
               leading: dashboardData == null
                   ? const SizedBox.shrink()
                   : Builder(builder: (context) {
                       return IconButton(
                         icon: const Icon(
                           Icons.menu_rounded,
-                          size: 30,
-                          color: Colors.white,
+                          size: 24,
+                          color: AppDesign.ink,
                         ),
                         onPressed: () {
                           Scaffold.of(context).openDrawer();
@@ -92,22 +96,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     }),
               centerTitle: true,
               title: AppLogoImage(
-                logo: controller.appLogo,
-                height: 30,
-                color: Colors.white,
+                logo: MyImages.appLogo,
+                height: 52,
+                fit: BoxFit.contain,
               ),
               actions: [
                 ActionButtonIconWidget(
                   pressed: () => Get.toNamed(RouteHelper.settingsScreen),
                   icon: Icons.settings,
-                  size: 35,
-                  iconColor: Colors.white,
+                  size: 28,
+                  iconColor: AppDesign.ink,
                 ),
               ],
             ),
             drawer: dashboardData == null
                 ? null
                 : HomeDrawer(dashboardModel: controller.dashboardModel),
+            bottomNavigationBar: dashboardData == null
+                ? null
+                : const AppBottomNavBar(current: AppBottomNavItem.home),
             body: controller.isLoading
                 ? const CustomLoader()
                 : dashboardData == null
@@ -119,18 +126,32 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Theme.of(context).primaryColor,
                         child: SingleChildScrollView(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(Dimensions.space10),
+                          padding: const EdgeInsets.fromLTRB(
+                            AppDesign.pagePadding,
+                            8,
+                            AppDesign.pagePadding,
+                            28,
+                          ),
                           child: Column(
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.all(15),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).cardColor,
+                                  borderRadius: BorderRadius.circular(
+                                      AppDesign.radiusLarge),
+                                  boxShadow: AppDesign.softShadow(
+                                      Theme.of(context).shadowColor),
+                                ),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     CircleAvatar(
-                                      backgroundColor:
-                                          ColorResources.blueGreyColor,
-                                      radius: 31,
+                                      backgroundColor: ColorResources
+                                          .primaryColor
+                                          .withValues(alpha: .12),
+                                      radius: 32,
                                       child: CircleImageWidget(
                                         imagePath:
                                             '${UrlContainer.profileImgUrl}${clientData?.avatar ?? ''}',
@@ -140,44 +161,51 @@ class _HomeScreenState extends State<HomeScreen> {
                                         height: 60,
                                       ),
                                     ),
-                                    const SizedBox(width: Dimensions.space20),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        RichText(
-                                            text: TextSpan(children: [
-                                          TextSpan(
-                                            text: '${LocalStrings.welcome.tr} ',
-                                            style: regularLarge.copyWith(
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          RichText(
+                                              text: TextSpan(children: [
+                                            TextSpan(
+                                              text:
+                                                  '${LocalStrings.welcome.tr} ',
+                                              style: regularLarge.copyWith(
+                                                  color: Theme.of(context)
+                                                      .textTheme
+                                                      .bodyMedium!
+                                                      .color),
+                                            ),
+                                            TextSpan(
+                                              text:
+                                                  '${clientData?.firstName ?? ''} ${clientData?.lastName ?? ''}',
+                                              style: regularLarge.copyWith(
                                                 color: Theme.of(context)
                                                     .textTheme
                                                     .bodyMedium!
-                                                    .color),
-                                          ),
-                                          TextSpan(
-                                            text:
-                                                '${clientData?.firstName ?? ''} ${clientData?.lastName ?? ''}',
-                                            style: regularLarge.copyWith(
-                                                color: Theme.of(context)
-                                                    .textTheme
-                                                    .bodyMedium!
-                                                    .color),
-                                          ),
-                                        ])),
-                                        const SizedBox(
-                                            height: Dimensions.space5),
-                                        Text(
-                                          '${clientData?.jobTitle ?? ''} - ${clientData?.companyName ?? ''}',
-                                          style: regularSmall.copyWith(
-                                              color:
-                                                  ColorResources.blueGreyColor),
-                                        )
-                                      ],
+                                                    .color,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ])),
+                                          const SizedBox(
+                                              height: Dimensions.space5),
+                                          Text(
+                                            '${clientData?.jobTitle ?? ''} - ${clientData?.companyName ?? ''}',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: regularSmall.copyWith(
+                                                color: AppDesign.mutedInk),
+                                          )
+                                        ],
+                                      ),
                                     )
                                   ],
                                 ),
                               ),
+                              const SizedBox(height: 22),
                               Row(
                                 children: [
                                   if (controller.isProjectsEnable)
@@ -190,7 +218,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                         number:
                                             widgetsData?.projects?.toString() ??
                                                 '0',
-                                        color: ColorResources.blueColor),
+                                        color: ColorResources.blueColor,
+                                        animationOrder: 0),
                                   if (controller.isInvoicesEnable)
                                     OverviewCard(
                                         icon: Icons.article_outlined,
@@ -202,7 +231,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                             controller.formatDashboardAmount(
                                                 widgetsData?.totalInvoiced ??
                                                     0),
-                                        color: ColorResources.redColor),
+                                        color: ColorResources.redColor,
+                                        animationOrder: 1),
                                 ],
                               ),
                               const SizedBox(height: Dimensions.space10),
@@ -218,7 +248,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                         number:
                                             controller.formatDashboardAmount(
                                                 widgetsData?.payments ?? 0),
-                                        color: ColorResources.yellowColor),
+                                        color: ColorResources.yellowColor,
+                                        animationOrder: 2),
                                   if (controller.isInvoicesEnable)
                                     OverviewCard(
                                         icon: Icons.auto_mode_outlined,
@@ -229,7 +260,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                         number:
                                             controller.formatDashboardAmount(
                                                 widgetsData?.due ?? 0),
-                                        color: ColorResources.greenColor),
+                                        color: ColorResources.greenColor,
+                                        animationOrder: 3),
                                 ],
                               ),
                               if (hasWorkplaceModules) ...[
@@ -247,7 +279,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       ?.hr?.totalEmployees ??
                                                   0)
                                               .toString(),
-                                          color: ColorResources.purpleColor),
+                                          color: ColorResources.purpleColor,
+                                          animationOrder: 4),
                                     if (controller.isDmsOfficeEnable)
                                       OverviewCard(
                                           icon: Icons.folder_copy_outlined,
@@ -260,7 +293,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                               (widgetsData?.dmsAttentionCount ??
                                                       0)
                                                   .toString(),
-                                          color: ColorResources.primaryColor),
+                                          color: ColorResources.primaryColor,
+                                          animationOrder: 5),
                                   ],
                                 ),
                               ],
@@ -299,6 +333,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         itemBuilder: (context, index) {
                                           return ProjectCard(
                                             projectModel: projects[index],
+                                            animationOrder: index.clamp(0, 5),
                                           );
                                         },
                                         separatorBuilder: (context, index) =>

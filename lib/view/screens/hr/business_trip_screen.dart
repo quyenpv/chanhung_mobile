@@ -105,17 +105,11 @@ class _FilterBar extends StatelessWidget {
             final f = controller.statusFilters[i];
             final selected = controller.selectedFilterIndex == i;
             return Padding(
-              padding: const EdgeInsetsDirectional.only(end: Dimensions.space10),
+              padding:
+                  const EdgeInsetsDirectional.only(end: Dimensions.space10),
               child: ChoiceChip(
                 label: Text(f['label'] ?? ''),
                 selected: selected,
-                selectedColor:
-                    ColorResources.secondaryColor.withValues(alpha: 0.15),
-                labelStyle: regularSmall.copyWith(
-                  color: selected
-                      ? ColorResources.secondaryColor
-                      : Theme.of(context).textTheme.bodyMedium!.color,
-                ),
                 onSelected: (_) => controller.setFilter(i),
               ),
             );
@@ -155,96 +149,96 @@ class _TripCard extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.all(Dimensions.space15),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: ColorResources.secondaryColor
-                        .withValues(alpha: 0.12),
-                    borderRadius:
-                        BorderRadius.circular(Dimensions.cardRadius),
-                  ),
-                  child: const Icon(Icons.airplanemode_active,
-                      color: ColorResources.secondaryColor, size: 20),
-                ),
-                const SizedBox(width: Dimensions.space10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        trip.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: mediumLarge.copyWith(
-                            color: Theme.of(context)
-                                .textTheme
-                                .bodyMedium!
-                                .color),
-                      ),
-                      if (trip.destination.isNotEmpty)
-                        Text(
-                          trip.destination,
-                          style: regularSmall.copyWith(
-                              color: ColorResources.blueGreyColor),
-                        ),
-                    ],
-                  ),
-                ),
-                _StatusPill(status: trip.status, color: statusColor),
-              ],
-            ),
-            const SizedBox(height: Dimensions.space10),
-            const Divider(height: 1),
-            const SizedBox(height: Dimensions.space10),
-            Wrap(
-              spacing: Dimensions.space15,
-              runSpacing: Dimensions.space5,
-              children: [
-                _Meta(
-                    icon: Icons.calendar_today_outlined,
-                    label: LocalStrings.tripStart.tr,
-                    value: trip.startDate),
-                _Meta(
-                    icon: Icons.calendar_today,
-                    label: LocalStrings.tripEnd.tr,
-                    value: trip.endDate),
-                if (trip.totalDays != null)
-                  _Meta(
-                      icon: Icons.nights_stay_outlined,
-                      label: LocalStrings.totalDays.tr,
-                      value: '${trip.totalDays!.toStringAsFixed(0)} ngày'),
-                if (trip.totalAmount != null)
-                  _Meta(
-                      icon: Icons.monetization_on_outlined,
-                      label: LocalStrings.totalAmount.tr,
-                      value: trip.totalAmount!.toStringAsFixed(0)),
-              ],
-            ),
-            if (trip.memberName.isNotEmpty) ...[
-              const SizedBox(height: Dimensions.space10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Row(
                 children: [
-                  const Icon(Icons.person_outline,
-                      size: 14, color: ColorResources.blueGreyColor),
-                  const SizedBox(width: 4),
-                  Text(trip.memberName,
-                      style: regularSmall.copyWith(
-                          color: ColorResources.blueGreyColor)),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color:
+                          ColorResources.secondaryColor.withValues(alpha: 0.12),
+                      borderRadius:
+                          BorderRadius.circular(Dimensions.cardRadius),
+                    ),
+                    child: const Icon(Icons.airplanemode_active,
+                        color: ColorResources.secondaryColor, size: 20),
+                  ),
+                  const SizedBox(width: Dimensions.space10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          trip.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: mediumLarge.copyWith(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium!
+                                  .color),
+                        ),
+                        if (trip.destination.isNotEmpty)
+                          Text(
+                            trip.destination,
+                            style: regularSmall.copyWith(
+                                color: ColorResources.blueGreyColor),
+                          ),
+                      ],
+                    ),
+                  ),
+                  _StatusPill(status: trip.status, color: statusColor),
                 ],
               ),
+              const SizedBox(height: Dimensions.space10),
+              const Divider(height: 1),
+              const SizedBox(height: Dimensions.space10),
+              Wrap(
+                spacing: Dimensions.space15,
+                runSpacing: Dimensions.space5,
+                children: [
+                  _Meta(
+                      icon: Icons.calendar_today_outlined,
+                      label: LocalStrings.tripStart.tr,
+                      value: trip.startDate),
+                  _Meta(
+                      icon: Icons.calendar_today,
+                      label: LocalStrings.tripEnd.tr,
+                      value: trip.endDate),
+                  if (trip.totalDays != null)
+                    _Meta(
+                        icon: Icons.nights_stay_outlined,
+                        label: LocalStrings.totalDays.tr,
+                        value: '${trip.totalDays!.toStringAsFixed(0)} ngày'),
+                  if (trip.totalAmount != null)
+                    _Meta(
+                        icon: Icons.monetization_on_outlined,
+                        label: LocalStrings.totalAmount.tr,
+                        value: trip.totalAmount!.toStringAsFixed(0)),
+                ],
+              ),
+              if (trip.memberName.isNotEmpty) ...[
+                const SizedBox(height: Dimensions.space10),
+                Row(
+                  children: [
+                    const Icon(Icons.person_outline,
+                        size: 14, color: ColorResources.blueGreyColor),
+                    const SizedBox(width: 4),
+                    Text(trip.memberName,
+                        style: regularSmall.copyWith(
+                            color: ColorResources.blueGreyColor)),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _StatusPill extends StatelessWidget {
@@ -269,8 +263,7 @@ class _StatusPill extends StatelessWidget {
 }
 
 class _Meta extends StatelessWidget {
-  const _Meta(
-      {required this.icon, required this.label, required this.value});
+  const _Meta({required this.icon, required this.label, required this.value});
   final IconData icon;
   final String label;
   final String value;
@@ -285,8 +278,7 @@ class _Meta extends StatelessWidget {
         Text('$label: ',
             style: lightSmall.copyWith(color: ColorResources.blueGreyColor)),
         Text(value,
-            style: mediumSmall.copyWith(
-                color: ColorResources.secondaryColor)),
+            style: mediumSmall.copyWith(color: ColorResources.secondaryColor)),
       ],
     );
   }
@@ -330,8 +322,7 @@ class _CreateTripSheetState extends State<_CreateTripSheet> {
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: GetBuilder<BusinessTripController>(
         builder: (ctrl) => SingleChildScrollView(
@@ -426,8 +417,7 @@ class _CreateTripSheetState extends State<_CreateTripSheet> {
                               strokeWidth: 2, color: Colors.white),
                         )
                       : Text(LocalStrings.submit.tr,
-                          style:
-                              mediumLarge.copyWith(color: Colors.white)),
+                          style: mediumLarge.copyWith(color: Colors.white)),
                 ),
               ),
             ],
@@ -476,8 +466,7 @@ class _Field extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: mediumSmall.copyWith(
-                color: ColorResources.blueGreyColor)),
+            style: mediumSmall.copyWith(color: ColorResources.blueGreyColor)),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -512,8 +501,7 @@ class _DateField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: mediumSmall.copyWith(
-                color: ColorResources.blueGreyColor)),
+            style: mediumSmall.copyWith(color: ColorResources.blueGreyColor)),
         const SizedBox(height: 6),
         GestureDetector(
           onTap: () async {
@@ -527,12 +515,10 @@ class _DateField extends StatelessWidget {
           },
           child: Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
-              borderRadius:
-                  BorderRadius.circular(Dimensions.cardRadius),
+              borderRadius: BorderRadius.circular(Dimensions.cardRadius),
             ),
             child: Row(
               children: [
@@ -545,10 +531,7 @@ class _DateField extends StatelessWidget {
                       : 'dd/mm/yyyy',
                   style: regularSmall.copyWith(
                       color: value != null
-                          ? Theme.of(context)
-                              .textTheme
-                              .bodyMedium!
-                              .color
+                          ? Theme.of(context).textTheme.bodyMedium!.color
                           : ColorResources.blueGreyColor),
                 ),
               ],
@@ -651,8 +634,9 @@ class _TripDetailsSheetState extends State<_TripDetailsSheet> {
               ),
             ),
             const SizedBox(height: Dimensions.space15),
-            Text('Chi Tiết Yêu Cầu Công Tác', style: semiBoldLarge.copyWith(
-                color: Theme.of(context).textTheme.bodyLarge!.color)),
+            Text('Chi Tiết Yêu Cầu Công Tác',
+                style: semiBoldLarge.copyWith(
+                    color: Theme.of(context).textTheme.bodyLarge!.color)),
             const SizedBox(height: Dimensions.space15),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -684,7 +668,8 @@ class _TripDetailsSheetState extends State<_TripDetailsSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Thời gian:', style: lightSmall),
-                Text('${trip.startDate} - ${trip.endDate}', style: regularDefault),
+                Text('${trip.startDate} - ${trip.endDate}',
+                    style: regularDefault),
               ],
             ),
             if (trip.totalDays != null) ...[
@@ -693,7 +678,8 @@ class _TripDetailsSheetState extends State<_TripDetailsSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Số ngày:', style: lightSmall),
-                  Text('${trip.totalDays!.toStringAsFixed(0)} ngày', style: regularDefault),
+                  Text('${trip.totalDays!.toStringAsFixed(0)} ngày',
+                      style: regularDefault),
                 ],
               ),
             ],
@@ -703,7 +689,8 @@ class _TripDetailsSheetState extends State<_TripDetailsSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Tổng phụ cấp:', style: lightSmall),
-                  Text(trip.totalAmount!.toStringAsFixed(0), style: regularDefault),
+                  Text(trip.totalAmount!.toStringAsFixed(0),
+                      style: regularDefault),
                 ],
               ),
             ],
@@ -712,8 +699,9 @@ class _TripDetailsSheetState extends State<_TripDetailsSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Trạng thái:', style: lightSmall),
-                Text(_localizedStatus(trip.status), 
-                  style: regularDefault.copyWith(color: _tripStatusColor(trip.status))),
+                Text(_localizedStatus(trip.status),
+                    style: regularDefault.copyWith(
+                        color: _tripStatusColor(trip.status))),
               ],
             ),
             if (trip.purpose.isNotEmpty) ...[
@@ -749,20 +737,24 @@ class _TripDetailsSheetState extends State<_TripDetailsSheet> {
               const Center(child: CircularProgressIndicator()),
             ] else if (trip.expenses != null && trip.expenses!.isNotEmpty) ...[
               const SizedBox(height: Dimensions.space15),
-              Text('Danh Sách Chi Phí:', style: mediumSmall.copyWith(color: ColorResources.blueGreyColor)),
+              Text('Danh Sách Chi Phí:',
+                  style: mediumSmall.copyWith(
+                      color: ColorResources.blueGreyColor)),
               const SizedBox(height: Dimensions.space10),
               ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: trip.expenses!.length,
-                separatorBuilder: (_, __) => const SizedBox(height: Dimensions.space5),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: Dimensions.space5),
                 itemBuilder: (ctx, idx) {
                   final exp = trip.expenses![idx];
                   return Container(
                     padding: const EdgeInsets.all(Dimensions.space10),
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                      borderRadius:
+                          BorderRadius.circular(Dimensions.cardRadius),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -773,11 +765,17 @@ class _TripDetailsSheetState extends State<_TripDetailsSheet> {
                             Text(exp.expenseType, style: regularDefault),
                             Text(exp.expenseDate, style: lightSmall),
                             if (exp.note.isNotEmpty)
-                              Text(exp.note, style: lightSmall.copyWith(fontStyle: FontStyle.italic)),
+                              Text(exp.note,
+                                  style: lightSmall.copyWith(
+                                      fontStyle: FontStyle.italic)),
                           ],
                         ),
-                        Text(exp.amount != null ? exp.amount!.toStringAsFixed(0) : '0',
-                            style: mediumDefault.copyWith(color: ColorResources.secondaryColor)),
+                        Text(
+                            exp.amount != null
+                                ? exp.amount!.toStringAsFixed(0)
+                                : '0',
+                            style: mediumDefault.copyWith(
+                                color: ColorResources.secondaryColor)),
                       ],
                     ),
                   );
@@ -794,14 +792,16 @@ class _TripDetailsSheetState extends State<_TripDetailsSheet> {
                         side: const BorderSide(color: Colors.red),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                          borderRadius:
+                              BorderRadius.circular(Dimensions.cardRadius),
                         ),
                       ),
                       onPressed: () async {
                         Navigator.pop(context);
                         await widget.controller.rejectTrip(trip.id);
                       },
-                      child: const Text('Từ Chối', style: TextStyle(color: Colors.red)),
+                      child: const Text('Từ Chối',
+                          style: TextStyle(color: Colors.red)),
                     ),
                   ),
                   const SizedBox(width: Dimensions.space15),
@@ -811,14 +811,16 @@ class _TripDetailsSheetState extends State<_TripDetailsSheet> {
                         backgroundColor: Colors.green,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                          borderRadius:
+                              BorderRadius.circular(Dimensions.cardRadius),
                         ),
                       ),
                       onPressed: () async {
                         Navigator.pop(context);
                         await widget.controller.approveTrip(trip.id);
                       },
-                      child: const Text('Phê Duyệt', style: TextStyle(color: Colors.white)),
+                      child: const Text('Phê Duyệt',
+                          style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ],

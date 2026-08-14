@@ -25,11 +25,7 @@ class LocalStrings {
   static const String onboardSubTitle3 = "Onboarding Three Description.";
   static const String companyRulesTitle = "Nội quy sử dụng ứng dụng";
   static const String companyRulesBody =
-      "Khi sử dụng ứng dụng ChanHung ERP, nhân sự đồng ý tuân thủ nội quy công ty. "
-      "Ứng dụng có thể thu thập và gửi vị trí thiết bị theo cấu hình của Quản trị viên "
-      "nhằm phục vụ quản lý công việc, an toàn và điều phối nhân sự / phương tiện. "
-      "Dữ liệu vị trí chỉ Quản trị viên được xem. Việc tiếp tục cài đặt và đăng nhập "
-      "được hiểu là đã đọc và chấp nhận nội quy này.";
+      "Sử dụng ERP phải bảo mật dữ liệu theo nội quy, quy định của Công ty";
   static const String companyRulesAgree =
       "Tôi đã đọc và đồng ý với nội quy sử dụng ứng dụng";
   static const String companyRulesRequired =

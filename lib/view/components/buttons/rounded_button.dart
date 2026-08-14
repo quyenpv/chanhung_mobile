@@ -1,4 +1,4 @@
-﻿import 'package:chanhung/core/utils/style.dart';
+import 'package:chanhung/core/utils/style.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
@@ -21,7 +21,7 @@ class RoundedButton extends StatelessWidget {
     this.isColorChange = false,
     this.width = 1,
     this.child,
-    this.cornerRadius = 6,
+    this.cornerRadius = 999,
     required this.text,
     required this.press,
     this.isOutlined = false,
@@ -56,46 +56,35 @@ class RoundedButton extends StatelessWidget {
                                     .getPrimaryButtonTextColor())))),
           )
         : isOutlined
-            ? Material(
-                child: InkWell(
-                  onTap: press,
-                  splashColor: ColorResources.getScreenBgColor(),
-                  child: Container(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: horizontalPadding,
-                          vertical: verticalPadding),
-                      width: size.width * width,
-                      decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(cornerRadius),
-                          color: isColorChange
-                              ? color
-                              : ColorResources.getPrimaryButtonColor()),
-                      child: Center(
-                          child: Text(text.tr,
-                              style: regularDefault.copyWith(
-                                  color: isColorChange
-                                      ? textColor
-                                      : ColorResources
-                                          .getPrimaryButtonTextColor())))),
+            ? SizedBox(
+                width: size.width * width,
+                child: OutlinedButton(
+                  onPressed: press,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: color,
+                    side: BorderSide(color: color),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: horizontalPadding,
+                      vertical: verticalPadding,
+                    ),
+                  ),
+                  child: Text(text.tr),
                 ),
               )
             : SizedBox(
                 width: size.width * width,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(1.0),
-                  child: ElevatedButton(
-                    onPressed: press,
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: color,
-                        shadowColor: ColorResources.transparentColor,
-                        padding: EdgeInsets.symmetric(
-                            horizontal: horizontalPadding,
-                            vertical: verticalPadding),
-                        textStyle: regularDefault.copyWith(color: textColor)),
-                    child: Text(
-                      text.tr,
-                      style: TextStyle(color: textColor),
-                    ),
+                child: ElevatedButton(
+                  onPressed: press,
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: color,
+                      shadowColor: ColorResources.transparentColor,
+                      padding: EdgeInsets.symmetric(
+                          horizontal: horizontalPadding,
+                          vertical: verticalPadding),
+                      textStyle: regularDefault.copyWith(color: textColor)),
+                  child: Text(
+                    text.tr,
+                    style: TextStyle(color: textColor),
                   ),
                 ),
               );

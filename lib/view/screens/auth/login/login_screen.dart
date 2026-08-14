@@ -39,7 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       Get.find<LoginController>().initData();
       Get.find<LoginController>().remember = false;
-      
+
       final biometricEnabled = await BiometricHelper.isBiometricEnabled();
       if (biometricEnabled) {
         _authenticateWithBiometrics();
@@ -51,14 +51,20 @@ class _LoginScreenState extends State<LoginScreen> {
     final success = await BiometricHelper.authenticate();
     if (success) {
       final controller = Get.find<LoginController>();
-      final email = controller.loginRepo.apiClient.sharedPreferences.getString(SharedPreferenceHelper.userEmailKey);
-      final password = controller.loginRepo.apiClient.sharedPreferences.getString(SharedPreferenceHelper.userPasswordKey);
-      if (email != null && password != null && email.isNotEmpty && password.isNotEmpty) {
+      final email = controller.loginRepo.apiClient.sharedPreferences
+          .getString(SharedPreferenceHelper.userEmailKey);
+      final password = controller.loginRepo.apiClient.sharedPreferences
+          .getString(SharedPreferenceHelper.userPasswordKey);
+      if (email != null &&
+          password != null &&
+          email.isNotEmpty &&
+          password.isNotEmpty) {
         controller.emailController.text = email;
         controller.passwordController.text = password;
         controller.loginUser();
       } else {
-        Get.snackbar('Đăng nhập sinh trắc học', 'Vui lòng đăng nhập bằng mật khẩu lần đầu để ghi nhớ tài khoản.');
+        Get.snackbar('Đăng nhập sinh trắc học',
+            'Vui lòng đăng nhập bằng mật khẩu lần đầu để ghi nhớ tài khoản.');
       }
     }
   }
@@ -97,9 +103,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               const EdgeInsets.only(top: 140.0, bottom: 30.0),
                           child: Center(
                             child: AppLogoImage(
-                              logo: controller.appLogo,
-                              height: 60,
-                              color: Colors.white,
+                              logo: MyImages.appLogo,
+                              height: 128,
+                              fit: BoxFit.contain,
                             ),
                           ),
                         ),
@@ -249,29 +255,38 @@ class _LoginScreenState extends State<LoginScreen> {
                                             controller.loginUser();
                                           }
                                         }),
-                                  const SizedBox(height: Dimensions.space10),
-                                  FutureBuilder<bool>(
-                                    future: BiometricHelper.isBiometricEnabled(),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.data == true) {
-                                        return InkWell(
-                                          onTap: _authenticateWithBiometrics,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(vertical: 10),
-                                            child: const Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Icon(Icons.fingerprint, color: ColorResources.primaryColor, size: 28),
-                                                SizedBox(width: 8),
-                                                Text('Đăng nhập bằng vân tay/FaceID', style: TextStyle(color: ColorResources.primaryColor)),
-                                              ],
-                                            ),
+                                const SizedBox(height: Dimensions.space10),
+                                FutureBuilder<bool>(
+                                  future: BiometricHelper.isBiometricEnabled(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.data == true) {
+                                      return InkWell(
+                                        onTap: _authenticateWithBiometrics,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 10),
+                                          child: const Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.fingerprint,
+                                                  color: ColorResources
+                                                      .primaryColor,
+                                                  size: 28),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                  'Đăng nhập bằng vân tay/FaceID',
+                                                  style: TextStyle(
+                                                      color: ColorResources
+                                                          .primaryColor)),
+                                            ],
                                           ),
-                                        );
-                                      }
-                                      return const SizedBox.shrink();
-                                    },
-                                  ),
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  },
+                                ),
                                 if (controller.canUsePasskey) ...[
                                   const SizedBox(height: Dimensions.space10),
                                   controller.isPasskeyLoading

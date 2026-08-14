@@ -54,8 +54,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
               Expanded(
                 child: RefreshIndicator(
                   color: ColorResources.primaryColor,
-                  onRefresh: () async =>
-                      controller.loadLeaves(),
+                  onRefresh: () async => controller.loadLeaves(),
                   child: controller.leavesModel.leaves.isEmpty
                       ? const NoDataWidget(margin: 12)
                       : ListView.separated(
@@ -105,17 +104,11 @@ class _FilterBar extends StatelessWidget {
             final f = controller.statusFilters[i];
             final selected = controller.selectedFilterIndex == i;
             return Padding(
-              padding: const EdgeInsetsDirectional.only(end: Dimensions.space10),
+              padding:
+                  const EdgeInsetsDirectional.only(end: Dimensions.space10),
               child: ChoiceChip(
                 label: Text(f['label'] ?? ''),
                 selected: selected,
-                selectedColor:
-                    ColorResources.primaryColor.withValues(alpha: 0.15),
-                labelStyle: regularSmall.copyWith(
-                  color: selected
-                      ? ColorResources.primaryColor
-                      : Theme.of(context).textTheme.bodyMedium!.color,
-                ),
                 onSelected: (_) => controller.setFilter(i),
               ),
             );
@@ -142,7 +135,8 @@ class _LeaveCard extends StatelessWidget {
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (_) => _LeaveDetailsSheet(leave: leave, controller: controller),
+          builder: (_) =>
+              _LeaveDetailsSheet(leave: leave, controller: controller),
         );
       },
       child: Card(
@@ -152,86 +146,87 @@ class _LeaveCard extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.all(Dimensions.space15),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: ColorResources.primaryColor.withValues(alpha: 0.12),
-                    borderRadius:
-                        BorderRadius.circular(Dimensions.cardRadius),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color:
+                          ColorResources.primaryColor.withValues(alpha: 0.12),
+                      borderRadius:
+                          BorderRadius.circular(Dimensions.cardRadius),
+                    ),
+                    child: const Icon(Icons.event_note,
+                        color: ColorResources.primaryColor, size: 20),
                   ),
-                  child: const Icon(Icons.event_note,
-                      color: ColorResources.primaryColor, size: 20),
-                ),
-                const SizedBox(width: Dimensions.space10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        leave.leaveTypeName.isNotEmpty
-                            ? leave.leaveTypeName
-                            : LocalStrings.leaveApplication.tr,
-                        style: mediumLarge.copyWith(
-                            color: Theme.of(context)
-                                .textTheme
-                                .bodyMedium!
-                                .color),
-                      ),
-                      Text(
-                        leave.applicantName,
-                        style: regularSmall.copyWith(
-                            color: ColorResources.blueGreyColor),
-                      ),
-                    ],
+                  const SizedBox(width: Dimensions.space10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          leave.leaveTypeName.isNotEmpty
+                              ? leave.leaveTypeName
+                              : LocalStrings.leaveApplication.tr,
+                          style: mediumLarge.copyWith(
+                              color: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium!
+                                  .color),
+                        ),
+                        Text(
+                          leave.applicantName,
+                          style: regularSmall.copyWith(
+                              color: ColorResources.blueGreyColor),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                _StatusPill(status: leave.status, color: statusColor),
-              ],
-            ),
-            const SizedBox(height: Dimensions.space10),
-            const Divider(height: 1),
-            const SizedBox(height: Dimensions.space10),
-            Wrap(
-              spacing: Dimensions.space15,
-              runSpacing: Dimensions.space5,
-              children: [
-                _Meta(
-                    icon: Icons.calendar_today_outlined,
-                    label: LocalStrings.leaveStart.tr,
-                    value: leave.startDate),
-                _Meta(
-                    icon: Icons.calendar_today,
-                    label: LocalStrings.leaveEnd.tr,
-                    value: leave.endDate),
-                if (leave.duration.isNotEmpty)
-                  _Meta(
-                      icon: Icons.timelapse,
-                      label: LocalStrings.leaveDuration.tr,
-                      value: leave.duration),
-              ],
-            ),
-            if (leave.reason.isNotEmpty) ...[
-              const SizedBox(height: Dimensions.space10),
-              Text(
-                leave.reason,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: regularSmall.copyWith(
-                    color: ColorResources.blueGreyColor),
+                  _StatusPill(status: leave.status, color: statusColor),
+                ],
               ),
+              const SizedBox(height: Dimensions.space10),
+              const Divider(height: 1),
+              const SizedBox(height: Dimensions.space10),
+              Wrap(
+                spacing: Dimensions.space15,
+                runSpacing: Dimensions.space5,
+                children: [
+                  _Meta(
+                      icon: Icons.calendar_today_outlined,
+                      label: LocalStrings.leaveStart.tr,
+                      value: leave.startDate),
+                  _Meta(
+                      icon: Icons.calendar_today,
+                      label: LocalStrings.leaveEnd.tr,
+                      value: leave.endDate),
+                  if (leave.duration.isNotEmpty)
+                    _Meta(
+                        icon: Icons.timelapse,
+                        label: LocalStrings.leaveDuration.tr,
+                        value: leave.duration),
+                ],
+              ),
+              if (leave.reason.isNotEmpty) ...[
+                const SizedBox(height: Dimensions.space10),
+                Text(
+                  leave.reason,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: regularSmall.copyWith(
+                      color: ColorResources.blueGreyColor),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _StatusPill extends StatelessWidget {
@@ -256,8 +251,7 @@ class _StatusPill extends StatelessWidget {
 }
 
 class _Meta extends StatelessWidget {
-  const _Meta(
-      {required this.icon, required this.label, required this.value});
+  const _Meta({required this.icon, required this.label, required this.value});
   final IconData icon;
   final String label;
   final String value;
@@ -272,8 +266,7 @@ class _Meta extends StatelessWidget {
         Text('$label: ',
             style: lightSmall.copyWith(color: ColorResources.blueGreyColor)),
         Text(value,
-            style:
-                mediumSmall.copyWith(color: ColorResources.primaryColor)),
+            style: mediumSmall.copyWith(color: ColorResources.primaryColor)),
       ],
     );
   }
@@ -313,8 +306,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
       ),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: GetBuilder<LeaveController>(
         builder: (ctrl) => SingleChildScrollView(
@@ -383,8 +375,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
               CheckboxListTile(
                 value: _halfDay,
                 onChanged: (v) => setState(() => _halfDay = v ?? false),
-                title: Text(LocalStrings.halfDay.tr,
-                    style: regularSmall),
+                title: Text(LocalStrings.halfDay.tr, style: regularSmall),
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
                 activeColor: ColorResources.primaryColor,
@@ -425,8 +416,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
                               strokeWidth: 2, color: Colors.white),
                         )
                       : Text(LocalStrings.submit.tr,
-                          style:
-                              mediumLarge.copyWith(color: Colors.white)),
+                          style: mediumLarge.copyWith(color: Colors.white)),
                 ),
               ),
             ],
@@ -470,9 +460,7 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
 
 class _DateField extends StatelessWidget {
   const _DateField(
-      {required this.label,
-      required this.value,
-      required this.onPick});
+      {required this.label, required this.value, required this.onPick});
   final String label;
   final DateTime? value;
   final ValueChanged<DateTime> onPick;
@@ -483,8 +471,7 @@ class _DateField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: mediumSmall.copyWith(
-                color: ColorResources.blueGreyColor)),
+            style: mediumSmall.copyWith(color: ColorResources.blueGreyColor)),
         const SizedBox(height: 6),
         GestureDetector(
           onTap: () async {
@@ -498,12 +485,10 @@ class _DateField extends StatelessWidget {
           },
           child: Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
-              borderRadius:
-                  BorderRadius.circular(Dimensions.cardRadius),
+              borderRadius: BorderRadius.circular(Dimensions.cardRadius),
             ),
             child: Row(
               children: [
@@ -516,10 +501,7 @@ class _DateField extends StatelessWidget {
                       : 'dd/mm/yyyy',
                   style: regularSmall.copyWith(
                       color: value != null
-                          ? Theme.of(context)
-                              .textTheme
-                              .bodyMedium!
-                              .color
+                          ? Theme.of(context).textTheme.bodyMedium!.color
                           : ColorResources.blueGreyColor),
                 ),
               ],
@@ -589,8 +571,9 @@ class _LeaveDetailsSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Dimensions.space15),
-          Text('Chi Tiết Đơn Nghỉ Phép', style: semiBoldLarge.copyWith(
-              color: Theme.of(context).textTheme.bodyLarge!.color)),
+          Text('Chi Tiết Đơn Nghỉ Phép',
+              style: semiBoldLarge.copyWith(
+                  color: Theme.of(context).textTheme.bodyLarge!.color)),
           const SizedBox(height: Dimensions.space15),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -604,7 +587,11 @@ class _LeaveDetailsSheet extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Loại nghỉ phép:', style: lightSmall),
-              Text(leave.leaveTypeName.isNotEmpty ? leave.leaveTypeName : 'Nghỉ phép', style: regularDefault),
+              Text(
+                  leave.leaveTypeName.isNotEmpty
+                      ? leave.leaveTypeName
+                      : 'Nghỉ phép',
+                  style: regularDefault),
             ],
           ),
           const SizedBox(height: Dimensions.space10),
@@ -612,7 +599,8 @@ class _LeaveDetailsSheet extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Thời gian:', style: lightSmall),
-              Text('${leave.startDate} - ${leave.endDate}', style: regularDefault),
+              Text('${leave.startDate} - ${leave.endDate}',
+                  style: regularDefault),
             ],
           ),
           if (leave.duration.isNotEmpty) ...[
@@ -630,8 +618,9 @@ class _LeaveDetailsSheet extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Trạng thái:', style: lightSmall),
-              Text(_localizedStatus(leave.status), 
-                style: regularDefault.copyWith(color: _leaveStatusColor(leave.status))),
+              Text(_localizedStatus(leave.status),
+                  style: regularDefault.copyWith(
+                      color: _leaveStatusColor(leave.status))),
             ],
           ),
           if (leave.reason.isNotEmpty) ...[
@@ -658,14 +647,16 @@ class _LeaveDetailsSheet extends StatelessWidget {
                       side: const BorderSide(color: Colors.red),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                        borderRadius:
+                            BorderRadius.circular(Dimensions.cardRadius),
                       ),
                     ),
                     onPressed: () async {
                       Navigator.pop(context);
                       await controller.rejectLeave(leave.id);
                     },
-                    child: const Text('Từ Chối', style: TextStyle(color: Colors.red)),
+                    child: const Text('Từ Chối',
+                        style: TextStyle(color: Colors.red)),
                   ),
                 ),
                 const SizedBox(width: Dimensions.space15),
@@ -675,14 +666,16 @@ class _LeaveDetailsSheet extends StatelessWidget {
                       backgroundColor: Colors.green,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+                        borderRadius:
+                            BorderRadius.circular(Dimensions.cardRadius),
                       ),
                     ),
                     onPressed: () async {
                       Navigator.pop(context);
                       await controller.approveLeave(leave.id);
                     },
-                    child: const Text('Phê Duyệt', style: TextStyle(color: Colors.white)),
+                    child: const Text('Phê Duyệt',
+                        style: TextStyle(color: Colors.white)),
                   ),
                 ),
               ],

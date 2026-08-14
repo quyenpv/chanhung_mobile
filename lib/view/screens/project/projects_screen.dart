@@ -4,7 +4,6 @@ import 'package:chanhung/data/controller/project/project_controller.dart';
 import 'package:chanhung/data/repo/project/project_repo.dart';
 import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
-import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:chanhung/view/components/no_data.dart';
@@ -57,6 +56,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                               return ProjectCard(
                                 projectModel:
                                     controller.projectsModel.data![index],
+                                animationOrder: index.clamp(0, 5),
                               );
                             },
                             separatorBuilder: (context, index) =>

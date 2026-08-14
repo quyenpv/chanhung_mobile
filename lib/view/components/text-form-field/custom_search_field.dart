@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/style.dart';
+import 'package:chanhung/core/utils/app_design.dart';
 
 class CustomSearchField extends StatefulWidget {
   final String labelText;
@@ -44,19 +45,16 @@ class _CustomSearchFieldState extends State<CustomSearchField> {
         Container(
           height: 50,
           width: MediaQuery.of(context).size.width,
-          padding: const EdgeInsets.only(
-              left: Dimensions.space20,
-              right: Dimensions.space20,
-              top: Dimensions.space10 / 2,
-              bottom: Dimensions.space10 / 2),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
           decoration: BoxDecoration(
-              color: ColorResources.colorWhite,
+              color: Theme.of(context).cardColor,
               border: Border.all(
                   color: isFocus
                       ? ColorResources.primaryColor
-                      : ColorResources.colorWhite,
+                      : ColorResources.borderColor.withValues(alpha: .5),
                   width: 1.00),
-              borderRadius: BorderRadius.circular(3)),
+              borderRadius: BorderRadius.circular(AppDesign.radiusSmall),
+              boxShadow: AppDesign.softShadow(Theme.of(context).shadowColor)),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,

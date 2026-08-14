@@ -148,13 +148,6 @@ class _DmsFilterBar extends StatelessWidget {
             child: ChoiceChip(
               label: Text(filter.label.tr),
               selected: selected,
-              selectedColor:
-                  ColorResources.primaryColor.withValues(alpha: 0.16),
-              labelStyle: regularSmall.copyWith(
-                color: selected
-                    ? ColorResources.primaryColor
-                    : Theme.of(context).textTheme.bodyMedium!.color,
-              ),
               onSelected: (_) => controller.setFilter(index),
             ),
           );

@@ -1,5 +1,5 @@
 class MyImages {
-  static const String appLogo = "assets/images/chanhung_logo.png";
+  static const String appLogo = "assets/images/chanhung_holding_logo.png";
   static const String appLogoFlat = "assets/images/chanhung_logo_flat.png";
   static const String onboardingOne = "assets/images/onboarding_1.png";
   static const String onboardingTwo = "assets/images/onboarding_2.png";

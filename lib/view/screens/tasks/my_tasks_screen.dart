@@ -107,13 +107,6 @@ class _FilterBar extends StatelessWidget {
               child: ChoiceChip(
                 label: Text(filter['label'] ?? ''),
                 selected: isSelected,
-                selectedColor:
-                    ColorResources.secondaryColor.withValues(alpha: 0.15),
-                labelStyle: regularSmall.copyWith(
-                  color: isSelected
-                      ? ColorResources.secondaryColor
-                      : Theme.of(context).textTheme.bodyMedium!.color,
-                ),
                 onSelected: (_) => controller.setFilter(i),
               ),
             );

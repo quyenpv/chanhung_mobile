@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/route/route.dart';
-import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/style.dart';
 import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/dialog/exit_dialog.dart';
+import 'package:chanhung/core/utils/app_design.dart';
 
 class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final String title;
@@ -23,7 +23,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
     this.isProfileCompleted = false,
     this.fromAuth = false,
     this.isTitleCenter = false,
-    this.bgColor = ColorResources.primaryColor,
+    this.bgColor = AppDesign.canvas,
     this.isShowBackBtn = true,
     required this.title,
     this.isShowActionBtn = false,
@@ -36,7 +36,7 @@ class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   State<CustomAppBar> createState() => _CustomAppBarState();
 
   @override
-  Size get preferredSize => const Size(double.maxFinite, 50);
+  Size get preferredSize => const Size(double.maxFinite, 64);
 }
 
 class _CustomAppBarState extends State<CustomAppBar> {
@@ -52,7 +52,9 @@ class _CustomAppBarState extends State<CustomAppBar> {
     return widget.isShowBackBtn
         ? AppBar(
             elevation: 0,
-            titleSpacing: 0,
+            surfaceTintColor: Colors.transparent,
+            toolbarHeight: 64,
+            titleSpacing: 4,
             leading: widget.isShowBackBtn
                 ? IconButton(
                     onPressed: () {
@@ -74,14 +76,19 @@ class _CustomAppBarState extends State<CustomAppBar> {
                         }
                       }
                     },
-                    icon: Icon(Icons.arrow_back,
-                        color: ColorResources.getAppBarContentColor(),
-                        size: 20))
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: AppDesign.ink,
+                      size: 19,
+                    ))
                 : const SizedBox.shrink(),
             backgroundColor: widget.bgColor,
             title: Text(
               widget.title.tr,
-              style: mediumLarge.copyWith(color: Colors.white),
+              style: mediumLarge.copyWith(
+                color: AppDesign.ink,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             centerTitle: widget.isTitleCenter,
             actions: [
@@ -93,10 +100,12 @@ class _CustomAppBarState extends State<CustomAppBar> {
                   }
 
                   return IconButton(
-                    tooltip: MaterialLocalizations.of(context)
-                        .openAppDrawerTooltip,
-                    icon: Icon(Icons.menu_rounded,
-                        color: ColorResources.getAppBarContentColor()),
+                    tooltip:
+                        MaterialLocalizations.of(context).openAppDrawerTooltip,
+                    icon: const Icon(
+                      Icons.menu_rounded,
+                      color: AppDesign.ink,
+                    ),
                     onPressed: scaffold!.openDrawer,
                   );
                 },
@@ -115,10 +124,15 @@ class _CustomAppBarState extends State<CustomAppBar> {
         : AppBar(
             titleSpacing: 0,
             elevation: 0,
+            surfaceTintColor: Colors.transparent,
+            toolbarHeight: 64,
             backgroundColor: widget.bgColor,
             centerTitle: widget.isTitleCenter,
             title: Text(widget.title.tr,
-                style: regularLarge.copyWith(color: Colors.white)),
+                style: regularLarge.copyWith(
+                  color: AppDesign.ink,
+                  fontWeight: FontWeight.w700,
+                )),
             actions: [
               Builder(
                 builder: (context) {
@@ -128,10 +142,12 @@ class _CustomAppBarState extends State<CustomAppBar> {
                   }
 
                   return IconButton(
-                    tooltip: MaterialLocalizations.of(context)
-                        .openAppDrawerTooltip,
-                    icon: Icon(Icons.menu_rounded,
-                        color: ColorResources.getAppBarContentColor()),
+                    tooltip:
+                        MaterialLocalizations.of(context).openAppDrawerTooltip,
+                    icon: const Icon(
+                      Icons.menu_rounded,
+                      color: AppDesign.ink,
+                    ),
                     onPressed: scaffold!.openDrawer,
                   );
                 },

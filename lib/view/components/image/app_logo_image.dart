@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/utils/url_container.dart';
 import '../../../core/utils/images.dart';
 
 class AppLogoImage extends StatelessWidget {
@@ -17,7 +18,7 @@ class AppLogoImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final logoPath = (logo != null && logo!.isNotEmpty) ? logo! : MyImages.appLogo;
+    final logoPath = _resolveLogoPath(logo);
 
     if (logoPath.startsWith('http://') || logoPath.startsWith('https://')) {
       return SizedBox(
@@ -25,12 +26,10 @@ class AppLogoImage extends StatelessWidget {
         child: Image.network(
           logoPath,
           fit: fit,
+          color: color,
+          colorBlendMode: color == null ? null : BlendMode.srcIn,
           errorBuilder: (context, error, stackTrace) {
-            return Image.asset(
-              MyImages.appLogo,
-              height: height,
-              fit: fit,
-            );
+            return _fallbackLogo();
           },
         ),
       );
@@ -41,14 +40,32 @@ class AppLogoImage extends StatelessWidget {
       child: Image.asset(
         logoPath,
         fit: fit,
+        color: color,
+        colorBlendMode: color == null ? null : BlendMode.srcIn,
         errorBuilder: (context, error, stackTrace) {
-          return Image.asset(
-            MyImages.appLogo,
-            height: height,
-            fit: fit,
-          );
+          return _fallbackLogo();
         },
       ),
     );
   }
+
+  String _resolveLogoPath(String? value) {
+    final path = value?.trim() ?? '';
+    if (path.isEmpty) return MyImages.appLogo;
+    if (path.startsWith('assets/') ||
+        path.startsWith('http://') ||
+        path.startsWith('https://')) {
+      return path;
+    }
+    if (path.startsWith('/')) return '${UrlContainer.domainUrl}$path';
+    return '${UrlContainer.systemImgUrl}$path';
+  }
+
+  Widget _fallbackLogo() => Image.asset(
+        MyImages.appLogo,
+        height: height,
+        fit: fit,
+        color: color,
+        colorBlendMode: color == null ? null : BlendMode.srcIn,
+      );
 }
