@@ -11,7 +11,6 @@ import 'package:chanhung/data/model/hr/hr_dashboard_model.dart';
 import 'package:chanhung/data/repo/hr/hr_repo.dart';
 import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
-import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:chanhung/view/components/no_data.dart';
@@ -88,7 +87,11 @@ class _HrScreenState extends State<HrScreen> {
 
                 if (metrics != null) ...[
                   const SizedBox(height: Dimensions.space15),
-                  _HrSummary(metrics: metrics),
+                  _HrSummary(
+                    metrics: metrics,
+                    selectedFilter: controller.selectedFilter,
+                    onSelected: controller.selectFilter,
+                  ),
                 ],
                 const SizedBox(height: Dimensions.space20),
                 _SectionHeader(
@@ -280,9 +283,15 @@ class _HrSearchField extends StatelessWidget {
 // ─── HR SUMMARY ───────────────────────────────────────────────────────────────
 
 class _HrSummary extends StatelessWidget {
-  const _HrSummary({required this.metrics});
+  const _HrSummary({
+    required this.metrics,
+    required this.selectedFilter,
+    required this.onSelected,
+  });
 
   final HrMetrics metrics;
+  final HrEmployeeFilter selectedFilter;
+  final ValueChanged<HrEmployeeFilter> onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -292,24 +301,28 @@ class _HrSummary extends StatelessWidget {
         label: LocalStrings.totalEmployees.tr,
         value: metrics.totalEmployees.toString(),
         color: ColorResources.primaryColor,
+        filter: HrEmployeeFilter.all,
       ),
       _SummaryItem(
         icon: Icons.person_add_alt_1_outlined,
         label: LocalStrings.newEmployeesThisMonth.tr,
         value: metrics.newEmployeesThisMonth.toString(),
         color: ColorResources.blueColor,
+        filter: HrEmployeeFilter.newThisMonth,
       ),
       _SummaryItem(
         icon: Icons.how_to_reg_outlined,
         label: LocalStrings.presentToday.tr,
         value: metrics.presentToday.toString(),
         color: ColorResources.greenColor,
+        filter: HrEmployeeFilter.presentToday,
       ),
       _SummaryItem(
         icon: Icons.event_busy_outlined,
         label: LocalStrings.onLeaveToday.tr,
         value: metrics.onLeaveToday.toString(),
         color: ColorResources.redColor,
+        filter: HrEmployeeFilter.onLeaveToday,
       ),
     ];
 
@@ -323,7 +336,15 @@ class _HrSummary extends StatelessWidget {
           spacing: Dimensions.space10,
           runSpacing: Dimensions.space10,
           children: items
-              .map((item) => SizedBox(width: width, height: 86, child: item))
+              .map((item) => SizedBox(
+                    width: width,
+                    height: 86,
+                    child: _SummaryItemCard(
+                      item: item,
+                      isSelected: selectedFilter == item.filter,
+                      onTap: () => onSelected(item.filter),
+                    ),
+                  ))
               .toList(),
         );
       },
@@ -331,58 +352,90 @@ class _HrSummary extends StatelessWidget {
   }
 }
 
-class _SummaryItem extends StatelessWidget {
+class _SummaryItem {
   const _SummaryItem({
     required this.icon,
     required this.label,
     required this.value,
     required this.color,
+    required this.filter,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final Color color;
+  final HrEmployeeFilter filter;
+}
+
+class _SummaryItemCard extends StatelessWidget {
+  const _SummaryItemCard({
+    required this.item,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final _SummaryItem item;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(Dimensions.space10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: '${item.label}: ${item.value}',
+      child: InkWell(
         borderRadius: BorderRadius.circular(Dimensions.cardRadius),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 38,
-            width: 38,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(Dimensions.space10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? item.color.withValues(alpha: 0.08)
+                : Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(Dimensions.cardRadius),
+            border: Border.all(
+              color: item.color.withValues(alpha: isSelected ? 0.70 : 0.18),
+              width: isSelected ? 1.5 : 1,
             ),
-            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: Dimensions.space10),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(value, style: mediumLarge.copyWith(color: color)),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: regularSmall.copyWith(
-                    color: Theme.of(context).textTheme.bodyMedium!.color,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                height: 38,
+                width: 38,
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(Dimensions.cardRadius),
                 ),
-              ],
-            ),
+                child: Icon(item.icon, color: item.color, size: 20),
+              ),
+              const SizedBox(width: Dimensions.space10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.value,
+                        style: mediumLarge.copyWith(color: item.color)),
+                    Text(
+                      item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: regularSmall.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium!.color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

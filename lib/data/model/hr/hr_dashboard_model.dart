@@ -32,6 +32,9 @@ class HrMetrics {
   int attendanceRate = 0;
   double averageWorkingHours = 0;
   int onLeaveToday = 0;
+  Set<String> newEmployeeIds = {};
+  Set<String> presentTodayIds = {};
+  Set<String> onLeaveTodayIds = {};
 
   HrMetrics();
 
@@ -43,6 +46,13 @@ class HrMetrics {
     attendanceRate = _toInt(map['attendance_rate']);
     averageWorkingHours = _toDouble(map['avg_working_hours']);
     onLeaveToday = _toInt(map['on_leave_today']);
+    final employeeIds = map['employee_ids'];
+    final ids = employeeIds is Map
+        ? Map<String, dynamic>.from(employeeIds)
+        : <String, dynamic>{};
+    newEmployeeIds = _toStringSet(ids['new_this_month']);
+    presentTodayIds = _toStringSet(ids['present_today']);
+    onLeaveTodayIds = _toStringSet(ids['on_leave_today']);
   }
 }
 
@@ -79,4 +89,11 @@ double _toDouble(dynamic value) {
     return value.toDouble();
   }
   return double.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+Set<String> _toStringSet(dynamic value) {
+  if (value is! List) {
+    return {};
+  }
+  return value.map((item) => item.toString()).toSet();
 }

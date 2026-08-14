@@ -7,11 +7,12 @@ class HrRepo {
   ApiClient apiClient;
   HrRepo({required this.apiClient});
 
-  Future<ResponseModel> getEmployees({String? search}) async {
+  Future<ResponseModel> getEmployees({String? search, int page = 1}) async {
     final queryParameters = <String, String>{
       'user_type': 'staff',
       'status': 'active',
       'limit': '100',
+      'page': page.toString(),
     };
     if (search != null && search.trim().isNotEmpty) {
       queryParameters['search'] = search.trim();
