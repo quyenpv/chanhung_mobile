@@ -212,13 +212,6 @@ class _MenuScreenState extends State<MenuScreen> {
                         ],
                         const CustomDivider(space: Dimensions.space10),
                         MenuItems(
-                            imageSrc: MyImages.password,
-                            label: LocalStrings.changePassword.tr,
-                            onPressed: () {
-                              Get.toNamed(RouteHelper.changePasswordScreen);
-                            }),
-                        const CustomDivider(space: Dimensions.space10),
-                        MenuItems(
                             imageSrc: MyImages.policy,
                             label: LocalStrings.privacyPolicy.tr,
                             onPressed: () {
