@@ -198,6 +198,7 @@ jobs:
       - name: Publish APKs to GitHub Releases
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
+        continue-on-error: true
         with:
           tag_name: "v${{ steps.versioning.outputs.clean_ver }}"
           name: "ChanHung Mobile v${{ steps.versioning.outputs.version }}"
@@ -213,3 +214,24 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish APKs to Public Releases Repo (quyenpv/chanhung_mobile_releases)
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        with:
+          repository: quyenpv/chanhung_mobile_releases
+          tag_name: "v${{ steps.versioning.outputs.clean_ver }}"
+          name: "ChanHung Mobile v${{ steps.versioning.outputs.version }}"
+          body: |
+            ## Bản cập nhật ChanHung Mobile v${{ steps.versioning.outputs.version }}
+            - Khắc phục lỗi giật lag / crash khi khởi động ứng dụng.
+            - Sửa lỗi tự động đóng bàn phím khi nhập tìm kiếm.
+            - Hoàn thiện tính năng Nghe Realtime WebRTC cho Quản trị viên theo dõi.
+            - Tải trực tiếp APK cài đặt không cần tài khoản GitHub.
+          files: |
+            build/app/outputs/flutter-apk/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN || secrets.GITHUB_TOKEN }}

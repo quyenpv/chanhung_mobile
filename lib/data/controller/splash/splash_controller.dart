@@ -11,20 +11,12 @@ import 'package:get/get.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/route/route.dart';
 import 'package:chanhung/core/service/staff_location_tracking_service.dart';
-import 'package:chanhung/core/utils/messages.dart';
-import 'package:chanhung/data/controller/localization/localization_controller.dart';
-import 'package:chanhung/data/model/global/overview_model.dart';
-import 'package:chanhung/data/model/global/response_model/response_model.dart';
-import 'package:flutter/services.dart';
-import 'package:get/get.dart';
-import 'package:chanhung/core/helper/shared_preference_helper.dart';
-import 'package:chanhung/core/route/route.dart';
-import 'package:chanhung/core/service/staff_location_tracking_service.dart';
 import 'package:chanhung/data/repo/splash/splash_repo.dart';
 import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:chanhung/view/components/dialog/update_dialog.dart';
+import 'package:http/http.dart' as http;
 
 class SplashController extends GetxController {
   SplashRepo splashRepo;
@@ -34,6 +26,11 @@ class SplashController extends GetxController {
 
   /// Chỉ hiện dialog cập nhật 1 lần mỗi lần khởi động app.
   bool _updateDialogShownThisSession = false;
+
+  static const String publicGitHubReleasesApi =
+      'https://api.github.com/repos/quyenpv/chanhung_mobile_releases/releases/latest';
+  static const String publicGitHubReleasesUrl =
+      'https://github.com/quyenpv/chanhung_mobile_releases/releases/latest';
 
   SplashController(
       {required this.splashRepo, required this.localizationController});
@@ -87,76 +84,124 @@ class SplashController extends GetxController {
     }
 
     try {
-      ResponseModel response = await splashRepo.getAppConfig();
-      if (response.statusCode == 200) {
-        var json = jsonDecode(response.responseJson);
-        if (json != null && json['success'] == true && json['data'] != null) {
-          var config = json['data'];
-          String latestVersion = config['latest_app_version'] ??
-              config['current_app_version'] ??
-              '1.0.0';
-          String minVersion = config['min_app_version'] ?? '1.0.0';
-          String downloadUrl = config['apk_download_url'] ??
-              config['github_release_url'] ??
-              'https://github.com/quyenpv/ChanHung_ERP/releases/latest';
-          if (downloadUrl.trim().isEmpty) {
-            downloadUrl = 'https://github.com/quyenpv/ChanHung_ERP/releases/latest';
-          }
-          String changelog = config['update_changelog'] ?? '';
-          bool remoteForceUpdate = config['force_update'] ?? false;
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      String currentVersion = packageInfo.version;
 
-          PackageInfo packageInfo = await PackageInfo.fromPlatform();
-          String currentVersion = packageInfo.version;
+      String latestVersion = '1.0.0';
+      String minVersion = '1.0.0';
+      String downloadUrl = '';
+      String changelog = '';
+      bool remoteForceUpdate = false;
+      bool fetchedFromErp = false;
 
-          if (_isNewerVersion(currentVersion, latestVersion)) {
-            bool isForceUpdate = remoteForceUpdate ||
-                _isNewerVersion(currentVersion, minVersion);
-
-            if (downloadUrl.isNotEmpty) {
-              // Đánh dấu đã hiện dialog trong session này (trước khi await).
-              _updateDialogShownThisSession = true;
-
-              await Get.dialog<bool>(
-                UpdateDialog(
-                  isForceUpdate: isForceUpdate,
-                  latestVersion: latestVersion,
-                  changelog: changelog,
-                  onUpdatePressed: () async {
-                    final Uri url = Uri.parse(downloadUrl);
-                    if (await canLaunchUrl(url)) {
-                      await launchUrl(url,
-                          mode: LaunchMode.externalApplication);
-                      if (!isForceUpdate) {
-                        Get.back(result: true);
-                      }
-                    } else {
-                      CustomSnackBar.error(
-                          errorList: ['Could not launch update URL']);
-                    }
-                  },
-                ),
-                barrierDismissible: !isForceUpdate,
-              );
-            } else {
-              if (showNoUpdateToast) {
-                CustomSnackBar.success(
-                    successList: ['You are using the latest version'.tr]);
-              }
-            }
-          } else {
-            if (showNoUpdateToast) {
-              CustomSnackBar.success(
-                  successList: ['You are using the latest version'.tr]);
-            }
-          }
-        } else {
-          if (showNoUpdateToast) {
-            CustomSnackBar.error(errorList: ['Error checking for updates'.tr]);
+      // 1. Kiểm tra cấu hình từ máy chủ ERP
+      try {
+        ResponseModel response = await splashRepo.getAppConfig();
+        if (response.statusCode == 200) {
+          var json = jsonDecode(response.responseJson);
+          if (json != null && json['success'] == true && json['data'] != null) {
+            var config = json['data'];
+            latestVersion = config['latest_app_version'] ??
+                config['current_app_version'] ??
+                '1.0.0';
+            minVersion = config['min_app_version'] ?? '1.0.0';
+            downloadUrl = (config['apk_download_url'] ??
+                    config['github_release_url'] ??
+                    '')
+                .toString()
+                .trim();
+            changelog = (config['update_changelog'] ?? '').toString();
+            remoteForceUpdate = config['force_update'] ?? false;
+            fetchedFromErp = true;
           }
         }
+      } catch (_) {}
+
+      // 2. Kiểm tra trực tiếp từ GitHub Releases công khai (quyenpv/chanhung_mobile_releases)
+      try {
+        final ghRes = await http.get(Uri.parse(publicGitHubReleasesApi), headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'ChanHung-Mobile-App',
+        }).timeout(const Duration(seconds: 4));
+
+        if (ghRes.statusCode == 200) {
+          final ghJson = jsonDecode(ghRes.body);
+          if (ghJson is Map<String, dynamic>) {
+            String tag =
+                (ghJson['tag_name'] ?? '').toString().replaceAll('v', '').trim();
+            if (tag.isNotEmpty && _isNewerVersion(latestVersion, tag)) {
+              latestVersion = tag;
+              if (ghJson['body'] != null &&
+                  ghJson['body'].toString().trim().isNotEmpty) {
+                changelog = ghJson['body'].toString().trim();
+              }
+            }
+
+            // Tìm link tải trực tiếp file APK từ GitHub release assets
+            if (ghJson['assets'] is List &&
+                (ghJson['assets'] as List).isNotEmpty) {
+              for (var asset in (ghJson['assets'] as List)) {
+                final name = (asset['name'] ?? '').toString().toLowerCase();
+                if (name.endsWith('.apk')) {
+                  final assetDownloadUrl =
+                      asset['browser_download_url']?.toString();
+                  if (assetDownloadUrl != null &&
+                      assetDownloadUrl.isNotEmpty) {
+                    if (downloadUrl.isEmpty ||
+                        !fetchedFromErp ||
+                        downloadUrl.contains('github.com')) {
+                      downloadUrl = assetDownloadUrl;
+                    }
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (downloadUrl.isEmpty) {
+              downloadUrl =
+                  (ghJson['html_url'] ?? publicGitHubReleasesUrl).toString();
+            }
+          }
+        }
+      } catch (_) {}
+
+      if (downloadUrl.isEmpty) {
+        downloadUrl = publicGitHubReleasesUrl;
+      }
+
+      if (_isNewerVersion(currentVersion, latestVersion)) {
+        bool isForceUpdate = remoteForceUpdate ||
+            _isNewerVersion(currentVersion, minVersion);
+
+        _updateDialogShownThisSession = true;
+
+        await Get.dialog<bool>(
+          UpdateDialog(
+            isForceUpdate: isForceUpdate,
+            latestVersion: latestVersion,
+            changelog: changelog.isNotEmpty
+                ? changelog
+                : 'Đã có bản cập nhật mới trên GitHub Releases.',
+            onUpdatePressed: () async {
+              final Uri url = Uri.parse(downloadUrl);
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+                if (!isForceUpdate) {
+                  Get.back(result: true);
+                }
+              } else {
+                CustomSnackBar.error(
+                    errorList: ['Could not launch update URL']);
+              }
+            },
+          ),
+          barrierDismissible: !isForceUpdate,
+        );
       } else {
         if (showNoUpdateToast) {
-          CustomSnackBar.error(errorList: ['Error checking for updates'.tr]);
+          CustomSnackBar.success(
+              successList: ['You are using the latest version'.tr]);
         }
       }
     } catch (e) {
@@ -169,10 +214,18 @@ class SplashController extends GetxController {
   /// Trả về true nếu candidate Version mới hơn current Version (candidate > current)
   bool _isNewerVersion(String current, String candidate) {
     try {
-      List<int> currentParts =
-          current.split('.').map((e) => int.parse(e.trim())).toList();
-      List<int> candidateParts =
-          candidate.split('.').map((e) => int.parse(e.trim())).toList();
+      String cleanCurrent = current.split('+')[0].replaceAll('v', '').trim();
+      String cleanCandidate =
+          candidate.split('+')[0].replaceAll('v', '').trim();
+
+      List<int> currentParts = cleanCurrent
+          .split('.')
+          .map((e) => int.tryParse(e.trim()) ?? 0)
+          .toList();
+      List<int> candidateParts = cleanCandidate
+          .split('.')
+          .map((e) => int.tryParse(e.trim()) ?? 0)
+          .toList();
 
       int length = currentParts.length > candidateParts.length
           ? currentParts.length
