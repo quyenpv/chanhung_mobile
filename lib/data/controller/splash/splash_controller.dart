@@ -184,15 +184,29 @@ class SplashController extends GetxController {
                 ? changelog
                 : 'Đã có bản cập nhật mới trên GitHub Releases.',
             onUpdatePressed: () async {
-              final Uri url = Uri.parse(downloadUrl);
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-                if (!isForceUpdate) {
-                  Get.back(result: true);
+              try {
+                final Uri url = Uri.parse(downloadUrl.trim());
+                bool launched = false;
+                try {
+                  launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+                } catch (_) {
+                  try {
+                    launched = await launchUrl(url, mode: LaunchMode.platformDefault);
+                  } catch (_) {
+                    launched = false;
+                  }
                 }
-              } else {
+                if (launched) {
+                  if (!isForceUpdate) {
+                    Get.back(result: true);
+                  }
+                } else {
+                  CustomSnackBar.error(
+                      errorList: ['Could not launch update URL']);
+                }
+              } catch (e) {
                 CustomSnackBar.error(
-                    errorList: ['Could not launch update URL']);
+                    errorList: ['Lỗi mở liên kết cập nhật: $e']);
               }
             },
           ),
