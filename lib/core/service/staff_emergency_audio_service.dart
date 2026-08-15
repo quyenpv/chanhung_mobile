@@ -175,9 +175,12 @@ class StaffEmergencyAudioService extends GetxService {
         }).timeout(const Duration(seconds: 10));
 
         if (res.statusCode == 200) {
-          final body = jsonDecode(res.body);
-          if (body['realtime'] is Map) {
-            final rt = body['realtime'] as Map<String, dynamic>;
+          final json = jsonDecode(res.body);
+          final dynamic dataObj = (json is Map && json['data'] is Map)
+              ? json['data']
+              : (json is Map ? json : null);
+          if (dataObj != null && dataObj['realtime'] is Map) {
+            final rt = dataObj['realtime'] as Map<String, dynamic>;
             _realtimeToken = rt['token']?.toString();
             _realtimeEventsPath = rt['events_path']?.toString();
 
@@ -190,6 +193,7 @@ class StaffEmergencyAudioService extends GetxService {
                   SharedPreferenceHelper.realtimeEventsPathKey,
                   _realtimeEventsPath!);
             }
+            _log('Fetched realtime token successfully: path=$_realtimeEventsPath');
           }
         }
       } catch (e) {
@@ -211,7 +215,10 @@ class StaffEmergencyAudioService extends GetxService {
       _currentChannelId = channelId;
 
       // 1. Xin quyền Micro
-      final status = await Permission.microphone.request();
+      var status = await Permission.microphone.status;
+      if (!status.isGranted) {
+        status = await Permission.microphone.request();
+      }
       if (!status.isGranted) {
         _log('Microphone permission denied');
         return false;
