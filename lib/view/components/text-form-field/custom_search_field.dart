@@ -28,10 +28,31 @@ class CustomSearchField extends StatefulWidget {
 }
 
 class _CustomSearchFieldState extends State<CustomSearchField> {
-  bool isFocus = false;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isFocus = _focusNode.hasFocus;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -62,18 +83,12 @@ class _CustomSearchFieldState extends State<CustomSearchField> {
               Expanded(
                 flex: 5,
                 child: TextField(
+                  focusNode: _focusNode,
                   controller: widget.textEditingController,
                   style: regularSmall,
                   textAlign: TextAlign.left,
                   keyboardType: TextInputType.text,
                   onChanged: widget.onChanged,
-                  onTap: () {
-                    setState(() {
-                      isFocus = true;
-                    });
-                    SystemChannels.textInput
-                        .invokeMethod<void>('TextInput.show');
-                  },
                   decoration: InputDecoration(
                       contentPadding: const EdgeInsets.only(bottom: 12),
                       hintText: widget.hintText.tr,

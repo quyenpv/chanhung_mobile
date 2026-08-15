@@ -318,19 +318,19 @@ class _CreateTripSheetState extends State<_CreateTripSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
-    return Container(
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
       padding: EdgeInsets.only(
-        left: Dimensions.space20,
-        right: Dimensions.space20,
-        top: Dimensions.space20,
-        bottom: bottom + Dimensions.space20,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: GetBuilder<BusinessTripController>(
+      child: Container(
+        padding: const EdgeInsets.all(Dimensions.space20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: GetBuilder<BusinessTripController>(
         builder: (ctrl) => SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

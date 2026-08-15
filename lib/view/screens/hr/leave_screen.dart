@@ -302,130 +302,131 @@ class _ApplyLeaveSheetState extends State<_ApplyLeaveSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
-    return Container(
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
       padding: EdgeInsets.only(
-        left: Dimensions.space20,
-        right: Dimensions.space20,
-        top: Dimensions.space20,
-        bottom: bottom + Dimensions.space20,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: GetBuilder<LeaveController>(
-        builder: (ctrl) => SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: ColorResources.blueGreyColor.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: Dimensions.space15),
-              Text(LocalStrings.applyLeave.tr,
-                  style: semiBoldLarge.copyWith(
-                      color: Theme.of(context).textTheme.bodyLarge!.color)),
-              const SizedBox(height: Dimensions.space15),
-
-              // Leave Type Dropdown
-              Text(LocalStrings.leaveType.tr,
-                  style: mediumSmall.copyWith(
-                      color: ColorResources.blueGreyColor)),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<LeaveTypeModel>(
-                value: _selectedType,
-                hint: Text(LocalStrings.selectLeaveType.tr),
-                decoration: _inputDecor(context),
-                items: ctrl.leaveTypes
-                    .map((t) => DropdownMenuItem(
-                          value: t,
-                          child: Text(t.title),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedType = v),
-              ),
-              const SizedBox(height: Dimensions.space15),
-
-              // Date range
-              Row(
-                children: [
-                  Expanded(
-                    child: _DateField(
-                      label: LocalStrings.leaveStart.tr,
-                      value: _startDate,
-                      onPick: (d) => setState(() => _startDate = d),
+      child: Container(
+        padding: const EdgeInsets.all(Dimensions.space20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: GetBuilder<LeaveController>(
+          builder: (ctrl) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: ColorResources.blueGreyColor.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(width: Dimensions.space10),
-                  Expanded(
-                    child: _DateField(
-                      label: LocalStrings.leaveEnd.tr,
-                      value: _endDate,
-                      onPick: (d) => setState(() => _endDate = d),
+                ),
+                const SizedBox(height: Dimensions.space15),
+                Text(LocalStrings.applyLeave.tr,
+                    style: semiBoldLarge.copyWith(
+                        color: Theme.of(context).textTheme.bodyLarge!.color)),
+                const SizedBox(height: Dimensions.space15),
+
+                // Leave Type Dropdown
+                Text(LocalStrings.leaveType.tr,
+                    style: mediumSmall.copyWith(
+                        color: ColorResources.blueGreyColor)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<LeaveTypeModel>(
+                  value: _selectedType,
+                  hint: Text(LocalStrings.selectLeaveType.tr),
+                  decoration: _inputDecor(context),
+                  items: ctrl.leaveTypes
+                      .map((t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(t.title),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedType = v),
+                ),
+                const SizedBox(height: Dimensions.space15),
+
+                // Date range
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DateField(
+                        label: LocalStrings.leaveStart.tr,
+                        value: _startDate,
+                        onPick: (d) => setState(() => _startDate = d),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: Dimensions.space10),
-
-              // Half day toggle
-              CheckboxListTile(
-                value: _halfDay,
-                onChanged: (v) => setState(() => _halfDay = v ?? false),
-                title: Text(LocalStrings.halfDay.tr, style: regularSmall),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-                activeColor: ColorResources.primaryColor,
-              ),
-              const SizedBox(height: Dimensions.space10),
-
-              // Reason
-              Text(LocalStrings.leaveReason.tr,
-                  style: mediumSmall.copyWith(
-                      color: ColorResources.blueGreyColor)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _reasonController,
-                maxLines: 3,
-                decoration: _inputDecor(context).copyWith(
-                  hintText: LocalStrings.enterLeaveReason.tr,
+                    const SizedBox(width: Dimensions.space10),
+                    Expanded(
+                      child: _DateField(
+                        label: LocalStrings.leaveEnd.tr,
+                        value: _endDate,
+                        onPick: (d) => setState(() => _endDate = d),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: Dimensions.space20),
+                const SizedBox(height: Dimensions.space10),
 
-              // Submit button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ColorResources.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(Dimensions.cardRadius)),
-                  ),
-                  onPressed: ctrl.isSubmitting ? null : () => _submit(ctrl),
-                  child: ctrl.isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : Text(LocalStrings.submit.tr,
-                          style: mediumLarge.copyWith(color: Colors.white)),
+                // Half day toggle
+                CheckboxListTile(
+                  value: _halfDay,
+                  onChanged: (v) => setState(() => _halfDay = v ?? false),
+                  title: Text(LocalStrings.halfDay.tr, style: regularSmall),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: ColorResources.primaryColor,
                 ),
-              ),
-            ],
+                const SizedBox(height: Dimensions.space10),
+
+                // Reason
+                Text(LocalStrings.leaveReason.tr,
+                    style: mediumSmall.copyWith(
+                        color: ColorResources.blueGreyColor)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _reasonController,
+                  maxLines: 3,
+                  decoration: _inputDecor(context).copyWith(
+                    hintText: LocalStrings.enterLeaveReason.tr,
+                  ),
+                ),
+                const SizedBox(height: Dimensions.space20),
+
+                // Submit button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ColorResources.primaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(Dimensions.cardRadius)),
+                    ),
+                    onPressed: ctrl.isSubmitting ? null : () => _submit(ctrl),
+                    child: ctrl.isSubmitting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : Text(LocalStrings.submit.tr,
+                            style: mediumLarge.copyWith(color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

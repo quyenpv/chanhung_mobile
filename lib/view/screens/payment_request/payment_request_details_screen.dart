@@ -1206,18 +1206,19 @@ class _SigningModalState extends State<_SigningModal> {
         widget.permissionData?['esign_cert']?['certName']?.toString() ??
             'eSign';
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
       padding: EdgeInsets.only(
-        left: Dimensions.space15,
-        right: Dimensions.space15,
-        top: Dimensions.space20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + Dimensions.space20,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: SingleChildScrollView(
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(Dimensions.space20),
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

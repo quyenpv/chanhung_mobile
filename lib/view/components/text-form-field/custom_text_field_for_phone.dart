@@ -158,12 +158,7 @@ class _CustomTextFieldForPhoneState extends State<CustomTextFieldForPhone> {
                         : null
                 : null,
           ),
-          onTap: () {
-            if (widget.isEnabled) {
-              SystemChannels.textInput.invokeMethod<void>('TextInput.show');
-            }
-            widget.onTap?.call();
-          },
+          onTap: widget.onTap,
           onFieldSubmitted: (text) => widget.nextFocus != null
               ? FocusScope.of(context).requestFocus(widget.nextFocus)
               : widget.onSubmit != null

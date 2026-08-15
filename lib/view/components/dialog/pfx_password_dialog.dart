@@ -47,7 +47,7 @@ class _PfxPasswordDialogState extends State<PfxPasswordDialog> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted && _focusNode.canRequestFocus) {
         _focusNode.requestFocus();
       }

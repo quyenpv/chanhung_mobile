@@ -577,7 +577,6 @@ class _SigningActions extends StatelessWidget {
               const SizedBox(height: Dimensions.space8),
               TextField(
                 controller: reasonController,
-                autofocus: true,
                 maxLines: 4,
                 decoration: InputDecoration(
                   hintText: LocalStrings.rejectSignReasonHint.tr,

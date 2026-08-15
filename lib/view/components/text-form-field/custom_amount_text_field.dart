@@ -35,10 +35,31 @@ class CustomAmountTextField extends StatefulWidget {
 }
 
 class _CustomAmountTextFieldState extends State<CustomAmountTextField> {
-  bool isFocus = false;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isFocus = _focusNode.hasFocus;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -63,44 +84,30 @@ class _CustomAmountTextFieldState extends State<CustomAmountTextField> {
             children: [
               Expanded(
                 flex: 5,
-                child: FocusScope(
-                  child: Focus(
-                    onFocusChange: (focus) {
-                      setState(() {
-                        isFocus = focus;
-                      });
-                    },
-                    child: TextFormField(
-                      cursorColor: ColorResources.colorBlack,
-                      readOnly: widget.readOnly,
-                      controller: widget.controller,
-                      autofocus: widget.autoFocus,
-                      style: regularDefault.copyWith(
-                          color: Theme.of(context).textTheme.bodyMedium!.color),
-                      //textAlign: TextAlign.left,
-                      keyboardType: TextInputType.number,
-                      textInputAction: widget.inputAction,
-                      onTap: () {
-                        if (widget.readOnly) return;
-                        SystemChannels.textInput
-                            .invokeMethod<void>('TextInput.show');
-                      },
-                      onChanged: widget.onChanged,
-                      decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.only(bottom: 16),
-                          hintText: widget.hintText,
-                          hintStyle: regularSmall.copyWith(
-                              color: ColorResources.hintTextColor
-                                  .withValues(alpha: 0.7),
-                              height: 1.452),
-                          border: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          disabledBorder: InputBorder.none,
-                          focusedErrorBorder: InputBorder.none,
-                          errorBorder: InputBorder.none),
-                    ),
-                  ),
+                child: TextFormField(
+                  focusNode: _focusNode,
+                  cursorColor: ColorResources.colorBlack,
+                  readOnly: widget.readOnly,
+                  controller: widget.controller,
+                  autofocus: widget.autoFocus,
+                  style: regularDefault.copyWith(
+                      color: Theme.of(context).textTheme.bodyMedium!.color),
+                  keyboardType: TextInputType.number,
+                  textInputAction: widget.inputAction,
+                  onChanged: widget.onChanged,
+                  decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.only(bottom: 16),
+                      hintText: widget.hintText,
+                      hintStyle: regularSmall.copyWith(
+                          color: ColorResources.hintTextColor
+                              .withValues(alpha: 0.7),
+                          height: 1.452),
+                      border: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
+                      errorBorder: InputBorder.none),
                 ),
               ),
               Container(

@@ -28,14 +28,6 @@ class _CreatePaymentRequestScreenState
   int? _selectedCompanyId;
   String _selectedPaymentMethod = 'cash';
 
-  void _showKeyboard() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
-      }
-    });
-  }
-
   @override
   void dispose() {
     _titleController.dispose();
@@ -83,7 +75,6 @@ class _CreatePaymentRequestScreenState
                   // Title
                   TextFormField(
                     controller: _titleController,
-                    onTap: _showKeyboard,
                     decoration: InputDecoration(
                       labelText: 'Tiêu đề *',
                       border: OutlineInputBorder(
@@ -133,7 +124,6 @@ class _CreatePaymentRequestScreenState
                   // Amount
                   TextFormField(
                     controller: _amountController,
-                    onTap: _showKeyboard,
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: 'Số tiền *',
@@ -158,7 +148,6 @@ class _CreatePaymentRequestScreenState
                   // Description
                   TextFormField(
                     controller: _descController,
-                    onTap: _showKeyboard,
                     maxLines: 3,
                     decoration: InputDecoration(
                       labelText: 'Nội dung chi tiết',
@@ -203,7 +192,6 @@ class _CreatePaymentRequestScreenState
                   // Beneficiary Name
                   TextFormField(
                     controller: _beneficiaryNameController,
-                    onTap: _showKeyboard,
                     decoration: InputDecoration(
                       labelText: 'Tên người thụ hưởng *',
                       border: OutlineInputBorder(
@@ -224,7 +212,6 @@ class _CreatePaymentRequestScreenState
                     // Beneficiary Bank
                     TextFormField(
                       controller: _beneficiaryBankController,
-                      onTap: _showKeyboard,
                       decoration: InputDecoration(
                         labelText: 'Ngân hàng nhận',
                         border: OutlineInputBorder(
@@ -245,7 +232,6 @@ class _CreatePaymentRequestScreenState
                     // Beneficiary Account
                     TextFormField(
                       controller: _beneficiaryAccountController,
-                      onTap: _showKeyboard,
                       decoration: InputDecoration(
                         labelText: 'Số tài khoản nhận',
                         border: OutlineInputBorder(

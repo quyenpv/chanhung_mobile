@@ -54,15 +54,6 @@ class SearchTextField extends StatefulWidget {
 class _SearchTextFieldState extends State<SearchTextField> {
   bool obscureText = true;
 
-  void _showKeyboard() {
-    if (widget.readOnly || !widget.isEnable) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return widget.needOutlineBorder
@@ -76,7 +67,6 @@ class _SearchTextFieldState extends State<SearchTextField> {
             textInputAction: widget.inputAction,
             enabled: widget.isEnable,
             focusNode: widget.focusNode,
-            onTap: _showKeyboard,
             validator: widget.validator,
             keyboardType: widget.textInputType,
             obscureText: widget.isPassword ? obscureText : false,
@@ -144,7 +134,6 @@ class _SearchTextFieldState extends State<SearchTextField> {
             textInputAction: widget.inputAction,
             enabled: widget.isEnable,
             focusNode: widget.focusNode,
-            onTap: _showKeyboard,
             validator: widget.validator,
             keyboardType: widget.textInputType,
             obscureText: widget.isPassword ? obscureText : false,
