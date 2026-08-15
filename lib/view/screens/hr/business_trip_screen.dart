@@ -425,13 +425,12 @@ class _CreateTripSheetState extends State<_CreateTripSheet> {
                       : Text(LocalStrings.submit.tr,
                           style: mediumLarge.copyWith(color: Colors.white)),
                 ),
-              ),
-            ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _submit(BusinessTripController ctrl) async {
     if (_titleCtrl.text.trim().isEmpty ||

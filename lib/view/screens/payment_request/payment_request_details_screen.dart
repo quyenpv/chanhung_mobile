@@ -1501,12 +1501,11 @@ class _SigningModalState extends State<_SigningModal> {
                   ),
                 ],
               ),
-            ],
-          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _executePfxSign() async {
     var pwd = _passwordController.text.trim();
