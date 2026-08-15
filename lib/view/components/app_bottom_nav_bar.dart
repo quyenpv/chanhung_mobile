@@ -58,47 +58,59 @@ class AppBottomNavBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenWidth = constraints.maxWidth;
-        // Mỗi tab chiếm 1/5 chiều rộng màn hình: tâm tại (index + 0.5) / 5
-        final centerFraction = (currentIndex + 0.5) / 5.0;
-        final activeCenterX = screenWidth * centerFraction;
-        final circleLeft = activeCenterX - 32.0; // 64 / 2 = 32
+        final tabWidth = screenWidth / 5.0;
+        final circleLeft = (currentIndex * tabWidth) + (tabWidth / 2.0) - 30.0;
 
         return SizedBox(
-          height: 84 + bottomInset,
+          height: 80 + bottomInset,
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.bottomCenter,
             children: [
-              // Nền thanh điều hướng với đường cong Notch ôm theo vị trí tab đang chọn
-              PhysicalShape(
-                color: Theme.of(context).cardColor,
-                elevation: 18,
-                shadowColor: const Color(0xFF17262A).withValues(alpha: 0.16),
-                clipper: _DynamicCurvedNotchClipper(
-                  centerFraction: centerFraction,
-                  radius: 34,
-                ),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(8, 10, 8, bottomInset),
-                  child: SizedBox(
-                    height: 62,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: tabs.map((t) {
-                        final isSelected = t.item == current;
-                        return Expanded(
-                          child: isSelected
-                              ? const SizedBox.shrink()
-                              : _buildInactiveItem(t.item, t.icon, t.label),
-                        );
-                      }).toList(),
+              // Thanh nền trắng đổ bóng hiện đại bo góc
+              Container(
+                height: 64 + bottomInset,
+                padding: EdgeInsets.fromLTRB(4, 4, 4, bottomInset),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, -4),
                     ),
-                  ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: tabs.map((t) {
+                    final isSelected = t.item == current;
+                    return Expanded(
+                      child: InkWell(
+                        onTap: () => _open(t.item),
+                        splashColor: Colors.transparent,
+                        highlightColor: Colors.transparent,
+                        child: Center(
+                          child: Opacity(
+                            opacity: isSelected ? 0.0 : 1.0,
+                            child: Icon(
+                              t.icon,
+                              size: 26,
+                              color: const Color(0xFF2E3E5C),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
 
-              // Nút tròn nổi lớn (64x64) di chuyển theo Tab Active
-              Positioned(
+              // Nút tròn nổi lớn (60x60) có hiệu ứng trượt mượt mà theo Tab Active
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
                 top: 0,
                 left: circleLeft,
                 child: Semantics(
@@ -110,8 +122,8 @@ class AppBottomNavBar extends StatelessWidget {
                       customBorder: const CircleBorder(),
                       onTap: () => _open(current),
                       child: Container(
-                        width: 64,
-                        height: 64,
+                        width: 60,
+                        height: 60,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: const LinearGradient(
@@ -124,9 +136,9 @@ class AppBottomNavBar extends StatelessWidget {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF2646C4).withValues(alpha: 0.42),
-                              blurRadius: 18,
-                              offset: const Offset(0, 9),
+                              color: const Color(0xFF2646C4).withOpacity(0.42),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
@@ -134,7 +146,7 @@ class AppBottomNavBar extends StatelessWidget {
                           child: Icon(
                             activeTab.icon,
                             color: Colors.white,
-                            size: 30,
+                            size: 28,
                           ),
                         ),
                       ),
@@ -146,23 +158,6 @@ class AppBottomNavBar extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildInactiveItem(AppBottomNavItem item, IconData icon, String label) {
-    return Tooltip(
-      message: label,
-      child: InkResponse(
-        onTap: () => _open(item),
-        radius: 28,
-        child: Center(
-          child: Icon(
-            icon,
-            size: 26,
-            color: const Color(0xFF2E3E5C),
-          ),
-        ),
-      ),
     );
   }
 
@@ -178,65 +173,4 @@ class AppBottomNavBar extends StatelessWidget {
     if (item == current && Get.currentRoute == route) return;
     Get.offNamed(route);
   }
-}
-
-/// Custom Clipper tạo đường cong uốn lõm chính xác tại vị trí tab đang Active
-class _DynamicCurvedNotchClipper extends CustomClipper<Path> {
-  final double centerFraction;
-  final double radius;
-
-  const _DynamicCurvedNotchClipper({
-    required this.centerFraction,
-    required this.radius,
-  });
-
-  @override
-  Path getClip(Size size) {
-    final center = size.width * centerFraction;
-    final notchWidth = radius * 2.5;
-    const cornerRadius = 18.0;
-
-    final path = Path()..moveTo(0, cornerRadius);
-    path.quadraticBezierTo(0, 0, cornerRadius, 0);
-
-    final notchLeft = (center - notchWidth / 2).clamp(0.0, size.width);
-    final notchRight = (center + notchWidth / 2).clamp(0.0, size.width);
-
-    // Kẻ đường thẳng mép trên đến vị trí bắt đầu uốn lõm
-    if (notchLeft > cornerRadius) {
-      path.lineTo(notchLeft, 0);
-    }
-
-    // Vẽ đường cong mềm mại uốn cong xuống dưới
-    path.cubicTo(
-      center - radius * 1.15,
-      0,
-      center - radius * 1.02,
-      radius * 0.88,
-      center,
-      radius * 0.88,
-    );
-    path.cubicTo(
-      center + radius * 1.02,
-      radius * 0.88,
-      center + radius * 1.15,
-      0,
-      notchRight,
-      0,
-    );
-
-    // Kẻ tiếp đường thẳng sang góc phải
-    if (notchRight < size.width - cornerRadius) {
-      path.lineTo(size.width - cornerRadius, 0);
-    }
-
-    path.quadraticBezierTo(size.width, 0, size.width, cornerRadius);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    return path..close();
-  }
-
-  @override
-  bool shouldReclip(covariant _DynamicCurvedNotchClipper oldClipper) =>
-      oldClipper.centerFraction != centerFraction || oldClipper.radius != radius;
 }
