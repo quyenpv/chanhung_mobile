@@ -391,11 +391,17 @@ class StaffLocationTrackingService extends GetxService
       try {
         pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
-            timeLimit: Duration(seconds: 12),
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 10),
           ),
         );
       } catch (_) {}
+
+      if (pos == null) {
+        try {
+          pos = await Geolocator.getLastKnownPosition();
+        } catch (_) {}
+      }
 
       if (pos == null || !_isValidQualityPosition(pos, _lastUiPosition)) return;
 
@@ -562,11 +568,16 @@ void staffLocationBgOnStart(ServiceInstance service) async {
         try {
           pos = await Geolocator.getCurrentPosition(
             locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              timeLimit: Duration(seconds: 12),
+              accuracy: LocationAccuracy.medium,
+              timeLimit: Duration(seconds: 10),
             ),
           );
         } catch (_) {}
+        if (pos == null) {
+          try {
+            pos = await Geolocator.getLastKnownPosition();
+          } catch (_) {}
+        }
         if (pos != null) {
           await processAndEnqueue(pos, token, minDistance);
         }
