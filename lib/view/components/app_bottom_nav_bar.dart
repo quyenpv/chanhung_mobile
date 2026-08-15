@@ -193,8 +193,8 @@ class _SafeCurvedNotchClipper extends CustomClipper<Path> {
     final h = size.height;
     const corner = 18.0;
 
-    final center = activeCenterX.clamp(corner + radius + 4.0, w - corner - radius - 4.0);
-    final notchHalfWidth = radius * 1.25;
+    final notchHalfWidth = radius * 1.2;
+    final center = activeCenterX.clamp(corner + notchHalfWidth, w - corner - notchHalfWidth);
     final p1x = center - notchHalfWidth;
     final p2x = center + notchHalfWidth;
 
@@ -202,21 +202,19 @@ class _SafeCurvedNotchClipper extends CustomClipper<Path> {
     path.moveTo(0, corner);
     path.quadraticBezierTo(0, 0, corner, 0);
 
-    if (p1x > corner) {
-      path.lineTo(p1x, 0);
-    }
+    path.lineTo(p1x, 0);
 
     // Đường cong Bezier uốn lõm mềm mại ôm lấy nút tròn
     path.cubicTo(
       center - radius * 0.95,
       0,
-      center - radius * 0.85,
+      center - radius * 0.82,
       radius * 0.88,
       center,
       radius * 0.88,
     );
     path.cubicTo(
-      center + radius * 0.85,
+      center + radius * 0.82,
       radius * 0.88,
       center + radius * 0.95,
       0,
@@ -224,10 +222,7 @@ class _SafeCurvedNotchClipper extends CustomClipper<Path> {
       0,
     );
 
-    if (p2x < w - corner) {
-      path.lineTo(w - corner, 0);
-    }
-
+    path.lineTo(w - corner, 0);
     path.quadraticBezierTo(w, 0, w, corner);
     path.lineTo(w, h);
     path.lineTo(0, h);

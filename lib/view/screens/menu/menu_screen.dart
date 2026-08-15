@@ -1,6 +1,7 @@
 import 'package:chanhung/core/helper/biometric_helper.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/route/route.dart';
+import 'package:chanhung/core/utils/app_design.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
 import 'package:chanhung/core/utils/images.dart';
@@ -46,9 +47,11 @@ class _MenuScreenState extends State<MenuScreen> {
   }
 
   _checkBiometrics() async {
-    isBiometricAvailable = await BiometricHelper.isBiometricsAvailable();
-    isBiometricEnabled = await BiometricHelper.isBiometricEnabled();
-    if (mounted) setState(() {});
+    try {
+      isBiometricAvailable = await BiometricHelper.isBiometricsAvailable();
+      isBiometricEnabled = await BiometricHelper.isBiometricEnabled();
+      if (mounted) setState(() {});
+    } catch (_) {}
   }
 
   _loadAppVersion() async {
@@ -64,6 +67,11 @@ class _MenuScreenState extends State<MenuScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeColor = Theme.of(context).textTheme.bodyMedium?.color ??
+        ColorResources.colorBlack;
+    final appBarBg =
+        Theme.of(context).appBarTheme.backgroundColor ?? AppDesign.canvas;
+
     return GetBuilder<ThemeController>(builder: (theme) {
       return WillPopWidget(
         nextRoute: RouteHelper.dashboardScreen,
@@ -71,7 +79,7 @@ class _MenuScreenState extends State<MenuScreen> {
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: CustomAppBar(
             title: LocalStrings.settings.tr,
-            bgColor: Theme.of(context).appBarTheme.backgroundColor!,
+            bgColor: appBarBg,
           ),
           drawer: const AppDrawer(),
           bottomNavigationBar:
@@ -105,25 +113,27 @@ class _MenuScreenState extends State<MenuScreen> {
                           imageSrc: MyImages.language,
                           label: LocalStrings.language.tr,
                           onPressed: () {
-                            final apiClient = Get.put(
-                                ApiClient(sharedPreferences: Get.find()));
-                            SharedPreferences pref =
-                                apiClient.sharedPreferences;
-                            String language = pref.getString(
-                                    SharedPreferenceHelper.languageListKey) ??
-                                '';
-                            String countryCode = pref.getString(
-                                    SharedPreferenceHelper.countryCode) ??
-                                'VN';
-                            String languageCode = pref.getString(
-                                    SharedPreferenceHelper.languageCode) ??
-                                'vi';
-                            Locale local = Locale(languageCode, countryCode);
-                            CustomBottomSheet(
-                                    child: LanguageBottomSheetScreen(
-                                        languageList: language,
-                                        selectedLocal: local))
-                                .customBottomSheet(context);
+                            try {
+                              final apiClient = Get.put(
+                                  ApiClient(sharedPreferences: Get.find()));
+                              SharedPreferences pref =
+                                  apiClient.sharedPreferences;
+                              String language = pref.getString(
+                                      SharedPreferenceHelper.languageListKey) ??
+                                  '';
+                              String countryCode = pref.getString(
+                                      SharedPreferenceHelper.countryCode) ??
+                                  'VN';
+                              String languageCode = pref.getString(
+                                      SharedPreferenceHelper.languageCode) ??
+                                  'vi';
+                              Locale local = Locale(languageCode, countryCode);
+                              CustomBottomSheet(
+                                      child: LanguageBottomSheetScreen(
+                                          languageList: language,
+                                          selectedLocal: local))
+                                  .customBottomSheet(context);
+                            } catch (_) {}
                           },
                         ),
                         const CustomDivider(space: Dimensions.space10),
@@ -132,11 +142,7 @@ class _MenuScreenState extends State<MenuScreen> {
                               horizontal: Dimensions.space10),
                           title: Text(
                             LocalStrings.darkmode.tr,
-                            style: regularLarge.copyWith(
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium!
-                                    .color),
+                            style: regularLarge.copyWith(color: themeColor),
                           ),
                           secondary: Container(
                             height: 35,
@@ -144,22 +150,20 @@ class _MenuScreenState extends State<MenuScreen> {
                             alignment: Alignment.center,
                             child: CustomSvgPicture(
                                 image: MyImages.night,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium!
-                                    .color!,
+                                color: themeColor,
                                 height: 17.5,
                                 width: 17.5),
                           ),
                           activeThumbColor: ColorResources.colorBlack,
-                          activeTrackColor:
-                              Theme.of(context).textTheme.bodyMedium!.color,
+                          activeTrackColor: themeColor,
                           value: theme.darkTheme,
                           onChanged: (bool val) {
-                            theme.changeTheme();
-                            ThemeController themeController = Get.put(
-                                ThemeController(sharedPreferences: Get.find()));
-                            MyUtils.allScreensUtils(themeController.darkTheme);
+                            try {
+                              theme.changeTheme();
+                              ThemeController themeController = Get.put(
+                                  ThemeController(sharedPreferences: Get.find()));
+                              MyUtils.allScreensUtils(themeController.darkTheme);
+                            } catch (_) {}
                           },
                         ),
                         if (isBiometricAvailable) ...[
@@ -169,11 +173,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                 horizontal: Dimensions.space10),
                             title: Text(
                               'Đăng nhập vân tay / FaceID',
-                              style: regularLarge.copyWith(
-                                  color: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium!
-                                      .color),
+                              style: regularLarge.copyWith(color: themeColor),
                             ),
                             secondary: Container(
                               height: 35,
@@ -181,10 +181,7 @@ class _MenuScreenState extends State<MenuScreen> {
                               alignment: Alignment.center,
                               child: Icon(
                                 Icons.fingerprint,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium!
-                                    .color!,
+                                color: themeColor,
                                 size: 22,
                               ),
                             ),
@@ -197,15 +194,19 @@ class _MenuScreenState extends State<MenuScreen> {
                                 final auth = await BiometricHelper.authenticate();
                                 if (auth) {
                                   await BiometricHelper.saveBiometricState(true);
-                                  setState(() {
-                                    isBiometricEnabled = true;
-                                  });
+                                  if (mounted) {
+                                    setState(() {
+                                      isBiometricEnabled = true;
+                                    });
+                                  }
                                 }
                               } else {
                                 await BiometricHelper.saveBiometricState(false);
-                                setState(() {
-                                  isBiometricEnabled = false;
-                                });
+                                if (mounted) {
+                                  setState(() {
+                                    isBiometricEnabled = false;
+                                  });
+                                }
                               }
                             },
                           ),
@@ -247,30 +248,27 @@ class _MenuScreenState extends State<MenuScreen> {
                               }
                             }),
                         const CustomDivider(space: Dimensions.space10),
-                        Get.find<DashboardController>().logoutLoading
-                            ? const Align(
-                                alignment: Alignment.center,
-                                child: SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      color: ColorResources.primaryColor,
-                                      strokeWidth: 2.00),
-                                ),
-                              )
-                            : MenuItems(
-                                imageSrc: MyImages.logout,
-                                label: LocalStrings.logout.tr,
-                                onPressed: () {
-                                  const WarningAlertDialog().warningAlertDialog(
-                                      context, () {
-                                    Get.back();
+                        MenuItems(
+                            imageSrc: MyImages.logout,
+                            label: LocalStrings.logout.tr,
+                            onPressed: () {
+                              const WarningAlertDialog().warningAlertDialog(
+                                  context, () {
+                                Get.back();
+                                try {
+                                  if (Get.isRegistered<DashboardController>()) {
                                     Get.find<DashboardController>().logout();
-                                  },
-                                      title: LocalStrings.logoutTitle.tr,
-                                      subTitle:
-                                          LocalStrings.logoutSureWarningMSg.tr);
-                                }),
+                                  } else {
+                                    Get.offAllNamed(RouteHelper.loginScreen);
+                                  }
+                                } catch (_) {
+                                  Get.offAllNamed(RouteHelper.loginScreen);
+                                }
+                              },
+                                  title: LocalStrings.logoutTitle.tr,
+                                  subTitle:
+                                      LocalStrings.logoutSureWarningMSg.tr);
+                            }),
                       ],
                     )),
                 const SizedBox(height: Dimensions.space20),
@@ -283,20 +281,25 @@ class _MenuScreenState extends State<MenuScreen> {
                         Text(
                           "${"Current version".tr}: v$appVersion",
                           style: regularDefault.copyWith(
-                            color: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.color
-                                    ?.withValues(alpha: 0.6) ??
-                                ColorResources.colorBlack.withValues(alpha: 0.6),
+                            color: themeColor.withValues(alpha: 0.6),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(height: Dimensions.space8),
                         OutlinedButton.icon(
                           onPressed: () {
-                            Get.find<SplashController>()
-                                .manualVersionCheck(showNoUpdateToast: true);
+                            try {
+                              SplashController splashController;
+                              try {
+                                splashController = Get.find<SplashController>();
+                              } catch (_) {
+                                splashController = Get.put(SplashController(
+                                  splashRepo: Get.find(),
+                                  localizationController: Get.find(),
+                                ));
+                              }
+                              splashController.manualVersionCheck(showNoUpdateToast: true);
+                            } catch (_) {}
                           },
                           icon: const Icon(Icons.sync_rounded, size: 16),
                           label: const Text(
