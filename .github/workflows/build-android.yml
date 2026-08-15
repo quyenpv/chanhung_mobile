@@ -196,6 +196,18 @@ jobs:
             --repo "$RELEASE_REPOSITORY" \
             --clobber
 
+      - name: Auto Sync Latest Version to ERP Server Settings
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          TAG="v${{ steps.versioning.outputs.clean_ver }}"
+          VERSION="${{ steps.versioning.outputs.version }}"
+          CLEAN_VER="${{ steps.versioning.outputs.clean_ver }}"
+          echo "=== 4. Tu dong dong bo phien ban $CLEAN_VER vao ERP Settings ==="
+          curl -s -k -X POST "https://erp.chanhungltd.info.vn/api/v1/app_config/sync_version" \
+            -H "Content-Type: application/json" \
+            -d "{\"secret\":\"chanhung_release_sync_2026\",\"latest_app_version\":\"$CLEAN_VER\",\"update_changelog\":\"Bản cập nhật ChanHung Mobile v$VERSION hỗ trợ tải trực tiếp file APK.\",\"github_release_url\":\"https://github.com/quyenpv/chanhung_mobile_releases/releases/tag/$TAG\",\"apk_download_url\":\"https://github.com/quyenpv/chanhung_mobile_releases/releases/download/$TAG/app-erp-release.apk\"}" || true
+
       - name: Check Google Play publishing credentials
         id: play
         if: steps.signing.outputs.configured == 'true'
