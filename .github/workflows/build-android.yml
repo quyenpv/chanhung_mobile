@@ -206,14 +206,33 @@ jobs:
         run: |
           TAG="v${{ steps.versioning.outputs.clean_ver }}"
           VERSION="${{ steps.versioning.outputs.version }}"
-          echo "=== 1. Thu thập các tệp APK ==="
+
+          echo "=== 1. Khoi tao repository phat hanh neu con trong ==="
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${RELEASE_REPOSITORY}.git" target_repo || true
+          if [ -d "target_repo" ]; then
+            cd target_repo
+            if [ ! -f "README.md" ]; then
+              echo "# ChanHung Mobile Releases" > README.md
+              echo "Kho phan phoi file APK chinh thuc cua ung dung ChanHung Mobile." >> README.md
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add README.md
+              git commit -m "chore: Initialize repository for APK releases" || true
+              git branch -M main
+              git push origin main || true
+            fi
+            cd ..
+          fi
+
+          echo "=== 2. Thu thap cac tep APK ==="
           mkdir -p release_apks
           find build/app/outputs -name "*.apk" -exec cp {} release_apks/ \;
           ls -la release_apks/
 
-          echo "=== 2. Xuất bản Release sang $RELEASE_REPOSITORY ==="
+          echo "=== 3. Xuat ban Release sang $RELEASE_REPOSITORY ==="
           gh release create "$TAG" release_apks/*.apk \
             --repo "$RELEASE_REPOSITORY" \
+            --target main \
             --title "ChanHung Mobile v$VERSION" \
             --notes "Bản cập nhật ChanHung Mobile v$VERSION hỗ trợ tải trực tiếp file APK." || \
           gh release upload "$TAG" release_apks/*.apk \
