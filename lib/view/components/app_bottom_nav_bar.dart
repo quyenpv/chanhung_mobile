@@ -18,76 +18,59 @@ class AppBottomNavBar extends StatelessWidget {
     }
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
+    final items = [
+      (
+        item: AppBottomNavItem.home,
+        icon: Icons.home_rounded,
+        label: LocalStrings.home.tr
+      ),
+      (
+        item: AppBottomNavItem.projects,
+        icon: Icons.grid_view_rounded,
+        label: LocalStrings.projects.tr
+      ),
+      (
+        item: AppBottomNavItem.dms,
+        icon: Icons.folder_copy_rounded,
+        label: LocalStrings.dmsOffice.tr
+      ),
+      (
+        item: AppBottomNavItem.hr,
+        icon: Icons.groups_rounded,
+        label: LocalStrings.humanResources.tr
+      ),
+      (
+        item: AppBottomNavItem.settings,
+        icon: Icons.person_rounded,
+        label: LocalStrings.settings.tr
+      ),
+    ];
+
     return SizedBox(
-      height: 82 + bottomInset,
+      height: 72 + bottomInset,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
         children: [
-          PhysicalShape(
-            color: Theme.of(context).cardColor,
-            elevation: 18,
-            shadowColor: AppDesign.ink.withValues(alpha: .18),
-            clipper: const _CenterNotchClipper(radius: 34),
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(12, 10, 12, bottomInset),
-              child: SizedBox(
-                height: 62,
-                child: Row(
-                  children: [
-                    _item(AppBottomNavItem.home, Icons.home_rounded,
-                        LocalStrings.home.tr),
-                    _item(AppBottomNavItem.projects, Icons.grid_view_rounded,
-                        LocalStrings.projects.tr),
-                    const SizedBox(width: 76),
-                    _item(AppBottomNavItem.hr, Icons.groups_rounded,
-                        LocalStrings.humanResources.tr),
-                    _item(AppBottomNavItem.settings, Icons.person_rounded,
-                        LocalStrings.settings.tr),
-                  ],
+          Container(
+            height: 64 + bottomInset,
+            padding: EdgeInsets.fromLTRB(6, 4, 6, bottomInset),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppDesign.ink.withValues(alpha: .10),
+                  blurRadius: 18,
+                  offset: const Offset(0, -4),
                 ),
-              ),
+              ],
             ),
-          ),
-          Positioned(
-            top: 0,
-            child: Semantics(
-              button: true,
-              label: LocalStrings.dmsOffice.tr,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => _open(AppBottomNavItem.dms),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: current == AppBottomNavItem.dms
-                            ? const [AppDesign.brightBlue, AppDesign.accentBlue]
-                            : const [Color(0xFF6A88E5), AppDesign.accentBlue],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppDesign.accentBlue.withValues(alpha: .35),
-                          blurRadius: 18,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.folder_copy_rounded,
-                      color: Colors.white,
-                      size: 29,
-                    ),
-                  ),
-                ),
-              ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: items
+                  .map((e) => _buildNavItem(context, e.item, e.icon, e.label))
+                  .toList(),
             ),
           ),
         ],
@@ -95,34 +78,73 @@ class AppBottomNavBar extends StatelessWidget {
     );
   }
 
-  Widget _item(AppBottomNavItem item, IconData icon, String label) {
+  Widget _buildNavItem(
+      BuildContext context, AppBottomNavItem item, IconData icon, String label) {
     final selected = current == item;
+
     return Expanded(
       child: Tooltip(
         message: label,
-        child: InkResponse(
+        child: InkWell(
           onTap: () => _open(item),
-          radius: 28,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AnimatedScale(
-                scale: selected ? 1.12 : 1,
-                duration: const Duration(milliseconds: 220),
-                child: Icon(
-                  icon,
-                  size: 23,
-                  color: selected ? AppDesign.accentBlue : AppDesign.mutedInk,
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutBack,
+                transform: selected
+                    ? Matrix4.translationValues(0, -14, 0)
+                    : Matrix4.translationValues(0, 0, 0),
+                width: selected ? 48 : 34,
+                height: selected ? 48 : 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: selected
+                      ? const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [AppDesign.brightBlue, AppDesign.accentBlue],
+                        )
+                      : null,
+                  color: selected ? null : Colors.transparent,
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: AppDesign.accentBlue.withValues(alpha: .38),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Center(
+                  child: Icon(
+                    icon,
+                    size: selected ? 24 : 22,
+                    color: selected ? Colors.white : AppDesign.mutedInk,
+                  ),
                 ),
               ),
-              const SizedBox(height: 5),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                width: selected ? 18 : 4,
-                height: 3,
-                decoration: BoxDecoration(
-                  color: selected ? AppDesign.accentBlue : Colors.transparent,
-                  borderRadius: BorderRadius.circular(2),
+              const SizedBox(height: 2),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected
+                      ? AppDesign.accentBlue
+                      : AppDesign.mutedInk.withValues(alpha: .75),
+                  fontFamily: 'Montserrat-Arabic',
+                ),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
               ),
             ],
@@ -144,45 +166,4 @@ class AppBottomNavBar extends StatelessWidget {
     if (item == current && Get.currentRoute == route) return;
     Get.offNamed(route);
   }
-}
-
-class _CenterNotchClipper extends CustomClipper<Path> {
-  const _CenterNotchClipper({required this.radius});
-
-  final double radius;
-
-  @override
-  Path getClip(Size size) {
-    final center = size.width / 2;
-    final notchWidth = radius * 2.5;
-    final path = Path()..moveTo(0, 18);
-
-    path.quadraticBezierTo(0, 0, 18, 0);
-    path.lineTo(center - notchWidth / 2, 0);
-    path.cubicTo(
-      center - radius * 1.15,
-      0,
-      center - radius * 1.05,
-      radius * .88,
-      center,
-      radius * .88,
-    );
-    path.cubicTo(
-      center + radius * 1.05,
-      radius * .88,
-      center + radius * 1.15,
-      0,
-      center + notchWidth / 2,
-      0,
-    );
-    path.lineTo(size.width - 18, 0);
-    path.quadraticBezierTo(size.width, 0, size.width, 18);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    return path..close();
-  }
-
-  @override
-  bool shouldReclip(covariant _CenterNotchClipper oldClipper) =>
-      oldClipper.radius != radius;
 }
