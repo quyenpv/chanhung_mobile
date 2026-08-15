@@ -1219,296 +1219,298 @@ class _SigningModalState extends State<_SigningModal> {
         ),
         padding: const EdgeInsets.all(Dimensions.space20),
         child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-            ),
-            const SizedBox(height: Dimensions.space15),
-            Text(
-              "Xác thực chữ ký số",
-              style: boldLarge.copyWith(
-                  fontSize: 18, color: ColorResources.primaryColor),
-            ),
-            const SizedBox(height: Dimensions.space15),
-
-            // Tab Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedTab = 0;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: _selectedTab == 0
-                                ? ColorResources.primaryColor
-                                : Colors.transparent,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          "Chứng thư PFX Server",
-                          style: boldLarge.copyWith(
-                            color: _selectedTab == 0
-                                ? ColorResources.primaryColor
-                                : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedTab = 1;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: _selectedTab == 1
-                                ? ColorResources.primaryColor
-                                : Colors.transparent,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          "MISA eSign (Remote)",
-                          style: boldLarge.copyWith(
-                            color: _selectedTab == 1
-                                ? ColorResources.primaryColor
-                                : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: Dimensions.space20),
-
-            if (_isLocalSigning) ...[
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Center(
-                child: Column(
-                  children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: Dimensions.space15),
-                    Text(
-                      _localSigningProgressText,
-                      textAlign: TextAlign.center,
-                      style: boldLarge.copyWith(
-                          color: ColorResources.primaryColor),
-                    ),
-                    const SizedBox(height: 10),
-                    const Text("Vui lòng không đóng cửa sổ này...",
-                        style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  ],
-                ),
-              ),
-            ] else ...[
-              if (_selectedTab == 0) ...[
-                // PFX Tab Layout
-                if (!hasPfx)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      "Bạn chưa cấu hình chứng thư PFX trên hệ thống. Vui lòng đăng nhập bản Web để tải lên tệp PFX.",
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  )
-                else ...[
-                  // Dropdown to select PFX profile
-                  if (profiles.isNotEmpty) ...[
-                    const Text("Chọn chứng thư số PFX",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedPfxSlug,
-                          isExpanded: true,
-                          items: profiles.map((p) {
-                            return DropdownMenuItem<String>(
-                              value: p['slug']?.toString() ?? 'default',
-                              child: Text(p['label']?.toString() ?? 'PFX'),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() {
-                                _selectedPfxSlug = val;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: Dimensions.space15),
-                  ],
-
-                  // Luôn hiện ô mật khẩu (giống DMS) — không ẩn khi has_pfx_saved_password
-                  // để tránh gửi mật khẩu rỗng khi bản lưu trên server hỏng.
-                  const Text("Mật khẩu chứng thư (*)",
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      hintText: "Nhập mật khẩu tệp PFX của bạn",
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                    ),
+                child: Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(5),
                   ),
-                  const SizedBox(height: Dimensions.space15),
-                ],
-              ] else ...[
-                // eSign Tab Layout
-                if (!hasEsign)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      "Bạn chưa kết nối với tài khoản MISA eSign. Vui lòng kết nối MISA eSign trên phiên bản Web.",
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  )
-                else ...[
-                  // Connected eSign details
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.verified, color: Colors.green),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text("Đã kết nối chứng thư số MISA eSign:",
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              Text(esignCertName,
-                                  style: const TextStyle(fontSize: 13)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: Dimensions.space15),
-                ],
-              ],
-
-              // Shared fields: Instruction and Comment Keyword
-              const Text("Ý kiến / Chỉ thị ký",
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _instructionController,
-                decoration: InputDecoration(
-                  hintText: "Nhập ý kiến duyệt hồ sơ",
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
               const SizedBox(height: Dimensions.space15),
-
-              const Text("Từ khóa vị trí ký (PDF comment)",
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _keywordController,
-                decoration: InputDecoration(
-                  hintText: "Để trống = thứ tự hiển thị tự động",
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
+              Text(
+                "Xác thực chữ ký số",
+                style: boldLarge.copyWith(
+                    fontSize: 18, color: ColorResources.primaryColor),
               ),
-              const SizedBox(height: Dimensions.space25),
+              const SizedBox(height: Dimensions.space15),
 
-              // Action buttons
+              // Tab Buttons
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child:
-                        const Text("Hủy", style: TextStyle(color: Colors.grey)),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ColorResources.primaryColor,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedTab = 0;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: _selectedTab == 0
+                                  ? ColorResources.primaryColor
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            "Chứng thư PFX Server",
+                            style: boldLarge.copyWith(
+                              color: _selectedTab == 0
+                                  ? ColorResources.primaryColor
+                                  : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    onPressed: _selectedTab == 0
-                        ? (hasPfx ? _executePfxSign : null)
-                        : (hasEsign ? _executeEsignSign : null),
-                    child: const Text("Xác nhận ký",
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedTab = 1;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: _selectedTab == 1
+                                  ? ColorResources.primaryColor
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            "MISA eSign (Remote)",
+                            style: boldLarge.copyWith(
+                              color: _selectedTab == 1
+                                  ? ColorResources.primaryColor
+                                  : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
+              const SizedBox(height: Dimensions.space20),
+
+              if (_isLocalSigning) ...[
+                Center(
+                  child: Column(
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: Dimensions.space15),
+                      Text(
+                        _localSigningProgressText,
+                        textAlign: TextAlign.center,
+                        style: boldLarge.copyWith(
+                            color: ColorResources.primaryColor),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text("Vui lòng không đóng cửa sổ này...",
+                          style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                if (_selectedTab == 0) ...[
+                  // PFX Tab Layout
+                  if (!hasPfx) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "Bạn chưa cấu hình chứng thư PFX trên hệ thống. Vui lòng đăng nhập bản Web để tải lên tệp PFX.",
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ] else ...[
+                    // Dropdown to select PFX profile
+                    if (profiles.isNotEmpty) ...[
+                      const Text("Chọn chứng thư số PFX",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedPfxSlug,
+                            isExpanded: true,
+                            items: profiles.map((p) {
+                              return DropdownMenuItem<String>(
+                                value: p['slug']?.toString() ?? 'default',
+                                child: Text(p['label']?.toString() ?? 'PFX'),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  _selectedPfxSlug = val;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: Dimensions.space15),
+                    ],
+
+                    const Text("Mật khẩu chứng thư (*)",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        hintText: "Nhập mật khẩu tệp PFX của bạn",
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: Dimensions.space15),
+                  ],
+                ] else ...[
+                  // eSign Tab Layout
+                  if (!hasEsign) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "Bạn chưa kết nối với tài khoản MISA eSign. Vui lòng kết nối MISA eSign trên phiên bản Web.",
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ] else ...[
+                    // Connected eSign details
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.verified, color: Colors.green),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Tài khoản MISA eSign đã kết nối",
+                                    style: boldLarge.copyWith(
+                                        color: Colors.green.shade900,
+                                        fontSize: 13)),
+                                Text(esignCertName,
+                                    style: regularSmall.copyWith(
+                                        color: Colors.green.shade700)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: Dimensions.space15),
+                  ],
+                ],
+
+                // Shared fields: Instruction and Comment Keyword
+                const Text("Ý kiến / Chỉ thị ký",
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _instructionController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: "Vd: Đồng ý phê duyệt",
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: Dimensions.space15),
+
+                const Text("Vị trí / Thứ tự hiển thị chữ ký",
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: _keywordController,
+                  decoration: InputDecoration(
+                    hintText: "Để trống = thứ tự hiển thị tự động",
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: Dimensions.space25),
+
+                // Action buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text("Hủy",
+                          style: TextStyle(color: Colors.grey)),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ColorResources.primaryColor,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                      ),
+                      onPressed: _selectedTab == 0
+                          ? (hasPfx ? _executePfxSign : null)
+                          : (hasEsign ? _executeEsignSign : null),
+                      child: const Text("Xác nhận ký",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
             ],
-          ],
-        ],
+          ),
+        ),
       ),
-    ),
-  ),
-);
-}
+    );
+  }
 
   Future<void> _executePfxSign() async {
     var pwd = _passwordController.text.trim();
