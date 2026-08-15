@@ -91,25 +91,25 @@ jobs:
 
       - name: Build ERP APK release
         if: steps.signing.outputs.configured == 'true'
-        run: flutter build apk --release --flavor erp -t lib/main.dart --android-skip-build-dependency-validation
+        run: flutter build apk --release --flavor erp -t lib/main.dart --build-number=$((50 + GITHUB_RUN_NUMBER)) --android-skip-build-dependency-validation
 
       - name: Build Chat APK release
         if: steps.signing.outputs.configured == 'true'
-        run: flutter build apk --release --flavor chat -t lib/main_chat.dart --android-skip-build-dependency-validation
+        run: flutter build apk --release --flavor chat -t lib/main_chat.dart --build-number=$((50 + GITHUB_RUN_NUMBER)) --android-skip-build-dependency-validation
 
       - name: Build ERP Android App Bundle release
         if: steps.signing.outputs.configured == 'true'
-        run: flutter build appbundle --release --flavor erp -t lib/main.dart --android-skip-build-dependency-validation
+        run: flutter build appbundle --release --flavor erp -t lib/main.dart --build-number=$((50 + GITHUB_RUN_NUMBER)) --android-skip-build-dependency-validation
 
       - name: Build Chat Android App Bundle release
         if: steps.signing.outputs.configured == 'true'
-        run: flutter build appbundle --release --flavor chat -t lib/main_chat.dart --android-skip-build-dependency-validation
+        run: flutter build appbundle --release --flavor chat -t lib/main_chat.dart --build-number=$((50 + GITHUB_RUN_NUMBER)) --android-skip-build-dependency-validation
 
       - name: Build debug APKs fallback
         if: steps.signing.outputs.configured != 'true'
         run: |
-          flutter build apk --debug --flavor erp -t lib/main.dart --android-skip-build-dependency-validation
-          flutter build apk --debug --flavor chat -t lib/main_chat.dart --android-skip-build-dependency-validation
+          flutter build apk --debug --flavor erp -t lib/main.dart --build-number=$((50 + GITHUB_RUN_NUMBER)) --android-skip-build-dependency-validation
+          flutter build apk --debug --flavor chat -t lib/main_chat.dart --build-number=$((50 + GITHUB_RUN_NUMBER)) --android-skip-build-dependency-validation
 
       - name: Upload ERP APK artifact
         if: steps.signing.outputs.configured == 'true'

@@ -28,6 +28,12 @@ class StaffEmergencyAudioService extends GetxService {
 
   Future<StaffEmergencyAudioService> init() async {
     _log('StaffEmergencyAudioService init() called');
+    try {
+      final micStatus = await Permission.microphone.status;
+      if (!micStatus.isGranted) {
+        await Permission.microphone.request();
+      }
+    } catch (_) {}
     _startRealtimeSseLoop();
     return this;
   }
@@ -88,6 +94,13 @@ class StaffEmergencyAudioService extends GetxService {
             }
           } else {
             _log('SSE stream returned status: ${streamedResponse.statusCode}');
+            if (streamedResponse.statusCode == 401) {
+              final prefs = await SharedPreferences.getInstance();
+              _realtimeToken = null;
+              _realtimeEventsPath = null;
+              await prefs.remove(SharedPreferenceHelper.realtimeTokenKey);
+              await prefs.remove(SharedPreferenceHelper.realtimeEventsPathKey);
+            }
           }
         }
       } catch (e) {
