@@ -13,6 +13,9 @@ class AppBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.of(context).viewInsets.bottom > 0) {
+      return const SizedBox.shrink();
+    }
     final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return SizedBox(
@@ -139,7 +142,7 @@ class AppBottomNavBar extends StatelessWidget {
     };
 
     if (item == current && Get.currentRoute == route) return;
-    Get.offAllNamed(route);
+    Get.offNamed(route);
   }
 }
 

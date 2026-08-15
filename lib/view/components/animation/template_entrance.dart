@@ -29,14 +29,6 @@ class _TemplateEntranceState extends State<TemplateEntrance>
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_configured) return;
-    _configured = true;
-
     final staggerStart = widget.order.clamp(0, 5) * .08;
     final curve = CurvedAnimation(
       parent: _controller,
@@ -47,6 +39,13 @@ class _TemplateEntranceState extends State<TemplateEntrance>
       begin: const Offset(0, .06),
       end: Offset.zero,
     ).animate(curve);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_configured) return;
+    _configured = true;
 
     if (MediaQuery.disableAnimationsOf(context)) {
       _controller.value = 1;

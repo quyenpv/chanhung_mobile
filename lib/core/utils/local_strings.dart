@@ -25,7 +25,7 @@ class LocalStrings {
   static const String onboardSubTitle3 = "Onboarding Three Description.";
   static const String companyRulesTitle = "Nội quy sử dụng ứng dụng";
   static const String companyRulesBody =
-      "Sử dụng ERP phải bảo mật dữ liệu theo nội quy, quy định của Công ty";
+      "Việc sử dụng Chấn Hưng ERP Mobile phải bảo mật dữ liệu nội bộ theo nội quy, quy định của Công ty";
   static const String companyRulesAgree =
       "Tôi đã đọc và đồng ý với nội quy sử dụng ứng dụng";
   static const String companyRulesRequired =

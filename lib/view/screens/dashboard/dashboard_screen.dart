@@ -130,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             AppDesign.pagePadding,
                             8,
                             AppDesign.pagePadding,
-                            28,
+                            90,
                           ),
                           child: Column(
                             children: [
@@ -330,6 +330,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 projects.isNotEmpty
                                     ? ListView.separated(
                                         shrinkWrap: true,
+                                        physics:
+                                            const NeverScrollableScrollPhysics(),
                                         itemBuilder: (context, index) {
                                           return ProjectCard(
                                             projectModel: projects[index],

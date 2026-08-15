@@ -4,6 +4,7 @@ import 'package:chanhung/data/controller/project/project_controller.dart';
 import 'package:chanhung/data/repo/project/project_repo.dart';
 import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
+import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:chanhung/view/components/no_data.dart';
@@ -39,6 +40,8 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         title: LocalStrings.projects.tr,
       ),
       drawer: const AppDrawer(),
+      bottomNavigationBar:
+          const AppBottomNavBar(current: AppBottomNavItem.projects),
       body: GetBuilder<ProjectController>(
         builder: (controller) {
           return controller.isLoading
@@ -48,22 +51,24 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   onRefresh: () async {
                     await controller.initialData(shouldLoad: false);
                   },
-                  child: Padding(
-                    padding: const EdgeInsets.all(Dimensions.space15),
-                    child: controller.projectsModel.success!
-                        ? ListView.separated(
-                            itemBuilder: (context, index) {
-                              return ProjectCard(
-                                projectModel:
-                                    controller.projectsModel.data![index],
-                                animationOrder: index.clamp(0, 5),
-                              );
-                            },
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: Dimensions.space10),
-                            itemCount: controller.projectsModel.data!.length)
-                        : const NoDataWidget(),
-                  ),
+                  child: controller.projectsModel.success!
+                      ? ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(
+                              Dimensions.space15,
+                              Dimensions.space15,
+                              Dimensions.space15,
+                              90),
+                          itemBuilder: (context, index) {
+                            return ProjectCard(
+                              projectModel:
+                                  controller.projectsModel.data![index],
+                              animationOrder: index.clamp(0, 5),
+                            );
+                          },
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: Dimensions.space10),
+                          itemCount: controller.projectsModel.data!.length)
+                      : const NoDataWidget(),
                 );
         },
       ),

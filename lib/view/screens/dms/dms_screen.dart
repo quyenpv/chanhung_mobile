@@ -51,6 +51,7 @@ class _DmsScreenState extends State<DmsScreen> {
     return Scaffold(
       appBar: CustomAppBar(title: LocalStrings.dmsOffice.tr),
       drawer: const AppDrawer(),
+      bottomNavigationBar: const AppBottomNavBar(current: AppBottomNavItem.dms),
       body: GetBuilder<DmsController>(
         builder: (controller) {
           final documents = controller.documentsModel.data ?? [];
@@ -62,7 +63,11 @@ class _DmsScreenState extends State<DmsScreen> {
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(Dimensions.space15),
+              padding: const EdgeInsets.fromLTRB(
+                  Dimensions.space15,
+                  Dimensions.space15,
+                  Dimensions.space15,
+                  90),
               children: [
                 _DmsSearchField(
                   controller: _searchController,

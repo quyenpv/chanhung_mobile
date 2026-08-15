@@ -9,6 +9,7 @@ import 'package:chanhung/data/model/hr/business_trip_model.dart';
 import 'package:chanhung/data/repo/hr/business_trip_repo.dart';
 import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
+import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:chanhung/view/components/no_data.dart';
@@ -39,6 +40,7 @@ class _BusinessTripScreenState extends State<BusinessTripScreen> {
     return Scaffold(
       appBar: CustomAppBar(title: LocalStrings.businessTrips.tr),
       drawer: const AppDrawer(),
+      bottomNavigationBar: const AppBottomNavBar(current: AppBottomNavItem.hr),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateSheet(context),
         backgroundColor: ColorResources.secondaryColor,
@@ -59,7 +61,11 @@ class _BusinessTripScreenState extends State<BusinessTripScreen> {
                   child: ctrl.tripsModel.trips.isEmpty
                       ? const NoDataWidget(margin: 12)
                       : ListView.separated(
-                          padding: const EdgeInsets.all(Dimensions.space15),
+                          padding: const EdgeInsets.fromLTRB(
+                              Dimensions.space15,
+                              Dimensions.space15,
+                              Dimensions.space15,
+                              90),
                           itemCount: ctrl.tripsModel.trips.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: Dimensions.space10),

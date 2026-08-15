@@ -65,7 +65,11 @@ class _MyTasksScreenState extends State<MyTasksScreen> {
                   child: controller.tasksList.isEmpty
                       ? const NoDataWidget(margin: 12)
                       : ListView.separated(
-                          padding: const EdgeInsets.all(Dimensions.space15),
+                          padding: const EdgeInsets.fromLTRB(
+                              Dimensions.space15,
+                              Dimensions.space15,
+                              Dimensions.space15,
+                              90),
                           itemCount: controller.tasksList.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: Dimensions.space10),
