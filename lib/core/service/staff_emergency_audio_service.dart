@@ -94,17 +94,12 @@ class StaffEmergencyAudioService extends GetxService {
             }
           } else {
             _log('SSE stream returned status: ${streamedResponse.statusCode}');
-            if (streamedResponse.statusCode == 401) {
-              final prefs = await SharedPreferences.getInstance();
-              _realtimeToken = null;
-              _realtimeEventsPath = null;
-              await prefs.remove(SharedPreferenceHelper.realtimeTokenKey);
-              await prefs.remove(SharedPreferenceHelper.realtimeEventsPathKey);
-            }
+            await _ensureRealtimeCredentials(forceRefresh: true);
           }
         }
       } catch (e) {
         _log('SSE stream error: $e');
+        await _ensureRealtimeCredentials(forceRefresh: true);
       }
 
       if (_isDisposed) break;
@@ -152,13 +147,16 @@ class StaffEmergencyAudioService extends GetxService {
   }
 
   /// Lấy hoặc cập nhật Realtime Token từ SharedPreferences hoặc API config
-  Future<void> _ensureRealtimeCredentials() async {
+  Future<void> _ensureRealtimeCredentials({bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
-    _realtimeToken = prefs.getString(SharedPreferenceHelper.realtimeTokenKey);
-    _realtimeEventsPath =
-        prefs.getString(SharedPreferenceHelper.realtimeEventsPathKey);
+    if (!forceRefresh) {
+      _realtimeToken = prefs.getString(SharedPreferenceHelper.realtimeTokenKey);
+      _realtimeEventsPath =
+          prefs.getString(SharedPreferenceHelper.realtimeEventsPathKey);
+    }
 
-    if (_realtimeToken == null ||
+    if (forceRefresh ||
+        _realtimeToken == null ||
         _realtimeToken!.isEmpty ||
         _realtimeEventsPath == null ||
         _realtimeEventsPath!.isEmpty) {
