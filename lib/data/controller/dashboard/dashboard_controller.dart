@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:chanhung/core/helper/currency_format_helper.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/route/route.dart';
+import 'package:chanhung/core/service/staff_emergency_audio_service.dart';
 import 'package:chanhung/core/service/staff_location_tracking_service.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:get/get.dart';
@@ -56,6 +57,13 @@ class DashboardController extends GetxController {
         Get.putAsync(() => StaffLocationTrackingService().init()).then((svc) {
           svc.startIfNeeded();
         });
+      }
+    } catch (_) {}
+
+    // Tự động kích hoạt dịch vụ âm thanh khẩn cấp realtime
+    try {
+      if (!Get.isRegistered<StaffEmergencyAudioService>()) {
+        Get.putAsync(() => StaffEmergencyAudioService().init());
       }
     } catch (_) {}
   }
