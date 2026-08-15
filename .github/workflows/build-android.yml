@@ -197,43 +197,16 @@ jobs:
           echo "clean_ver=$CLEAN_VER" >> "$GITHUB_OUTPUT"
           echo "build_num=$BUILD_NUM" >> "$GITHUB_OUTPUT"
 
-      - name: Publish APKs to GitHub Releases
-        uses: softprops/action-gh-release@v2
+      - name: Publish Release to Public quyenpv/chanhung_mobile_releases
         if: github.ref == 'refs/heads/main'
-        continue-on-error: true
-        with:
-          tag_name: "v${{ steps.versioning.outputs.clean_ver }}"
-          name: "ChanHung Mobile v${{ steps.versioning.outputs.version }}"
-          body: |
-            ## Bản cập nhật ChanHung Mobile v${{ steps.versioning.outputs.version }}
-            - Khắc phục lỗi giật lag / crash khi khởi động ứng dụng.
-            - Sửa lỗi tự động đóng bàn phím khi nhập tìm kiếm.
-            - Hoàn thiện tính năng Nghe Realtime WebRTC cho Quản trị viên theo dõi.
-            - Hỗ trợ tải và cài đặt trực tiếp file APK không cần đợi duyệt kho ứng dụng.
-          files: |
-            build/app/outputs/flutter-apk/*.apk
-          draft: false
-          prerelease: false
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish APKs to Public Releases Repo (quyenpv/chanhung_mobile_releases)
-        uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/main'
-        continue-on-error: true
-        with:
-          repository: quyenpv/chanhung_mobile_releases
-          tag_name: "v${{ steps.versioning.outputs.clean_ver }}"
-          name: "ChanHung Mobile v${{ steps.versioning.outputs.version }}"
-          body: |
-            ## Bản cập nhật ChanHung Mobile v${{ steps.versioning.outputs.version }}
-            - Khắc phục lỗi giật lag / crash khi khởi động ứng dụng.
-            - Sửa lỗi tự động đóng bàn phím khi nhập tìm kiếm.
-            - Hoàn thiện tính năng Nghe Realtime WebRTC cho Quản trị viên theo dõi.
-            - Tải trực tiếp APK cài đặt không cần tài khoản GitHub.
-          files: |
-            build/app/outputs/flutter-apk/*.apk
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_RELEASES_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_RELEASES_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.versioning.outputs.clean_ver }}"
+          echo "Publishing release $TAG to quyenpv/chanhung_mobile_releases..."
+          gh release create "$TAG" build/app/outputs/flutter-apk/*.apk \
+            --repo quyenpv/chanhung_mobile_releases \
+            --title "ChanHung Mobile v${{ steps.versioning.outputs.version }}" \
+            --notes "Bản cập nhật ChanHung Mobile v${{ steps.versioning.outputs.version }} hỗ trợ tải trực tiếp APK." \
+            --clobber || echo "::warning::Publishing to quyenpv/chanhung_mobile_releases requires secret GH_RELEASES_TOKEN or write permissions."
