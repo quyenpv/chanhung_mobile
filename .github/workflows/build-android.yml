@@ -20,6 +20,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v3
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
