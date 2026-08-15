@@ -296,7 +296,7 @@ class StaffEmergencyAudioService extends GetxService {
 
       for (final track in _localStream!.getAudioTracks()) {
         track.enabled = true;
-        _log('Microphone track active: ${track.id}, state: ${track.state}');
+        _log('Microphone track active: ${track.id}, enabled: ${track.enabled}');
       }
 
       // 3. Khởi tạo RTCPeerConnection với STUN server
