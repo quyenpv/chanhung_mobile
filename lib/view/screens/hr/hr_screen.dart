@@ -230,7 +230,7 @@ class _QuickActionCard extends StatelessWidget {
 
 // ─── SEARCH FIELD ─────────────────────────────────────────────────────────────
 
-class _HrSearchField extends StatelessWidget {
+class _HrSearchField extends StatefulWidget {
   const _HrSearchField({
     required this.controller,
     required this.isLoading,
@@ -246,16 +246,36 @@ class _HrSearchField extends StatelessWidget {
   final VoidCallback onClear;
 
   @override
+  State<_HrSearchField> createState() => _HrSearchFieldState();
+}
+
+class _HrSearchFieldState extends State<_HrSearchField> {
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TextField(
-      controller: controller,
+      controller: widget.controller,
+      focusNode: _focusNode,
       textInputAction: TextInputAction.search,
-      onChanged: onChanged,
-      onSubmitted: onSubmitted,
+      onChanged: widget.onChanged,
+      onSubmitted: widget.onSubmitted,
       decoration: InputDecoration(
         hintText: LocalStrings.search.tr,
         prefixIcon: const Icon(Icons.search),
-        suffixIcon: isLoading
+        suffixIcon: widget.isLoading
             ? const Padding(
                 padding: EdgeInsets.all(14),
                 child: SizedBox(
@@ -264,11 +284,13 @@ class _HrSearchField extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               )
-            : IconButton(
-                onPressed: onClear,
-                icon: const Icon(Icons.close),
-                tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
-              ),
+            : widget.controller.text.isNotEmpty
+                ? IconButton(
+                    onPressed: widget.onClear,
+                    icon: const Icon(Icons.close),
+                    tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
+                  )
+                : null,
         filled: true,
         fillColor: Theme.of(context).cardColor,
         border: OutlineInputBorder(
