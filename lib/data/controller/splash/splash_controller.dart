@@ -140,34 +140,36 @@ class SplashController extends GetxController {
             // Tìm link tải trực tiếp file APK từ GitHub release assets
             if (ghJson['assets'] is List &&
                 (ghJson['assets'] as List).isNotEmpty) {
+              String? bestApkUrl;
               for (var asset in (ghJson['assets'] as List)) {
                 final name = (asset['name'] ?? '').toString().toLowerCase();
-                if (name.endsWith('.apk')) {
-                  final assetDownloadUrl =
-                      asset['browser_download_url']?.toString();
-                  if (assetDownloadUrl != null &&
-                      assetDownloadUrl.isNotEmpty) {
-                    if (downloadUrl.isEmpty ||
-                        !fetchedFromErp ||
-                        downloadUrl.contains('github.com')) {
-                      downloadUrl = assetDownloadUrl;
-                    }
+                final assetDownloadUrl =
+                    asset['browser_download_url']?.toString();
+                if (assetDownloadUrl != null && assetDownloadUrl.isNotEmpty) {
+                  if (name.contains('app-erp-release.apk')) {
+                    bestApkUrl = assetDownloadUrl;
                     break;
+                  } else if (name.endsWith('.apk') && bestApkUrl == null) {
+                    bestApkUrl = assetDownloadUrl;
                   }
                 }
               }
+              if (bestApkUrl != null && bestApkUrl.isNotEmpty) {
+                downloadUrl = bestApkUrl;
+              }
             }
 
-            if (downloadUrl.isEmpty) {
+            if (downloadUrl.isEmpty || downloadUrl.contains('drive.google.com')) {
               downloadUrl =
-                  (ghJson['html_url'] ?? publicGitHubReleasesUrl).toString();
+                  'https://github.com/quyenpv/chanhung_mobile_releases/releases/latest/download/app-erp-release.apk';
             }
           }
         }
       } catch (_) {}
 
-      if (downloadUrl.isEmpty) {
-        downloadUrl = publicGitHubReleasesUrl;
+      if (downloadUrl.isEmpty || downloadUrl.contains('drive.google.com')) {
+        downloadUrl =
+            'https://github.com/quyenpv/chanhung_mobile_releases/releases/latest/download/app-erp-release.apk';
       }
 
       if (_isNewerVersion(currentVersion, latestVersion)) {
