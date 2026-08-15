@@ -14,7 +14,7 @@ import 'package:chanhung/core/service/staff_location_tracking_service.dart';
 import 'package:chanhung/data/repo/splash/splash_repo.dart';
 import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:chanhung/core/service/ota_update_service.dart';
 import 'package:chanhung/view/components/dialog/update_dialog.dart';
 import 'package:http/http.dart' as http;
 
@@ -186,30 +186,14 @@ class SplashController extends GetxController {
                 ? changelog
                 : 'Đã có bản cập nhật mới trên GitHub Releases.',
             onUpdatePressed: () async {
-              try {
-                final Uri url = Uri.parse(downloadUrl.trim());
-                bool launched = false;
-                try {
-                  launched = await launchUrl(url, mode: LaunchMode.externalApplication);
-                } catch (_) {
-                  try {
-                    launched = await launchUrl(url, mode: LaunchMode.platformDefault);
-                  } catch (_) {
-                    launched = false;
-                  }
-                }
-                if (launched) {
-                  if (!isForceUpdate) {
-                    Get.back(result: true);
-                  }
-                } else {
+              await OtaUpdateService.startDownloadAndInstall(
+                downloadUrl: downloadUrl.trim(),
+                targetVersion: latestVersion,
+                onError: (err) {
                   CustomSnackBar.error(
-                      errorList: ['Could not launch update URL']);
-                }
-              } catch (e) {
-                CustomSnackBar.error(
-                    errorList: ['Lỗi mở liên kết cập nhật: $e']);
-              }
+                      errorList: ['Lỗi tải gói cập nhật: $err']);
+                },
+              );
             },
           ),
           barrierDismissible: !isForceUpdate,

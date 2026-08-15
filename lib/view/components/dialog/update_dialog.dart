@@ -1,7 +1,6 @@
-import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import '../../../core/service/ota_update_service.dart';
 import '../../../core/utils/dimensions.dart';
 import '../../../core/utils/color_resources.dart';
 import '../../../core/utils/images.dart';
@@ -27,14 +26,14 @@ class UpdateDialog extends StatelessWidget {
     // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
-        // If force update, do not allow popping (back button press)
+        if (OtaUpdateService.isDownloading.value) return false;
         return !isForceUpdate;
       },
       child: Dialog(
         backgroundColor: ColorResources.getCardBgColor(),
         insetPadding:
             const EdgeInsets.symmetric(horizontal: Dimensions.space25),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: SingleChildScrollView(
           physics: const ClampingScrollPhysics(),
           child: Stack(
@@ -52,90 +51,25 @@ class UpdateDialog extends StatelessWidget {
                     color: Theme.of(context).cardColor,
                     borderRadius:
                         BorderRadius.circular(Dimensions.defaultRadius)),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: Dimensions.space15),
-                    Text(
-                      "${"App Update Available".tr} (v$latestVersion)",
-                      style: mediumLarge.copyWith(fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: Dimensions.space12),
-                    Text(
-                      isForceUpdate
-                          ? "New Version Message".tr
-                          : "Optional Update Message".tr,
-                      style: regularDefault.copyWith(
-                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8) ??
-                              ColorResources.colorBlack.withOpacity(0.8)),
-                      textAlign: TextAlign.center,
-                    ),
-                    if (changelog.isNotEmpty) ...[
-                      const SizedBox(height: Dimensions.space15),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          "Changelog".tr,
-                          style: mediumDefault.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      const SizedBox(height: Dimensions.space5),
-                      Container(
-                        width: double.infinity,
-                        constraints: const BoxConstraints(maxHeight: 120),
-                        padding: const EdgeInsets.all(Dimensions.space10),
-                        decoration: BoxDecoration(
-                          color: ColorResources.getScreenBgColor().withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: ColorResources.lineColor, width: 0.8),
-                        ),
-                        child: SingleChildScrollView(
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              changelog,
-                              style: regularSmall.copyWith(
-                                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ??
-                                      ColorResources.colorBlack.withOpacity(0.7)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: Dimensions.space25),
-                    Row(
-                      children: [
-                        if (!isForceUpdate) ...[
-                          Expanded(
-                            child: RoundedButton(
-                              text: "Later".tr,
-                              press: () {
-                                Navigator.pop(context, false);
-                              },
-                              horizontalPadding: 3,
-                              verticalPadding: 3,
-                              color: ColorResources.colorGrey.withOpacity(0.2),
-                              textColor: Theme.of(context).textTheme.bodyMedium?.color ??
-                                  ColorResources.colorBlack,
-                            ),
-                          ),
-                          const SizedBox(width: Dimensions.space10),
-                        ],
-                        Expanded(
-                          child: RoundedButton(
-                            text: "Update Now".tr,
-                            press: onUpdatePressed,
-                            horizontalPadding: 3,
-                            verticalPadding: 3,
-                            color: ColorResources.getPrimaryColor(),
-                            textColor: ColorResources.colorWhite,
-                          ),
-                        ),
-                      ],
-                    )
-                  ],
-                ),
+                child: Obx(() {
+                  final isDownloading = OtaUpdateService.isDownloading.value;
+                  final isCompleted = OtaUpdateService.isCompleted.value;
+                  final progress = OtaUpdateService.progress.value;
+                  final statusText = OtaUpdateService.statusText.value;
+                  final sizeText = OtaUpdateService.sizeText.value;
+
+                  if (isDownloading || isCompleted) {
+                    return _buildDownloadProgressView(
+                      context,
+                      progress: progress,
+                      statusText: statusText,
+                      sizeText: sizeText,
+                      isCompleted: isCompleted,
+                    );
+                  }
+
+                  return _buildDefaultPromptView(context);
+                }),
               ),
               Positioned(
                 top: -35,
@@ -149,8 +83,8 @@ class UpdateDialog extends StatelessWidget {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
+                          color: Colors.black.withOpacity(0.12),
+                          blurRadius: 12,
                           offset: const Offset(0, 5),
                         ),
                       ],
@@ -170,6 +104,171 @@ class UpdateDialog extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDefaultPromptView(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: Dimensions.space15),
+        Text(
+          "Đã có phiên bản mới (v$latestVersion)",
+          style: mediumLarge.copyWith(fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: Dimensions.space12),
+        Text(
+          isForceUpdate
+              ? "Vui lòng cập nhật để tiếp tục sử dụng các tính năng mới nhất."
+              : "Ứng dụng đã có bản cập nhật mới. Bạn có muốn cập nhật ngay?",
+          style: regularDefault.copyWith(
+              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8) ??
+                  ColorResources.colorBlack.withOpacity(0.8)),
+          textAlign: TextAlign.center,
+        ),
+        if (changelog.isNotEmpty) ...[
+          const SizedBox(height: Dimensions.space15),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              "Nội dung cập nhật:",
+              style: mediumDefault.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(height: Dimensions.space5),
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxHeight: 120),
+            padding: const EdgeInsets.all(Dimensions.space10),
+            decoration: BoxDecoration(
+              color: ColorResources.getScreenBgColor().withOpacity(0.5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: ColorResources.lineColor, width: 0.8),
+            ),
+            child: SingleChildScrollView(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  changelog,
+                  style: regularSmall.copyWith(
+                      color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+                          ColorResources.colorBlack.withOpacity(0.7)),
+                ),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: Dimensions.space25),
+        Row(
+          children: [
+            if (!isForceUpdate) ...[
+              Expanded(
+                child: RoundedButton(
+                  text: "Để sau",
+                  press: () {
+                    Navigator.pop(context, false);
+                  },
+                  horizontalPadding: 3,
+                  verticalPadding: 3,
+                  color: ColorResources.colorGrey.withOpacity(0.2),
+                  textColor: Theme.of(context).textTheme.bodyMedium?.color ??
+                      ColorResources.colorBlack,
+                ),
+              ),
+              const SizedBox(width: Dimensions.space10),
+            ],
+            Expanded(
+              child: RoundedButton(
+                text: "Cập nhật ngay",
+                press: onUpdatePressed,
+                horizontalPadding: 3,
+                verticalPadding: 3,
+                color: ColorResources.getPrimaryColor(),
+                textColor: ColorResources.colorWhite,
+              ),
+            ),
+          ],
+        )
+      ],
+    );
+  }
+
+  Widget _buildDownloadProgressView(
+    BuildContext context, {
+    required double progress,
+    required String statusText,
+    required String sizeText,
+    required bool isCompleted,
+  }) {
+    final pct = (progress * 100).toInt();
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: Dimensions.space20),
+        Icon(
+          isCompleted ? Icons.check_circle_rounded : Icons.cloud_download_rounded,
+          size: 48,
+          color: isCompleted ? Colors.green : ColorResources.getPrimaryColor(),
+        ),
+        const SizedBox(height: Dimensions.space12),
+        Text(
+          isCompleted ? "Tải thành công!" : "Đang tải bản cập nhật (v$latestVersion)",
+          style: mediumLarge.copyWith(fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: Dimensions.space15),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: progress > 0 ? progress : null,
+            minHeight: 10,
+            backgroundColor: ColorResources.lineColor.withOpacity(0.4),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              isCompleted ? Colors.green : ColorResources.getPrimaryColor(),
+            ),
+          ),
+        ),
+        const SizedBox(height: Dimensions.space10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              sizeText.isNotEmpty ? sizeText : "$pct%",
+              style: regularSmall.copyWith(
+                fontWeight: FontWeight.w600,
+                color: ColorResources.getPrimaryColor(),
+              ),
+            ),
+            Text(
+              "$pct%",
+              style: regularSmall.copyWith(
+                fontWeight: FontWeight.bold,
+                color: ColorResources.getPrimaryColor(),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: Dimensions.space10),
+        Text(
+          statusText.isNotEmpty ? statusText : "Đang xử lý...",
+          style: regularSmall.copyWith(
+            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+                ColorResources.colorBlack.withOpacity(0.7),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: Dimensions.space20),
+        if (!isCompleted && !isForceUpdate)
+          TextButton(
+            onPressed: () {
+              OtaUpdateService.cancel();
+              Navigator.pop(context, false);
+            },
+            child: const Text("Huỷ bỏ", style: TextStyle(color: Colors.grey)),
+          ),
+      ],
     );
   }
 }
