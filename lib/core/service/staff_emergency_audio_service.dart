@@ -258,8 +258,9 @@ class StaffEmergencyAudioService extends GetxService {
   /// Khởi tạo luồng WebRTC Audio và kết nối tới Admin
   Future<bool> startAudioStream(
       {required int adminUserId, required String channelId}) async {
-    if (isStreaming) {
+    if (isStreaming || _peerConnection != null || _localStream != null) {
       await stopAudioStream();
+      await Future.delayed(const Duration(milliseconds: 200));
     }
 
     try {
