@@ -58,59 +58,61 @@ class AppBottomNavBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenWidth = constraints.maxWidth;
-        final tabWidth = screenWidth / 5.0;
-        final circleLeft = (currentIndex * tabWidth) + (tabWidth / 2.0) - 30.0;
+        // Tính toán toạ độ trọng tâm của tab active (mỗi tab chiếm 1/5 màn hình)
+        final centerFraction = (currentIndex + 0.5) / 5.0;
+        final rawCenterX = screenWidth * centerFraction;
+        const corner = 18.0;
+        const radius = 33.0;
+        final activeCenterX = rawCenterX.clamp(corner + radius + 4.0, screenWidth - corner - radius - 4.0);
+        final circleLeft = activeCenterX - 31.0; // 62 / 2 = 31
 
         return SizedBox(
-          height: 80 + bottomInset,
+          height: 84 + bottomInset,
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.bottomCenter,
             children: [
-              // Thanh nền trắng đổ bóng hiện đại bo góc
-              Container(
-                height: 64 + bottomInset,
-                padding: EdgeInsets.fromLTRB(4, 4, 4, bottomInset),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 18,
-                      offset: const Offset(0, -4),
-                    ),
-                  ],
+              // Thanh nền trắng với đường cong vòm lõm (Curved Notch) ôm lấy nút tròn
+              PhysicalShape(
+                color: Theme.of(context).cardColor,
+                elevation: 18,
+                shadowColor: const Color(0xFF17262A).withValues(alpha: 0.16),
+                clipper: _SafeCurvedNotchClipper(
+                  activeCenterX: activeCenterX,
+                  radius: radius,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: tabs.map((t) {
-                    final isSelected = t.item == current;
-                    return Expanded(
-                      child: InkWell(
-                        onTap: () => _open(t.item),
-                        splashColor: Colors.transparent,
-                        highlightColor: Colors.transparent,
-                        child: Center(
-                          child: Opacity(
-                            opacity: isSelected ? 0.0 : 1.0,
-                            child: Icon(
-                              t.icon,
-                              size: 26,
-                              color: const Color(0xFF2E3E5C),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(6, 10, 6, bottomInset),
+                  child: SizedBox(
+                    height: 62,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: tabs.map((t) {
+                        final isSelected = t.item == current;
+                        return Expanded(
+                          child: InkResponse(
+                            onTap: () => _open(t.item),
+                            radius: 28,
+                            child: Center(
+                              child: Opacity(
+                                opacity: isSelected ? 0.0 : 1.0,
+                                child: Icon(
+                                  t.icon,
+                                  size: 26,
+                                  color: const Color(0xFF2E3E5C),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 ),
               ),
 
-              // Nút tròn nổi lớn (60x60) có hiệu ứng trượt mượt mà theo Tab Active
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
+              // Nút tròn nổi lớn (62x62) màu xanh 3D phát sáng đặt chính xác trong vòm lõm
+              Positioned(
                 top: 0,
                 left: circleLeft,
                 child: Semantics(
@@ -122,8 +124,8 @@ class AppBottomNavBar extends StatelessWidget {
                       customBorder: const CircleBorder(),
                       onTap: () => _open(current),
                       child: Container(
-                        width: 60,
-                        height: 60,
+                        width: 62,
+                        height: 62,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: const LinearGradient(
@@ -136,9 +138,9 @@ class AppBottomNavBar extends StatelessWidget {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF2646C4).withOpacity(0.42),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
+                              color: const Color(0xFF2646C4).withValues(alpha: 0.42),
+                              blurRadius: 18,
+                              offset: const Offset(0, 9),
                             ),
                           ],
                         ),
@@ -146,7 +148,7 @@ class AppBottomNavBar extends StatelessWidget {
                           child: Icon(
                             activeTab.icon,
                             color: Colors.white,
-                            size: 28,
+                            size: 29,
                           ),
                         ),
                       ),
@@ -173,4 +175,68 @@ class AppBottomNavBar extends StatelessWidget {
     if (item == current && Get.currentRoute == route) return;
     Get.offNamed(route);
   }
+}
+
+/// Clipper vẽ đường cong uốn lõm mềm mại (Curved Concave Notch) an toàn 100% không bao giờ lỗi toạ độ
+class _SafeCurvedNotchClipper extends CustomClipper<Path> {
+  final double activeCenterX;
+  final double radius;
+
+  const _SafeCurvedNotchClipper({
+    required this.activeCenterX,
+    required this.radius,
+  });
+
+  @override
+  Path getClip(Size size) {
+    final w = size.width;
+    final h = size.height;
+    const corner = 18.0;
+
+    final center = activeCenterX.clamp(corner + radius + 4.0, w - corner - radius - 4.0);
+    final notchHalfWidth = radius * 1.25;
+    final p1x = center - notchHalfWidth;
+    final p2x = center + notchHalfWidth;
+
+    final path = Path();
+    path.moveTo(0, corner);
+    path.quadraticBezierTo(0, 0, corner, 0);
+
+    if (p1x > corner) {
+      path.lineTo(p1x, 0);
+    }
+
+    // Đường cong Bezier uốn lõm mềm mại ôm lấy nút tròn
+    path.cubicTo(
+      center - radius * 0.95,
+      0,
+      center - radius * 0.85,
+      radius * 0.88,
+      center,
+      radius * 0.88,
+    );
+    path.cubicTo(
+      center + radius * 0.85,
+      radius * 0.88,
+      center + radius * 0.95,
+      0,
+      p2x,
+      0,
+    );
+
+    if (p2x < w - corner) {
+      path.lineTo(w - corner, 0);
+    }
+
+    path.quadraticBezierTo(w, 0, w, corner);
+    path.lineTo(w, h);
+    path.lineTo(0, h);
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant _SafeCurvedNotchClipper oldClipper) =>
+      oldClipper.activeCenterX != activeCenterX || oldClipper.radius != radius;
 }
