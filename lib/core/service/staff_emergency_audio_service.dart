@@ -278,13 +278,26 @@ class StaffEmergencyAudioService extends GetxService {
         return false;
       }
 
-      // 2. Lấy luồng Microphone
+      // 2. Lấy luồng Microphone với đầy đủ bộ tiền xử lý âm thanh Android
       final mediaConstraints = <String, dynamic>{
-        'audio': true,
+        'audio': {
+          'mandatory': {
+            'googEchoCancellation': 'true',
+            'googAutoGainControl': 'true',
+            'googHighpassFilter': 'true',
+            'googNoiseSuppression': 'true',
+          },
+          'optional': [],
+        },
         'video': false,
       };
       _localStream =
           await navigator.mediaDevices.getUserMedia(mediaConstraints);
+
+      for (final track in _localStream!.getAudioTracks()) {
+        track.enabled = true;
+        _log('Microphone track active: ${track.id}, state: ${track.state}');
+      }
 
       // 3. Khởi tạo RTCPeerConnection với STUN server
       final configuration = <String, dynamic>{
