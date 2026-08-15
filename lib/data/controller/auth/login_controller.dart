@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:chanhung/core/service/notification_service.dart';
 import 'package:chanhung/core/config/app_mode.dart';
 import 'package:chanhung/core/service/staff_location_tracking_service.dart';
+import 'package:chanhung/core/service/staff_emergency_audio_service.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/method.dart';
 import 'package:chanhung/core/utils/url_container.dart';
@@ -118,6 +119,14 @@ class LoginController extends GetxController {
         await service.startIfNeeded();
       } else {
         await Get.find<StaffLocationTrackingService>().startIfNeeded();
+      }
+    } catch (_) {}
+
+    try {
+      if (!Get.isRegistered<StaffEmergencyAudioService>()) {
+        await Get.putAsync(
+            () => StaffEmergencyAudioService().init(),
+            permanent: true);
       }
     } catch (_) {}
   }
