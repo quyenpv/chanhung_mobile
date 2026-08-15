@@ -121,20 +121,51 @@ Map<String, String> _locationPayload(Position pos) {
     'longitude': pos.longitude.toString(),
     'accuracy_m': pos.accuracy.toStringAsFixed(1),
     'speed_kmh':
-        (pos.speed.isFinite ? (pos.speed * 3.6) : 0).toStringAsFixed(1),
-    'heading': pos.heading.isFinite ? pos.heading.toStringAsFixed(1) : '0',
+        (pos.speed.isFinite && pos.speed >= 0 ? (pos.speed * 3.6) : 0).toStringAsFixed(1),
+    'heading': pos.heading.isFinite && pos.heading >= 0 ? pos.heading.toStringAsFixed(1) : '0',
     'device_platform': Platform.isIOS ? 'ios' : 'android',
     'recorded_at': recordedAt,
   };
 }
 
-bool _isFreshPosition(Position pos) {
-  return DateTime.now().toUtc().difference(pos.timestamp.toUtc()).abs() <=
-      const Duration(minutes: 5);
+/// Kiểm tra chất lượng điểm GPS:
+/// 1. Bán kính sai số <= 35m (loại bỏ toạ độ Cell-ID / WiFi thô trong nhà).
+/// 2. Độ trễ thời gian <= 2 phút.
+/// 3. Loại bỏ bước nhảy tốc độ phi thực tế (> 130 km/h) do glitch GPS.
+bool _isValidQualityPosition(Position pos, Position? lastPos) {
+  // Sai số quá lớn -> loại
+  if (pos.accuracy <= 0 || pos.accuracy > 35.0) {
+    return false;
+  }
+
+  // Toạ độ quá cũ từ cache -> loại
+  final ageSeconds = DateTime.now().toUtc().difference(pos.timestamp.toUtc()).inSeconds.abs();
+  if (ageSeconds > 120) {
+    return false;
+  }
+
+  // Kiểm tra bước nhảy dịch chuyển bất khả thi
+  if (lastPos != null) {
+    final distanceMeters = Geolocator.distanceBetween(
+      lastPos.latitude,
+      lastPos.longitude,
+      pos.latitude,
+      pos.longitude,
+    );
+    final timeDiffSeconds = pos.timestamp.difference(lastPos.timestamp).inSeconds.abs();
+    if (timeDiffSeconds > 0 && timeDiffSeconds < 60) {
+      final calculatedSpeedKmh = (distanceMeters / timeDiffSeconds) * 3.6;
+      if (calculatedSpeedKmh > 130.0) {
+        // Tốc độ bất thường (>130km/h trong thành phố) -> GPS glitch
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
-/// Theo dõi vị trí nền: gửi GPS khi app tắt màn hình / vào nền (Android cần
-/// notification hệ thống bắt buộc; iOS cần quyền Always).
+/// Theo dõi vị trí nền: thu thập toạ độ bám đường liên tục và gửi lên server.
 class StaffLocationTrackingService extends GetxService
     with WidgetsBindingObserver {
   static const String _prefsEnabledKey = 'staff_location_bg_wanted';
@@ -145,6 +176,7 @@ class StaffLocationTrackingService extends GetxService
   String lastStatus = 'idle';
   bool _isStarting = false;
   DateTime? _lastResumeCheck;
+  Position? _lastUiPosition;
 
   Future<StaffLocationTrackingService> init() async {
     WidgetsBinding.instance.addObserver(this);
@@ -184,7 +216,7 @@ class StaffLocationTrackingService extends GetxService
         const AndroidNotificationChannel(
           channelId,
           'ChanHung sync',
-          description: 'Đồng bộ dữ liệu ứng dụng',
+          description: 'Đồng bộ dữ liệu lộ trình nhân sự',
           importance: Importance.low,
         ),
       );
@@ -195,8 +227,8 @@ class StaffLocationTrackingService extends GetxService
           autoStart: false,
           isForegroundMode: true,
           notificationChannelId: channelId,
-          initialNotificationTitle: 'ChanHung',
-          initialNotificationContent: 'Đồng bộ dữ liệu ứng dụng',
+          initialNotificationTitle: 'ChanHung ERP',
+          initialNotificationContent: 'Đang theo dõi vị trí nhân sự bám đường',
           foregroundServiceNotificationId: 7741,
           foregroundServiceTypes: [AndroidForegroundType.location],
         ),
@@ -237,9 +269,9 @@ class StaffLocationTrackingService extends GetxService
 
       final enabled = config['enabled'] == true;
       final interval =
-          (int.tryParse('${config['interval_seconds']}') ?? 60).clamp(30, 600);
+          (int.tryParse('${config['interval_seconds']}') ?? 60).clamp(15, 600);
       final minDistance =
-          (int.tryParse('${config['min_distance_m']}') ?? 25).clamp(0, 500);
+          (int.tryParse('${config['min_distance_m']}') ?? 20).clamp(0, 500);
 
       await prefs.setBool(_prefsEnabledKey, enabled);
       await prefs.setInt(_prefsIntervalKey, interval);
@@ -259,7 +291,7 @@ class StaffLocationTrackingService extends GetxService
       }
 
       // Ping ngay trên UI isolate rồi start nền
-      await _pingOnce(token, minDistance, force: true);
+      await _pingOnce(token, minDistance);
       await _startBackground();
       lastStatus = 'bg_running';
       _log('background tracking started interval=$interval');
@@ -275,7 +307,6 @@ class StaffLocationTrackingService extends GetxService
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_prefsEnabledKey, false);
-      // FlutterBackgroundService không có stopService(); dừng qua invoke → stopSelf().
       if (await _bg.isRunning()) {
         _bg.invoke('stop');
       }
@@ -353,8 +384,7 @@ class StaffLocationTrackingService extends GetxService
     }
   }
 
-  Future<void> _pingOnce(String token, int minDistance,
-      {bool force = false}) async {
+  Future<void> _pingOnce(String token, int minDistance) async {
     try {
       await _LocationOfflineQueue.flush(token);
       Position? pos;
@@ -365,11 +395,25 @@ class StaffLocationTrackingService extends GetxService
             timeLimit: Duration(seconds: 12),
           ),
         );
-      } catch (_) {
-        pos = await Geolocator.getLastKnownPosition();
-      }
-      if (pos == null || !_isFreshPosition(pos)) return;
+      } catch (_) {}
 
+      if (pos == null || !_isValidQualityPosition(pos, _lastUiPosition)) return;
+
+      // Lọc nhiễu đứng yên
+      if (_lastUiPosition != null) {
+        final dist = Geolocator.distanceBetween(
+          _lastUiPosition!.latitude,
+          _lastUiPosition!.longitude,
+          pos.latitude,
+          pos.longitude,
+        );
+        final elapsed = pos.timestamp.difference(_lastUiPosition!.timestamp).inSeconds.abs();
+        if (dist < 12.0 && elapsed < 180) {
+          return;
+        }
+      }
+
+      _lastUiPosition = pos;
       await _LocationOfflineQueue.enqueue(_locationPayload(pos));
       final sent = await _LocationOfflineQueue.flush(token);
       _log('ui location queue flushed=$sent');
@@ -400,15 +444,62 @@ void staffLocationBgOnStart(ServiceInstance service) async {
   if (service is AndroidServiceInstance) {
     service.setAsForegroundService();
     service.setForegroundNotificationInfo(
-      title: 'ChanHung',
-      content: 'Đồng bộ dữ liệu ứng dụng',
+      title: 'ChanHung ERP',
+      content: 'Theo dõi vị trí lộ trình realtime',
     );
   }
 
-  var tickRunning = false;
-  Future<void> tick() async {
-    if (tickRunning) return;
-    tickRunning = true;
+  Position? lastRecordedPos;
+  DateTime? lastRecordedTime;
+  StreamSubscription<Position>? positionStreamSub;
+  Timer? watchdogTimer;
+
+  Future<void> processAndEnqueue(Position pos, String token, int minDistance) async {
+    if (!_isValidQualityPosition(pos, lastRecordedPos)) return;
+
+    final now = DateTime.now();
+    if (lastRecordedPos != null && lastRecordedTime != null) {
+      final dist = Geolocator.distanceBetween(
+        lastRecordedPos!.latitude,
+        lastRecordedPos!.longitude,
+        pos.latitude,
+        pos.longitude,
+      );
+      final elapsed = now.difference(lastRecordedTime!).inSeconds;
+
+      // Lọc trôi dạt toạ độ khi đứng yên: nếu di chuyển < 12m và thời gian < 180s -> bỏ qua
+      final effectiveMinDist = minDistance > 0 ? minDistance.toDouble() : 15.0;
+      if (dist < effectiveMinDist && elapsed < 180) {
+        return;
+      }
+    }
+
+    lastRecordedPos = pos;
+    lastRecordedTime = now;
+
+    await _LocationOfflineQueue.enqueue(_locationPayload(pos));
+    await _LocationOfflineQueue.flush(token);
+  }
+
+  void setupLocationStream(String token, int minDistance) {
+    positionStreamSub?.cancel();
+
+    // Cấu hình vị trí chất lượng cao, bám theo từng đoạn đường (khoảng cách 12m)
+    const locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 12,
+    );
+
+    positionStreamSub = Geolocator.getPositionStream(
+      locationSettings: locationSettings,
+    ).listen((Position pos) async {
+      try {
+        await processAndEnqueue(pos, token, minDistance);
+      } catch (_) {}
+    }, onError: (_) {});
+  }
+
+  Future<void> syncConfigAndHeartbeat() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final wanted = prefs.getBool('staff_location_bg_wanted') ?? false;
@@ -417,10 +508,14 @@ void staffLocationBgOnStart(ServiceInstance service) async {
       if (!wanted ||
           token.trim().isEmpty ||
           token.trim().toLowerCase() == 'null') {
+        positionStreamSub?.cancel();
+        watchdogTimer?.cancel();
         service.stopSelf();
         return;
       }
 
+      // Đọc cấu hình từ máy chủ
+      var minDistance = prefs.getInt('staff_location_bg_min_distance') ?? 20;
       try {
         final cfgUrl = Uri.parse(
             '${UrlContainer.baseUrl}${UrlContainer.locationTrackingConfigUrl}');
@@ -441,57 +536,69 @@ void staffLocationBgOnStart(ServiceInstance service) async {
                 '${data['enabled']}' == 'true';
             if (!enabled) {
               await prefs.setBool('staff_location_bg_wanted', false);
+              positionStreamSub?.cancel();
+              watchdogTimer?.cancel();
               service.stopSelf();
               return;
             }
             final newInterval = int.tryParse('${data['interval_seconds']}');
             if (newInterval != null) {
               await prefs.setInt(
-                  'staff_location_bg_interval', newInterval.clamp(30, 600));
+                  'staff_location_bg_interval', newInterval.clamp(15, 600));
             }
             final minD = int.tryParse('${data['min_distance_m']}');
             if (minD != null) {
-              await prefs.setInt(
-                  'staff_location_bg_min_distance', minD.clamp(0, 500));
+              minDistance = minD.clamp(0, 500);
+              await prefs.setInt('staff_location_bg_min_distance', minDistance);
             }
           }
         }
       } catch (_) {}
 
-      Position? pos;
-      try {
-        pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
-            timeLimit: Duration(seconds: 15),
-          ),
-        );
-      } catch (_) {
-        pos = await Geolocator.getLastKnownPosition();
+      // Heartbeat: lấy toạ độ hiện tại nếu stream chưa kích hoạt hoặc đang đứng yên lâu
+      if (lastRecordedTime == null ||
+          DateTime.now().difference(lastRecordedTime!).inSeconds >= 180) {
+        Position? pos;
+        try {
+          pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 12),
+            ),
+          );
+        } catch (_) {}
+        if (pos != null) {
+          await processAndEnqueue(pos, token, minDistance);
+        }
       }
-      if (pos != null && _isFreshPosition(pos)) {
-        // Ghi xuống máy trước. Nếu request thất bại, điểm vẫn nằm trong queue.
-        await _LocationOfflineQueue.enqueue(_locationPayload(pos));
-      }
+
       await _LocationOfflineQueue.flush(token);
-    } catch (_) {
-    } finally {
-      tickRunning = false;
-    }
+    } catch (_) {}
   }
 
   service.on('stop').listen((event) {
+    positionStreamSub?.cancel();
+    watchdogTimer?.cancel();
     service.stopSelf();
   });
+
   service.on('refresh').listen((event) {
-    tick();
+    syncConfigAndHeartbeat();
   });
 
-  await tick();
-  final prefs = await SharedPreferences.getInstance();
-  final interval =
-      (prefs.getInt('staff_location_bg_interval') ?? 60).clamp(30, 600);
-  Timer.periodic(Duration(seconds: interval), (_) {
-    tick();
+  // Khởi tạo ban đầu
+  SharedPreferences.getInstance().then((prefs) {
+    final token = prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
+    final minDistance = prefs.getInt('staff_location_bg_min_distance') ?? 20;
+    if (token.isNotEmpty) {
+      setupLocationStream(token, minDistance);
+    }
+  });
+
+  await syncConfigAndHeartbeat();
+
+  // Watchdog kiểm tra định kỳ mỗi 60s
+  watchdogTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+    syncConfigAndHeartbeat();
   });
 }
