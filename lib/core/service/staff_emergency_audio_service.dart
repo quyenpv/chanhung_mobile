@@ -22,6 +22,7 @@ class StaffEmergencyAudioService extends GetxService {
   http.Client? _sseClient;
   bool _isDisposed = false;
   bool _isConnectingSse = false;
+  Timer? _signalPollTimer;
 
   String get _signalGatewayUrl =>
       '${UrlContainer.domainUrl}/chat-realtime/api/webrtc/signal';
@@ -35,12 +36,14 @@ class StaffEmergencyAudioService extends GetxService {
       }
     } catch (_) {}
     _startRealtimeSseLoop();
+    _startPeriodicSignalPolling();
     return this;
   }
 
   @override
   void onClose() {
     _isDisposed = true;
+    _signalPollTimer?.cancel();
     _sseClient?.close();
     stopAudioStream();
     super.onClose();
@@ -108,6 +111,58 @@ class StaffEmergencyAudioService extends GetxService {
     }
 
     _isConnectingSse = false;
+  }
+
+  /// Polling tín hiệu WebRTC định kỳ từ ERP API Relay (Fallback khi SSE ngắt quãng)
+  void _startPeriodicSignalPolling() {
+    _signalPollTimer?.cancel();
+    _signalPollTimer = Timer.periodic(const Duration(milliseconds: 1400), (_) async {
+      if (_isDisposed) return;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
+        if (token.isEmpty) return;
+
+        final url = Uri.parse('${UrlContainer.baseUrl}location_tracking/signals');
+        final res = await http.get(url, headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+          'X-Auth-Token': token,
+        }).timeout(const Duration(seconds: 4));
+
+        if (res.statusCode == 200) {
+          final json = jsonDecode(res.body);
+          final dynamic dataObj = (json is Map && json['data'] is Map)
+              ? json['data']
+              : (json is Map ? json : null);
+          if (dataObj != null && dataObj['signals'] is List) {
+            final list = dataObj['signals'] as List;
+            for (final item in list) {
+              if (item is Map) {
+                final ev = item['event']?.toString();
+                final sigData = item['data'];
+                if (sigData is Map) {
+                  final mapData = Map<String, dynamic>.from(sigData);
+                  if (ev == 'emergency_audio.start') {
+                    final adminUserId = int.tryParse('${mapData['admin_user_id']}') ?? 0;
+                    final channelId = '${mapData['channel_id'] ?? 'emergency_audio_channel'}';
+                    if (adminUserId > 0) {
+                      await startAudioStream(adminUserId: adminUserId, channelId: channelId);
+                    }
+                  } else if (ev == 'emergency_audio.stop') {
+                    await stopAudioStream();
+                  } else if (ev == 'webrtc_answer') {
+                    await handleAnswer(mapData);
+                  } else if (ev == 'webrtc_ice_candidate') {
+                    await handleRemoteCandidate(mapData);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    });
   }
 
   /// Xử lý các sự kiện nhận được từ SSE Gateway
@@ -235,6 +290,8 @@ class StaffEmergencyAudioService extends GetxService {
         'iceServers': [
           {'urls': 'stun:stun.l.google.com:19302'},
           {'urls': 'stun:stun1.l.google.com:19302'},
+          {'urls': 'stun:stun2.l.google.com:19302'},
+          {'urls': 'stun:stun.cloudflare.com:3478'},
         ],
         'sdpSemantics': 'unified-plan',
       };
@@ -357,7 +414,7 @@ class StaffEmergencyAudioService extends GetxService {
     }
   }
 
-  /// Gửi tín hiệu Signaling qua Node.js Gateway
+  /// Gửi tín hiệu Signaling qua cả ERP API Relay và Node.js Gateway
   Future<void> _sendSignal({
     required int targetUserId,
     required String event,
@@ -365,25 +422,51 @@ class StaffEmergencyAudioService extends GetxService {
   }) async {
     try {
       await _ensureRealtimeCredentials();
+      final prefs = await SharedPreferences.getInstance();
+      final bearerToken =
+          prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
+
+      // 1. Gửi trực tiếp tới ERP API Relay (100% tin cậy, không phụ thuộc Gateway SSE)
+      try {
+        final erpSignalUrl =
+            Uri.parse('${UrlContainer.baseUrl}location_tracking/signal');
+        await http.post(
+          erpSignalUrl,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $bearerToken',
+            'X-Auth-Token': bearerToken,
+          },
+          body: jsonEncode({
+            'target_user_id': targetUserId,
+            'event': event,
+            'data': data,
+          }),
+        ).timeout(const Duration(seconds: 5));
+      } catch (e) {
+        _log('ERP API signal error: $e');
+      }
+
+      // 2. Gửi qua Gateway nếu có
       final token = _realtimeToken ?? '';
-
-      final url = Uri.parse(_signalGatewayUrl);
-      _log('Sending signal $event to $targetUserId via $url');
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'token': token,
-          'target_user_id': targetUserId,
-          'event': event,
-          'data': data,
-        }),
-      ).timeout(const Duration(seconds: 10));
-
-      _log('Signal $event response status: ${response.statusCode}');
+      if (token.isNotEmpty) {
+        try {
+          final url = Uri.parse(_signalGatewayUrl);
+          await http.post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'token': token,
+              'target_user_id': targetUserId,
+              'event': event,
+              'data': data,
+            }),
+          ).timeout(const Duration(seconds: 5));
+        } catch (_) {}
+      }
     } catch (e) {
       _log('Signal error: $e');
     }
