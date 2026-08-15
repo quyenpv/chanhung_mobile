@@ -205,10 +205,15 @@ jobs:
           RELEASE_REPOSITORY: quyenpv/chanhung_mobile_releases
         run: |
           TAG="v${{ steps.versioning.outputs.clean_ver }}"
-          echo "Publishing release $TAG to $RELEASE_REPOSITORY..."
-          gh release create "$TAG" build/app/outputs/flutter-apk/*.apk \
+          VERSION="${{ steps.versioning.outputs.version }}"
+          echo "=== 1. Thu thập các tệp APK ==="
+          mkdir -p release_apks
+          find build/app/outputs -name "*.apk" -exec cp {} release_apks/ \;
+          ls -la release_apks/
+
+          echo "=== 2. Xuất bản Release sang $RELEASE_REPOSITORY ==="
+          gh release create "$TAG" release_apks/*.apk \
             --repo "$RELEASE_REPOSITORY" \
-            --target main \
-            --title "ChanHung Mobile v${{ steps.versioning.outputs.version }}" \
-            --notes "Bản cập nhật ChanHung Mobile v${{ steps.versioning.outputs.version }} hỗ trợ tải trực tiếp file APK." \
-            --clobber || echo "::warning::Publishing to quyenpv/chanhung_mobile_releases requires valid token."
+            --title "ChanHung Mobile v$VERSION" \
+            --notes "Bản cập nhật ChanHung Mobile v$VERSION hỗ trợ tải trực tiếp file APK." \
+            --clobber
