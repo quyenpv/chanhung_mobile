@@ -1,30 +1,30 @@
+import 'package:chanhung/core/helper/biometric_helper.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
+import 'package:chanhung/core/route/route.dart';
+import 'package:chanhung/core/utils/color_resources.dart';
+import 'package:chanhung/core/utils/dimensions.dart';
+import 'package:chanhung/core/utils/images.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
+import 'package:chanhung/core/utils/style.dart';
+import 'package:chanhung/core/utils/util.dart';
 import 'package:chanhung/data/controller/common/theme_controller.dart';
 import 'package:chanhung/data/controller/dashboard/dashboard_controller.dart';
+import 'package:chanhung/data/controller/splash/splash_controller.dart';
+import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
+import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
+import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/bottom-sheet/custom_bottom_sheet.dart';
 import 'package:chanhung/view/components/dialog/warning_dialog.dart';
+import 'package:chanhung/view/components/divider/custom_divider.dart';
 import 'package:chanhung/view/components/image/custom_svg_picture.dart';
-import 'package:chanhung/view/components/app_drawer.dart';
+import 'package:chanhung/view/components/will_pop_widget.dart';
 import 'package:chanhung/view/screens/menu/widget/language_bottom_sheet_screen.dart';
 import 'package:chanhung/view/screens/menu/widget/menu_item.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:chanhung/core/route/route.dart';
-import 'package:chanhung/core/utils/dimensions.dart';
-import 'package:chanhung/core/utils/color_resources.dart';
-import 'package:chanhung/core/utils/images.dart';
-import 'package:chanhung/core/utils/style.dart';
-import 'package:chanhung/core/utils/util.dart';
-import 'package:chanhung/data/services/api_service.dart';
-import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
-import 'package:chanhung/view/components/divider/custom_divider.dart';
-import 'package:chanhung/view/components/will_pop_widget.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:chanhung/data/controller/splash/splash_controller.dart';
-import 'package:chanhung/core/helper/biometric_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({super.key});
@@ -34,9 +34,9 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
-  String appVersion = '';
   bool isBiometricAvailable = false;
   bool isBiometricEnabled = false;
+  String appVersion = '';
 
   @override
   void initState() {
@@ -54,9 +54,11 @@ class _MenuScreenState extends State<MenuScreen> {
   _loadAppVersion() async {
     try {
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
-      setState(() {
-        appVersion = packageInfo.version;
-      });
+      if (mounted) {
+        setState(() {
+          appVersion = "${packageInfo.version}+${packageInfo.buildNumber}";
+        });
+      }
     } catch (_) {}
   }
 
@@ -72,6 +74,8 @@ class _MenuScreenState extends State<MenuScreen> {
             bgColor: Theme.of(context).appBarTheme.backgroundColor!,
           ),
           drawer: const AppDrawer(),
+          bottomNavigationBar:
+              const AppBottomNavBar(current: AppBottomNavItem.settings),
           body: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
@@ -158,13 +162,6 @@ class _MenuScreenState extends State<MenuScreen> {
                             MyUtils.allScreensUtils(themeController.darkTheme);
                           },
                         ),
-                         const CustomDivider(space: Dimensions.space10),
-                         MenuItems(
-                             imageSrc: MyImages.policy,
-                             label: LocalStrings.privacyPolicy.tr,
-                             onPressed: () {
-                               Get.toNamed(RouteHelper.privacyScreen);
-                             }),
                         if (isBiometricAvailable) ...[
                           const CustomDivider(space: Dimensions.space10),
                           SwitchListTile(
@@ -213,6 +210,20 @@ class _MenuScreenState extends State<MenuScreen> {
                             },
                           ),
                         ],
+                        const CustomDivider(space: Dimensions.space10),
+                        MenuItems(
+                            imageSrc: MyImages.password,
+                            label: LocalStrings.changePassword.tr,
+                            onPressed: () {
+                              Get.toNamed(RouteHelper.changePasswordScreen);
+                            }),
+                        const CustomDivider(space: Dimensions.space10),
+                        MenuItems(
+                            imageSrc: MyImages.policy,
+                            label: LocalStrings.privacyPolicy.tr,
+                            onPressed: () {
+                              Get.toNamed(RouteHelper.privacyScreen);
+                            }),
                         const CustomDivider(space: Dimensions.space10),
                         MenuItems(
                             imageSrc: MyImages.exclamationImage,
@@ -273,12 +284,46 @@ class _MenuScreenState extends State<MenuScreen> {
                 if (appVersion.isNotEmpty) ...[
                   Align(
                     alignment: Alignment.center,
-                    child: Text(
-                      "${"Current version".tr}: $appVersion",
-                      style: regularDefault.copyWith(
-                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5) ??
-                            ColorResources.colorBlack.withOpacity(0.5),
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "${"Current version".tr}: v$appVersion",
+                          style: regularDefault.copyWith(
+                            color: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.color
+                                    ?.withValues(alpha: 0.6) ??
+                                ColorResources.colorBlack.withValues(alpha: 0.6),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: Dimensions.space8),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            Get.find<SplashController>()
+                                .manualVersionCheck(showNoUpdateToast: true);
+                          },
+                          icon: const Icon(Icons.sync_rounded, size: 16),
+                          label: const Text(
+                            "Kiểm tra bản cập nhật",
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Theme.of(context).primaryColor,
+                            side: BorderSide(
+                              color: Theme.of(context).primaryColor.withValues(alpha: 0.5),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: Dimensions.space12,
+                                vertical: Dimensions.space5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: Dimensions.space20),

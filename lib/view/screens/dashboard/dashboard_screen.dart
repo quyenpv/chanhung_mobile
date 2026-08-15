@@ -121,9 +121,8 @@ class _HomeScreenState extends State<HomeScreen> {
             drawer: dashboardData == null
                 ? null
                 : HomeDrawer(dashboardModel: controller.dashboardModel),
-            bottomNavigationBar: dashboardData == null
-                ? null
-                : const AppBottomNavBar(current: AppBottomNavItem.home),
+            bottomNavigationBar:
+                const AppBottomNavBar(current: AppBottomNavItem.home),
             body: controller.isLoading
                 ? const CustomLoader()
                 : dashboardData == null

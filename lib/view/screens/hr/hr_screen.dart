@@ -11,6 +11,7 @@ import 'package:chanhung/data/model/hr/hr_dashboard_model.dart';
 import 'package:chanhung/data/repo/hr/hr_repo.dart';
 import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/app-bar/custom_appbar.dart';
+import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/app_drawer.dart';
 import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:chanhung/view/components/no_data.dart';
@@ -54,6 +55,8 @@ class _HrScreenState extends State<HrScreen> {
     return Scaffold(
       appBar: CustomAppBar(title: LocalStrings.humanResources.tr),
       drawer: const AppDrawer(),
+      bottomNavigationBar:
+          const AppBottomNavBar(current: AppBottomNavItem.hr),
       body: GetBuilder<HrController>(
         builder: (controller) {
           if (controller.isLoading) {
