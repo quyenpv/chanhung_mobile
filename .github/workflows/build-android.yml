@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -180,3 +183,33 @@ jobs:
           name: chanhung-chat-debug-apk
           path: build/app/outputs/flutter-apk/app-chat-debug.apk
           retention-days: 7
+
+      - name: Extract App Version
+        id: versioning
+        shell: bash
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //g' | tr -d ' ' | tr -d '\r')
+          CLEAN_VER=$(echo $VERSION | cut -d'+' -f1)
+          BUILD_NUM=$(echo $VERSION | cut -d'+' -f2)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "clean_ver=$CLEAN_VER" >> "$GITHUB_OUTPUT"
+          echo "build_num=$BUILD_NUM" >> "$GITHUB_OUTPUT"
+
+      - name: Publish APKs to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: "v${{ steps.versioning.outputs.clean_ver }}"
+          name: "ChanHung Mobile v${{ steps.versioning.outputs.version }}"
+          body: |
+            ## Bản cập nhật ChanHung Mobile v${{ steps.versioning.outputs.version }}
+            - Khắc phục lỗi giật lag / crash khi khởi động ứng dụng.
+            - Sửa lỗi tự động đóng bàn phím khi nhập tìm kiếm.
+            - Hoàn thiện tính năng Nghe Realtime WebRTC cho Quản trị viên theo dõi.
+            - Hỗ trợ tải và cài đặt trực tiếp file APK không cần đợi duyệt kho ứng dụng.
+          files: |
+            build/app/outputs/flutter-apk/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

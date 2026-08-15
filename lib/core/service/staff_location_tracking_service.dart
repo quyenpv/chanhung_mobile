@@ -143,6 +143,8 @@ class StaffLocationTrackingService extends GetxService
 
   final FlutterBackgroundService _bg = FlutterBackgroundService();
   String lastStatus = 'idle';
+  bool _isStarting = false;
+  DateTime? _lastResumeCheck;
 
   Future<StaffLocationTrackingService> init() async {
     WidgetsBinding.instance.addObserver(this);
@@ -159,49 +161,64 @@ class StaffLocationTrackingService extends GetxService
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      startIfNeeded();
+      final now = DateTime.now();
+      if (_lastResumeCheck == null ||
+          now.difference(_lastResumeCheck!).inSeconds > 60) {
+        _lastResumeCheck = now;
+        startIfNeeded();
+      }
     }
   }
 
   Future<void> _configureBackgroundService() async {
-    const channelId = 'chanhung_location_sync';
-    final notifications = FlutterLocalNotificationsPlugin();
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    await notifications.initialize(
-      const InitializationSettings(android: androidInit),
-    );
-    final androidPlugin = notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        channelId,
-        'ChanHung sync',
-        description: 'Đồng bộ dữ liệu ứng dụng',
-        importance: Importance.low,
-      ),
-    );
+    try {
+      const channelId = 'chanhung_location_sync';
+      final notifications = FlutterLocalNotificationsPlugin();
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      await notifications.initialize(
+        const InitializationSettings(android: androidInit),
+      );
+      final androidPlugin = notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await androidPlugin?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          channelId,
+          'ChanHung sync',
+          description: 'Đồng bộ dữ liệu ứng dụng',
+          importance: Importance.low,
+        ),
+      );
 
-    await _bg.configure(
-      androidConfiguration: AndroidConfiguration(
-        onStart: staffLocationBgOnStart,
-        autoStart: false,
-        isForegroundMode: true,
-        notificationChannelId: channelId,
-        initialNotificationTitle: 'ChanHung',
-        initialNotificationContent: 'Đồng bộ dữ liệu ứng dụng',
-        foregroundServiceNotificationId: 7741,
-        foregroundServiceTypes: [AndroidForegroundType.location],
-      ),
-      iosConfiguration: IosConfiguration(
-        autoStart: false,
-        onForeground: staffLocationBgOnStart,
-        onBackground: staffLocationBgOnIosBackground,
-      ),
-    );
+      await _bg.configure(
+        androidConfiguration: AndroidConfiguration(
+          onStart: staffLocationBgOnStart,
+          autoStart: false,
+          isForegroundMode: true,
+          notificationChannelId: channelId,
+          initialNotificationTitle: 'ChanHung',
+          initialNotificationContent: 'Đồng bộ dữ liệu ứng dụng',
+          foregroundServiceNotificationId: 7741,
+          foregroundServiceTypes: [AndroidForegroundType.location],
+        ),
+        iosConfiguration: IosConfiguration(
+          autoStart: false,
+          onForeground: staffLocationBgOnStart,
+          onBackground: staffLocationBgOnIosBackground,
+        ),
+      );
+    } catch (e) {
+      _log('Configure background service failed: $e');
+    }
   }
 
-  /// Gọi sau login / dashboard / splash.
+  /// Gọi sau login / dashboard.
   Future<void> startIfNeeded() async {
+    if (_isStarting) {
+      _log('startIfNeeded already running, skipping duplicate call');
+      return;
+    }
+    _isStarting = true;
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final token =
@@ -249,6 +266,8 @@ class StaffLocationTrackingService extends GetxService
     } catch (e) {
       lastStatus = 'start_error';
       _log('startIfNeeded error: $e');
+    } finally {
+      _isStarting = false;
     }
   }
 
@@ -313,10 +332,6 @@ class StaffLocationTrackingService extends GetxService
           permission == LocationPermission.deniedForever) {
         return false;
       }
-      // Xin Always (Android 10+ / iOS) để chạy nền
-      if (permission == LocationPermission.whileInUse) {
-        permission = await Geolocator.requestPermission();
-      }
       return permission == LocationPermission.always ||
           permission == LocationPermission.whileInUse;
     } catch (e) {
@@ -326,11 +341,15 @@ class StaffLocationTrackingService extends GetxService
   }
 
   Future<void> _startBackground() async {
-    final running = await _bg.isRunning();
-    if (!running) {
-      await _bg.startService();
-    } else {
-      _bg.invoke('refresh');
+    try {
+      final running = await _bg.isRunning();
+      if (!running) {
+        await _bg.startService();
+      } else {
+        _bg.invoke('refresh');
+      }
+    } catch (e) {
+      _log('startBackground error: $e');
     }
   }
 

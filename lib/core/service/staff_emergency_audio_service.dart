@@ -17,16 +17,177 @@ class StaffEmergencyAudioService extends GetxService {
   int? _currentAdminUserId;
   String? _currentChannelId;
 
-  static const String _signalGatewayUrl = 'http://127.0.0.1:3105/api/webrtc/signal';
+  String? _realtimeToken;
+  String? _realtimeEventsPath;
+  http.Client? _sseClient;
+  bool _isDisposed = false;
+  bool _isConnectingSse = false;
+
+  String get _signalGatewayUrl =>
+      '${UrlContainer.domainUrl}/chat-realtime/api/webrtc/signal';
+
+  Future<StaffEmergencyAudioService> init() async {
+    _log('StaffEmergencyAudioService init() called');
+    _startRealtimeSseLoop();
+    return this;
+  }
 
   @override
-  void onInit() {
-    super.onInit();
-    _log('StaffEmergencyAudioService initialized');
+  void onClose() {
+    _isDisposed = true;
+    _sseClient?.close();
+    stopAudioStream();
+    super.onClose();
+  }
+
+  /// Lắng nghe SSE từ Gateway để nhận lệnh `emergency_audio.start` từ Admin
+  Future<void> _startRealtimeSseLoop() async {
+    if (_isDisposed || _isConnectingSse) return;
+    _isConnectingSse = true;
+
+    while (!_isDisposed) {
+      try {
+        await _ensureRealtimeCredentials();
+
+        if (_realtimeToken != null &&
+            _realtimeToken!.isNotEmpty &&
+            _realtimeEventsPath != null &&
+            _realtimeEventsPath!.isNotEmpty) {
+          final sseUrl = '${UrlContainer.domainUrl}$_realtimeEventsPath';
+          _log('Connecting SSE to: $sseUrl');
+
+          _sseClient = http.Client();
+          final request = http.Request('GET', Uri.parse(sseUrl))
+            ..headers['Accept'] = 'text/event-stream'
+            ..headers['Cache-Control'] = 'no-cache';
+
+          final streamedResponse = await _sseClient!.send(request);
+
+          if (streamedResponse.statusCode == 200) {
+            _log('SSE Connected successfully');
+            String? currentEvent;
+            final lineStream = streamedResponse.stream
+                .transform(utf8.decoder)
+                .transform(const LineSplitter());
+
+            await for (final line in lineStream) {
+              if (_isDisposed) break;
+
+              final trimmed = line.trim();
+              if (trimmed.isEmpty) {
+                currentEvent = null;
+                continue;
+              }
+
+              if (trimmed.startsWith('event:')) {
+                currentEvent = trimmed.substring(6).trim();
+              } else if (trimmed.startsWith('data:')) {
+                final dataStr = trimmed.substring(5).trim();
+                _handleSseEvent(currentEvent, dataStr);
+              }
+            }
+          } else {
+            _log('SSE stream returned status: ${streamedResponse.statusCode}');
+          }
+        }
+      } catch (e) {
+        _log('SSE stream error: $e');
+      }
+
+      if (_isDisposed) break;
+      _log('SSE disconnected, retrying in 5 seconds...');
+      await Future.delayed(const Duration(seconds: 5));
+    }
+
+    _isConnectingSse = false;
+  }
+
+  /// Xử lý các sự kiện nhận được từ SSE Gateway
+  void _handleSseEvent(String? event, String dataStr) {
+    try {
+      _log('Received SSE Event: $event -> $dataStr');
+      final Map<String, dynamic> data =
+          dataStr.isNotEmpty ? jsonDecode(dataStr) : {};
+
+      switch (event) {
+        case 'emergency_audio.start':
+          final adminUserId = int.tryParse('${data['admin_user_id']}') ?? 0;
+          final channelId = '${data['channel_id'] ?? 'emergency_audio_channel'}';
+          if (adminUserId > 0) {
+            startAudioStream(adminUserId: adminUserId, channelId: channelId);
+          }
+          break;
+
+        case 'emergency_audio.stop':
+          stopAudioStream();
+          break;
+
+        case 'webrtc_answer':
+          handleAnswer(data);
+          break;
+
+        case 'webrtc_ice_candidate':
+          handleRemoteCandidate(data);
+          break;
+
+        default:
+          break;
+      }
+    } catch (e) {
+      _log('Error handling SSE event: $e');
+    }
+  }
+
+  /// Lấy hoặc cập nhật Realtime Token từ SharedPreferences hoặc API config
+  Future<void> _ensureRealtimeCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    _realtimeToken = prefs.getString(SharedPreferenceHelper.realtimeTokenKey);
+    _realtimeEventsPath =
+        prefs.getString(SharedPreferenceHelper.realtimeEventsPathKey);
+
+    if (_realtimeToken == null ||
+        _realtimeToken!.isEmpty ||
+        _realtimeEventsPath == null ||
+        _realtimeEventsPath!.isEmpty) {
+      final token = prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
+      if (token.isEmpty) return;
+
+      try {
+        final url = Uri.parse(
+            '${UrlContainer.baseUrl}${UrlContainer.locationTrackingConfigUrl}');
+        final res = await http.get(url, headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+          'X-Auth-Token': token,
+        }).timeout(const Duration(seconds: 10));
+
+        if (res.statusCode == 200) {
+          final body = jsonDecode(res.body);
+          if (body['realtime'] is Map) {
+            final rt = body['realtime'] as Map<String, dynamic>;
+            _realtimeToken = rt['token']?.toString();
+            _realtimeEventsPath = rt['events_path']?.toString();
+
+            if (_realtimeToken != null) {
+              await prefs.setString(
+                  SharedPreferenceHelper.realtimeTokenKey, _realtimeToken!);
+            }
+            if (_realtimeEventsPath != null) {
+              await prefs.setString(
+                  SharedPreferenceHelper.realtimeEventsPathKey,
+                  _realtimeEventsPath!);
+            }
+          }
+        }
+      } catch (e) {
+        _log('Failed to fetch realtime config: $e');
+      }
+    }
   }
 
   /// Khởi tạo luồng WebRTC Audio và kết nối tới Admin
-  Future<bool> startAudioStream({required int adminUserId, required String channelId}) async {
+  Future<bool> startAudioStream(
+      {required int adminUserId, required String channelId}) async {
     if (isStreaming) {
       await stopAudioStream();
     }
@@ -48,7 +209,8 @@ class StaffEmergencyAudioService extends GetxService {
         'audio': true,
         'video': false,
       };
-      _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      _localStream =
+          await navigator.mediaDevices.getUserMedia(mediaConstraints);
 
       // 3. Khởi tạo RTCPeerConnection với STUN server
       final configuration = <String, dynamic>{
@@ -84,13 +246,15 @@ class StaffEmergencyAudioService extends GetxService {
         _log('WebRTC Connection state: $state');
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateClosed ||
             state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-            state == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+            state ==
+                RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
           isStreaming = false;
         }
       };
 
       // 4. Tạo SDP Offer
-      final offer = await _peerConnection!.createOffer({'offerToReceiveAudio': false, 'offerToReceiveVideo': false});
+      final offer = await _peerConnection!.createOffer(
+          {'offerToReceiveAudio': false, 'offerToReceiveVideo': false});
       await _peerConnection!.setLocalDescription(offer);
 
       // 5. Gửi Offer SDP tới Web Admin
@@ -154,9 +318,9 @@ class StaffEmergencyAudioService extends GetxService {
     _log('Stopping WebRTC Audio Stream');
     try {
       if (_localStream != null) {
-        _localStream!.getTracks().forEach((track) {
+        for (final track in _localStream!.getTracks()) {
           track.stop();
-        });
+        }
         await _localStream!.dispose();
         _localStream = null;
       }
@@ -182,11 +346,12 @@ class StaffEmergencyAudioService extends GetxService {
     required Map<String, dynamic> data,
   }) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
-      
+      await _ensureRealtimeCredentials();
+      final token = _realtimeToken ?? '';
+
       final url = Uri.parse(_signalGatewayUrl);
-      await http.post(
+      _log('Sending signal $event to $targetUserId via $url');
+      final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -199,6 +364,8 @@ class StaffEmergencyAudioService extends GetxService {
           'data': data,
         }),
       ).timeout(const Duration(seconds: 10));
+
+      _log('Signal $event response status: ${response.statusCode}');
     } catch (e) {
       _log('Signal error: $e');
     }

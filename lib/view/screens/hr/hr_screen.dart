@@ -25,10 +25,12 @@ class HrScreen extends StatefulWidget {
 
 class _HrScreenState extends State<HrScreen> {
   late final TextEditingController _searchController;
+  late final FocusNode _searchFocusNode;
 
   @override
   void initState() {
     _searchController = TextEditingController();
+    _searchFocusNode = FocusNode();
     Get.put(ApiClient(sharedPreferences: Get.find()));
     Get.put(HrRepo(apiClient: Get.find()));
     final controller = Get.put(HrController(hrRepo: Get.find()));
@@ -43,6 +45,7 @@ class _HrScreenState extends State<HrScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -75,7 +78,9 @@ class _HrScreenState extends State<HrScreen> {
 
                 // ── Search ──────────────────────────────────────────
                 _HrSearchField(
+                  key: const ValueKey('hr_search_field'),
                   controller: _searchController,
+                  focusNode: _searchFocusNode,
                   isLoading: controller.isSearching,
                   onChanged: controller.filterEmployees,
                   onSubmitted: controller.searchEmployees,
@@ -230,9 +235,11 @@ class _QuickActionCard extends StatelessWidget {
 
 // ─── SEARCH FIELD ─────────────────────────────────────────────────────────────
 
-class _HrSearchField extends StatefulWidget {
+class _HrSearchField extends StatelessWidget {
   const _HrSearchField({
+    super.key,
     required this.controller,
+    required this.focusNode,
     required this.isLoading,
     required this.onChanged,
     required this.onSubmitted,
@@ -240,42 +247,24 @@ class _HrSearchField extends StatefulWidget {
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool isLoading;
   final ValueChanged<String> onChanged;
   final ValueChanged<String> onSubmitted;
   final VoidCallback onClear;
 
   @override
-  State<_HrSearchField> createState() => _HrSearchFieldState();
-}
-
-class _HrSearchFieldState extends State<_HrSearchField> {
-  late final FocusNode _focusNode;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = FocusNode();
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return TextField(
-      controller: widget.controller,
-      focusNode: _focusNode,
+      controller: controller,
+      focusNode: focusNode,
       textInputAction: TextInputAction.search,
-      onChanged: widget.onChanged,
-      onSubmitted: widget.onSubmitted,
+      onChanged: onChanged,
+      onSubmitted: onSubmitted,
       decoration: InputDecoration(
         hintText: LocalStrings.search.tr,
         prefixIcon: const Icon(Icons.search),
-        suffixIcon: widget.isLoading
+        suffixIcon: isLoading
             ? const Padding(
                 padding: EdgeInsets.all(14),
                 child: SizedBox(
@@ -284,9 +273,9 @@ class _HrSearchFieldState extends State<_HrSearchField> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               )
-            : widget.controller.text.isNotEmpty
+            : controller.text.isNotEmpty
                 ? IconButton(
-                    onPressed: widget.onClear,
+                    onPressed: onClear,
                     icon: const Icon(Icons.close),
                     tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
                   )

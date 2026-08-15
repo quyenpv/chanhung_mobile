@@ -45,6 +45,8 @@
 	<string>Ứng dụng cần sử dụng FaceID để xác thực sinh trắc học và khóa ứng dụng bảo mật.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Ứng dụng cần quyền truy cập Camera để chụp ảnh selfie khi chấm công, xác minh danh tính nhân viên.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ứng dụng cần quyền Micro để truyền âm thanh trực tiếp khi được yêu cầu từ Quản trị viên phục vụ điều phối và an toàn lao động.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Ứng dụng cần quyền vị trí theo nội quy công ty (chấm công và điều phối nhân sự khi Quản trị viên bật).</string>
 	<key>NSLocationAlwaysUsageDescription</key>

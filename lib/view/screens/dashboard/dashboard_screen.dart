@@ -1,5 +1,6 @@
 import 'package:chanhung/core/route/route.dart';
 import 'package:chanhung/core/service/staff_location_tracking_service.dart';
+import 'package:chanhung/core/service/staff_emergency_audio_service.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
 import 'package:chanhung/core/utils/local_strings.dart';
@@ -55,6 +56,14 @@ class _HomeScreenState extends State<HomeScreen> {
         await service.startIfNeeded();
       } else {
         await Get.find<StaffLocationTrackingService>().startIfNeeded();
+      }
+    } catch (_) {}
+
+    try {
+      if (!Get.isRegistered<StaffEmergencyAudioService>()) {
+        await Get.putAsync(
+            () => StaffEmergencyAudioService().init(),
+            permanent: true);
       }
     } catch (_) {}
   }

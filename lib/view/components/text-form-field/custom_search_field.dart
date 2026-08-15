@@ -13,9 +13,12 @@ class CustomSearchField extends StatefulWidget {
   final bool showLabelText;
   final VoidCallback onPressed;
   final TextEditingController? textEditingController;
+  final FocusNode? focusNode;
+
   const CustomSearchField({
     super.key,
     this.textEditingController,
+    this.focusNode,
     this.labelText = "",
     required this.hintText,
     required this.onChanged,
@@ -28,31 +31,17 @@ class CustomSearchField extends StatefulWidget {
 }
 
 class _CustomSearchFieldState extends State<CustomSearchField> {
-  late final FocusNode _focusNode;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = FocusNode();
-    _focusNode.addListener(_onFocusChange);
-  }
-
-  void _onFocusChange() {
-    if (mounted) {
-      setState(() {});
-    }
-  }
+  FocusNode? _internalFocusNode;
+  FocusNode get _effectiveFocusNode => widget.focusNode ?? (_internalFocusNode ??= FocusNode());
 
   @override
   void dispose() {
-    _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
+    _internalFocusNode?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isFocus = _focusNode.hasFocus;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -70,9 +59,7 @@ class _CustomSearchFieldState extends State<CustomSearchField> {
           decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               border: Border.all(
-                  color: isFocus
-                      ? ColorResources.primaryColor
-                      : ColorResources.borderColor.withValues(alpha: .5),
+                  color: ColorResources.borderColor.withValues(alpha: .5),
                   width: 1.00),
               borderRadius: BorderRadius.circular(AppDesign.radiusSmall),
               boxShadow: AppDesign.softShadow(Theme.of(context).shadowColor)),
@@ -83,7 +70,7 @@ class _CustomSearchFieldState extends State<CustomSearchField> {
               Expanded(
                 flex: 5,
                 child: TextField(
-                  focusNode: _focusNode,
+                  focusNode: _effectiveFocusNode,
                   controller: widget.textEditingController,
                   style: regularSmall,
                   textAlign: TextAlign.left,

@@ -24,6 +24,7 @@ class PaymentRequestsScreen extends StatefulWidget {
 class _PaymentRequestsScreenState extends State<PaymentRequestsScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   String _selectedStatus = '';
   String _searchQuery = '';
 
@@ -55,6 +56,7 @@ class _PaymentRequestsScreenState extends State<PaymentRequestsScreen> with Sing
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -173,7 +175,9 @@ class _PaymentRequestsScreenState extends State<PaymentRequestsScreen> with Sing
         children: [
           // Search TextField
           TextField(
+            key: const ValueKey('payment_requests_search_field'),
             controller: _searchController,
+            focusNode: _searchFocusNode,
             decoration: InputDecoration(
               hintText: 'Tìm kiếm theo mã, tiêu đề...',
               prefixIcon: const Icon(Icons.search, size: 20),

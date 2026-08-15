@@ -36,7 +36,7 @@ class DashboardController extends GetxController {
       return;
     }
 
-    await loadData();
+    await loadData(shouldUpdate: false);
     appLogo = dashboardRepo.apiClient.sharedPreferences
         .getString(SharedPreferenceHelper.appLogo);
     currency = dashboardRepo.apiClient.sharedPreferences
@@ -58,7 +58,7 @@ class DashboardController extends GetxController {
     );
   }
 
-  Future<void> loadData() async {
+  Future<void> loadData({bool shouldUpdate = true}) async {
     ResponseModel responseModel = await dashboardRepo.getDashboardData();
     if (responseModel.statusCode == 200) {
       try {
@@ -68,12 +68,13 @@ class DashboardController extends GetxController {
         resetClientMenu();
         CustomSnackBar.error(errorList: [LocalStrings.somethingWentWrong.tr]);
         isLoading = false;
-        update();
+        if (shouldUpdate) update();
         return;
       }
 
       if (dashboardModel.success == true && dashboardModel.data != null) {
-        await setClientMenu(dashboardModel.data?.permissions ?? []);
+        await setClientMenu(dashboardModel.data?.permissions ?? [],
+            shouldUpdate: false);
         await _hydrateSummaryFallback();
       } else {
         resetClientMenu();
@@ -91,7 +92,7 @@ class DashboardController extends GetxController {
     }
 
     isLoading = false;
-    update();
+    if (shouldUpdate) update();
   }
 
   Future<void> _hydrateSummaryFallback() async {
@@ -264,7 +265,8 @@ class DashboardController extends GetxController {
     isDmsOfficeEnable = false;
   }
 
-  Future<void> setClientMenu(List<String> permissions) async {
+  Future<void> setClientMenu(List<String> permissions,
+      {bool shouldUpdate = true}) async {
     resetClientMenu();
     if (permissions.contains('all')) {
       isProjectsEnable = true;
@@ -314,7 +316,7 @@ class DashboardController extends GetxController {
         isDmsOfficeEnable = true;
       }
     }
-    update();
+    if (shouldUpdate) update();
   }
 
   Future<void> logout() async {

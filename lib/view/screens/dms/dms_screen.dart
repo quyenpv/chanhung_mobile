@@ -25,10 +25,12 @@ class DmsScreen extends StatefulWidget {
 
 class _DmsScreenState extends State<DmsScreen> {
   late final TextEditingController _searchController;
+  late final FocusNode _searchFocusNode;
 
   @override
   void initState() {
     _searchController = TextEditingController();
+    _searchFocusNode = FocusNode();
     Get.put(ApiClient(sharedPreferences: Get.find()));
     Get.put(DmsRepo(apiClient: Get.find()));
     final controller = Get.put(DmsController(dmsRepo: Get.find()));
@@ -43,6 +45,7 @@ class _DmsScreenState extends State<DmsScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -70,7 +73,9 @@ class _DmsScreenState extends State<DmsScreen> {
                   90),
               children: [
                 _DmsSearchField(
+                  key: const ValueKey('dms_search_field'),
                   controller: _searchController,
+                  focusNode: _searchFocusNode,
                   onSubmitted: controller.searchDocuments,
                   onClear: () async {
                     _searchController.clear();
@@ -101,12 +106,15 @@ class _DmsScreenState extends State<DmsScreen> {
 
 class _DmsSearchField extends StatelessWidget {
   const _DmsSearchField({
+    super.key,
     required this.controller,
+    required this.focusNode,
     required this.onSubmitted,
     required this.onClear,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final ValueChanged<String> onSubmitted;
   final VoidCallback onClear;
 
@@ -114,6 +122,7 @@ class _DmsSearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      focusNode: focusNode,
       textInputAction: TextInputAction.search,
       onSubmitted: onSubmitted,
       decoration: InputDecoration(

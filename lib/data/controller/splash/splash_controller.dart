@@ -11,6 +11,15 @@ import 'package:get/get.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/route/route.dart';
 import 'package:chanhung/core/service/staff_location_tracking_service.dart';
+import 'package:chanhung/core/utils/messages.dart';
+import 'package:chanhung/data/controller/localization/localization_controller.dart';
+import 'package:chanhung/data/model/global/overview_model.dart';
+import 'package:chanhung/data/model/global/response_model/response_model.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:chanhung/core/helper/shared_preference_helper.dart';
+import 'package:chanhung/core/route/route.dart';
+import 'package:chanhung/core/service/staff_location_tracking_service.dart';
 import 'package:chanhung/data/repo/splash/splash_repo.dart';
 import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -21,6 +30,7 @@ class SplashController extends GetxController {
   SplashRepo splashRepo;
   LocalizationController localizationController;
   bool isLoading = true;
+  bool _isNavigating = false;
 
   /// Chỉ hiện dialog cập nhật 1 lần mỗi lần khởi động app.
   bool _updateDialogShownThisSession = false;
@@ -29,6 +39,9 @@ class SplashController extends GetxController {
       {required this.splashRepo, required this.localizationController});
 
   Future<void> gotoNextPage() async {
+    if (_isNavigating) return;
+    _isNavigating = true;
+
     try {
       await loadLanguage();
       await checkAppUpdate();
@@ -83,16 +96,21 @@ class SplashController extends GetxController {
               config['current_app_version'] ??
               '1.0.0';
           String minVersion = config['min_app_version'] ?? '1.0.0';
-          String downloadUrl = config['apk_download_url'] ?? '';
+          String downloadUrl = config['apk_download_url'] ??
+              config['github_release_url'] ??
+              'https://github.com/quyenpv/ChanHung_ERP/releases/latest';
+          if (downloadUrl.trim().isEmpty) {
+            downloadUrl = 'https://github.com/quyenpv/ChanHung_ERP/releases/latest';
+          }
           String changelog = config['update_changelog'] ?? '';
           bool remoteForceUpdate = config['force_update'] ?? false;
 
           PackageInfo packageInfo = await PackageInfo.fromPlatform();
           String currentVersion = packageInfo.version;
 
-          if (_isVersionGreater(currentVersion, latestVersion)) {
+          if (_isNewerVersion(currentVersion, latestVersion)) {
             bool isForceUpdate = remoteForceUpdate ||
-                _isVersionGreater(minVersion, currentVersion);
+                _isNewerVersion(currentVersion, minVersion);
 
             if (downloadUrl.isNotEmpty) {
               // Đánh dấu đã hiện dialog trong session này (trước khi await).
@@ -148,28 +166,29 @@ class SplashController extends GetxController {
     }
   }
 
-  bool _isVersionGreater(String current, String latest) {
+  /// Trả về true nếu candidate Version mới hơn current Version (candidate > current)
+  bool _isNewerVersion(String current, String candidate) {
     try {
       List<int> currentParts =
           current.split('.').map((e) => int.parse(e.trim())).toList();
-      List<int> latestParts =
-          latest.split('.').map((e) => int.parse(e.trim())).toList();
+      List<int> candidateParts =
+          candidate.split('.').map((e) => int.parse(e.trim())).toList();
 
-      int length = currentParts.length > latestParts.length
+      int length = currentParts.length > candidateParts.length
           ? currentParts.length
-          : latestParts.length;
+          : candidateParts.length;
       for (int i = 0; i < length; i++) {
         int currentPart = i < currentParts.length ? currentParts[i] : 0;
-        int latestPart = i < latestParts.length ? latestParts[i] : 0;
+        int candidatePart = i < candidateParts.length ? candidateParts[i] : 0;
 
-        if (latestPart > currentPart) {
+        if (candidatePart > currentPart) {
           return true;
-        } else if (latestPart < currentPart) {
+        } else if (candidatePart < currentPart) {
           return false;
         }
       }
     } catch (e) {
-      return current != latest;
+      return current != candidate;
     }
     return false;
   }
@@ -180,7 +199,7 @@ class SplashController extends GetxController {
       isLoading = false;
       update();
 
-      Future.delayed(const Duration(seconds: 1), () {
+      Future.delayed(const Duration(milliseconds: 300), () {
         Get.offAndToNamed(
           isOnBoard ? RouteHelper.loginScreen : RouteHelper.onboardScreen,
         );
@@ -247,28 +266,18 @@ class SplashController extends GetxController {
     update();
 
     if (isOnBoard == false) {
-      Future.delayed(const Duration(seconds: 1), () {
+      Future.delayed(const Duration(milliseconds: 300), () {
         Get.offAndToNamed(RouteHelper.onboardScreen);
       });
     } else {
       if (isRemember) {
-        Future.delayed(const Duration(seconds: 1), () async {
+        Future.delayed(const Duration(milliseconds: 300), () {
           Get.offAndToNamed(AppMode.chatOnly
               ? RouteHelper.teamChatScreen
               : RouteHelper.dashboardScreen);
-          if (!AppMode.chatOnly) try {
-            if (!Get.isRegistered<StaffLocationTrackingService>()) {
-              final service = await Get.putAsync(
-                  () => StaffLocationTrackingService().init(),
-                  permanent: true);
-              await service.startIfNeeded();
-            } else {
-              await Get.find<StaffLocationTrackingService>().startIfNeeded();
-            }
-          } catch (_) {}
         });
       } else {
-        Future.delayed(const Duration(seconds: 1), () {
+        Future.delayed(const Duration(milliseconds: 300), () {
           Get.offAndToNamed(RouteHelper.loginScreen);
         });
       }

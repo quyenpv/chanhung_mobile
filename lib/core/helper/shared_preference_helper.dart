@@ -40,4 +40,6 @@ class SharedPreferenceHelper {
   static const String languageListKey = 'language-list-key';
   static const String defaultLanguageMigratedKey =
       'default-language-migrated-key';
+  static const String realtimeTokenKey = 'realtime-token-key';
+  static const String realtimeEventsPathKey = 'realtime-events-path-key';
 }
