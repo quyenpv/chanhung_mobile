@@ -40,6 +40,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Install CocoaPods dependencies with retry
+        working-directory: ios
+        run: |
+          for i in {1..5}; do
+            echo "Attempt $i: pod install..."
+            pod install --repo-update && break || (echo "Retry after 5s..." && sleep 5)
+          done
+
       - name: Configure ${{ matrix.app.display_name }} identity
         run: |
           perl -0pi -e 's/PRODUCT_BUNDLE_IDENTIFIER = [^;]+;/PRODUCT_BUNDLE_IDENTIFIER = ${{ matrix.app.bundle_id }};/g' ios/Runner.xcodeproj/project.pbxproj
@@ -65,3 +73,23 @@ jobs:
           name: chanhung-${{ matrix.app.id }}-ios-release-unsigned
           path: chanhung-${{ matrix.app.id }}-release-unsigned.ipa
           retention-days: 14
+
+      - name: Extract App Version
+        id: versioning
+        shell: bash
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //g' | tr -d ' ' | tr -d '\r')
+          CLEAN_VER=$(echo $VERSION | cut -d'+' -f1)
+          echo "clean_ver=$CLEAN_VER" >> "$GITHUB_OUTPUT"
+
+      - name: Publish IPA to Public quyenpv/chanhung_mobile_releases
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_REPO_TOKEN || secrets.GH_RELEASES_TOKEN || secrets.GH_TOKEN || secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          RELEASE_REPOSITORY: quyenpv/chanhung_mobile_releases
+        run: |
+          TAG="v${{ steps.versioning.outputs.clean_ver }}"
+          gh release upload "$TAG" chanhung-${{ matrix.app.id }}-release-unsigned.ipa \
+            --repo "$RELEASE_REPOSITORY" \
+            --clobber || echo "::warning::Could not upload IPA to releases repo"
