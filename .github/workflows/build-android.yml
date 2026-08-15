@@ -215,5 +215,7 @@ jobs:
           gh release create "$TAG" release_apks/*.apk \
             --repo "$RELEASE_REPOSITORY" \
             --title "ChanHung Mobile v$VERSION" \
-            --notes "Bản cập nhật ChanHung Mobile v$VERSION hỗ trợ tải trực tiếp file APK." \
+            --notes "Bản cập nhật ChanHung Mobile v$VERSION hỗ trợ tải trực tiếp file APK." || \
+          gh release upload "$TAG" release_apks/*.apk \
+            --repo "$RELEASE_REPOSITORY" \
             --clobber
