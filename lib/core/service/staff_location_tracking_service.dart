@@ -129,18 +129,18 @@ Map<String, String> _locationPayload(Position pos) {
 }
 
 /// Kiểm tra chất lượng điểm GPS:
-/// 1. Bán kính sai số <= 35m (loại bỏ toạ độ Cell-ID / WiFi thô trong nhà).
-/// 2. Độ trễ thời gian <= 2 phút.
+/// 1. Bán kính sai số <= 120m (chấp nhận cả trong nhà / văn phòng 40-100m, loại bỏ trạm BTS quá xa > 120m).
+/// 2. Độ trễ thời gian <= 3 phút.
 /// 3. Loại bỏ bước nhảy tốc độ phi thực tế (> 130 km/h) do glitch GPS.
 bool _isValidQualityPosition(Position pos, Position? lastPos) {
-  // Sai số quá lớn -> loại
-  if (pos.accuracy <= 0 || pos.accuracy > 35.0) {
+  // Sai số quá lớn (>120m) -> loại bỏ dữ liệu rác
+  if (pos.accuracy <= 0 || pos.accuracy > 120.0) {
     return false;
   }
 
-  // Toạ độ quá cũ từ cache -> loại
+  // Toạ độ quá cũ từ cache (> 3 phút) -> loại
   final ageSeconds = DateTime.now().toUtc().difference(pos.timestamp.toUtc()).inSeconds.abs();
-  if (ageSeconds > 120) {
+  if (ageSeconds > 180) {
     return false;
   }
 
