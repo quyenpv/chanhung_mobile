@@ -1501,10 +1501,13 @@ class _SigningModalState extends State<_SigningModal> {
                   ),
                 ],
               ),
-        ),
+            ],
+          ],
+        ],
       ),
     ),
-  );
+  ),
+);
 }
 
   Future<void> _executePfxSign() async {

@@ -425,6 +425,8 @@ class _CreateTripSheetState extends State<_CreateTripSheet> {
                       : Text(LocalStrings.submit.tr,
                           style: mediumLarge.copyWith(color: Colors.white)),
                 ),
+              ),
+            ],
           ),
         ),
       ),
