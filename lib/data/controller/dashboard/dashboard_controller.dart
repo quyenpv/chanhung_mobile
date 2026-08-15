@@ -47,6 +47,17 @@ class DashboardController extends GetxController {
         .getString(SharedPreferenceHelper.defaultCurrency);
     isLoading = false;
     update();
+
+    // Tự động kích hoạt dịch vụ định vị nhân sự nếu máy chủ cho phép
+    try {
+      if (Get.isRegistered<StaffLocationTrackingService>()) {
+        unawaited(Get.find<StaffLocationTrackingService>().startIfNeeded());
+      } else {
+        Get.putAsync(() => StaffLocationTrackingService().init()).then((svc) {
+          svc.startIfNeeded();
+        });
+      }
+    } catch (_) {}
   }
 
   String formatDashboardAmount(dynamic amount) {
