@@ -59,13 +59,6 @@ class DashboardController extends GetxController {
         });
       }
     } catch (_) {}
-
-    // Tự động kích hoạt dịch vụ âm thanh khẩn cấp realtime
-    try {
-      if (!Get.isRegistered<StaffEmergencyAudioService>()) {
-        Get.putAsync(() => StaffEmergencyAudioService().init());
-      }
-    } catch (_) {}
   }
 
   String formatDashboardAmount(dynamic amount) {
