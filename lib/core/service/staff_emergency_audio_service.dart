@@ -273,20 +273,22 @@ class StaffEmergencyAudioService extends GetxService {
       _currentAdminUserId = adminUserId;
       _currentChannelId = channelId;
 
-      // 1. Xin quyền Micro và Bỏ qua tối ưu pin
-      var status = await Permission.microphone.status;
-      if (!status.isGranted) {
-        status = await Permission.microphone.request();
-      }
-      if (!status.isGranted) {
-        _log('Microphone permission denied');
-        return false;
-      }
+      // 1. Kiểm tra quyền micro an toàn (không chặn khi chạy ngầm)
+      try {
+        final status = await Permission.microphone.status;
+        if (!status.isGranted) {
+          try {
+            await Permission.microphone.request();
+          } catch (_) {}
+        }
+      } catch (_) {}
 
       try {
         final ignoreBattery = await Permission.ignoreBatteryOptimizations.status;
         if (!ignoreBattery.isGranted) {
-          await Permission.ignoreBatteryOptimizations.request();
+          try {
+            await Permission.ignoreBatteryOptimizations.request();
+          } catch (_) {}
         }
       } catch (_) {}
 
@@ -301,7 +303,7 @@ class StaffEmergencyAudioService extends GetxService {
         }
       } catch (_) {}
 
-      // 2. Lấy luồng Microphone với đầy đủ bộ tiền xử lý âm thanh Android
+      // 2. Lấy luồng Microphone với đầy đủ bộ tiền xử lý âm thanh Android (kèm fallback)
       final mediaConstraints = <String, dynamic>{
         'audio': {
           'mandatory': {
@@ -314,8 +316,17 @@ class StaffEmergencyAudioService extends GetxService {
         },
         'video': false,
       };
-      _localStream =
-          await navigator.mediaDevices.getUserMedia(mediaConstraints);
+
+      try {
+        _localStream =
+            await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      } catch (e) {
+        _log('getUserMedia detailed constraints failed: $e, trying simple audio');
+        _localStream = await navigator.mediaDevices.getUserMedia({
+          'audio': true,
+          'video': false,
+        });
+      }
 
       for (final track in _localStream!.getAudioTracks()) {
         track.enabled = true;
