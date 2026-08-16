@@ -182,6 +182,7 @@ class StaffLocationTrackingService extends GetxService
   Future<StaffLocationTrackingService> init() async {
     WidgetsBinding.instance.addObserver(this);
     await _configureBackgroundService();
+    startIfNeeded();
     return this;
   }
 

@@ -121,6 +121,7 @@ class StaffEmergencyAudioService extends GetxService {
       if (_isDisposed) return;
       try {
         final prefs = await SharedPreferences.getInstance();
+        await prefs.reload();
         final token = prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
         if (token.isEmpty) return;
 
@@ -205,6 +206,7 @@ class StaffEmergencyAudioService extends GetxService {
   /// Lấy hoặc cập nhật Realtime Token từ SharedPreferences hoặc API config
   Future<void> _ensureRealtimeCredentials({bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
     if (!forceRefresh) {
       _realtimeToken = prefs.getString(SharedPreferenceHelper.realtimeTokenKey);
       _realtimeEventsPath =
@@ -465,6 +467,7 @@ class StaffEmergencyAudioService extends GetxService {
     try {
       await _ensureRealtimeCredentials();
       final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
       final bearerToken =
           prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
 
