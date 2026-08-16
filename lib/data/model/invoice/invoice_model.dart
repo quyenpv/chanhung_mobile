@@ -159,7 +159,7 @@ class Invoice {
   }
 
   Invoice.fromJson(dynamic json) {
-    _id = json['id'];
+    _id = json['id']?.toString();
     _type = json['type'];
     _clientId = json['client_id'];
     _projectId = json['project_id'];
@@ -168,7 +168,7 @@ class Invoice {
     _note = json['note'];
     _labels = json['labels'];
     _lastEmailSentDate = json['last_email_sent_date'];
-    _status = json['status'];
+    _status = json['status']?.toString();
     _taxId = json['tax_id'];
     _taxId2 = json['tax_id2'];
     _taxId3 = json['tax_id3'];
@@ -199,7 +199,7 @@ class Invoice {
     _tax3 = json['tax3'];
     _deleted = json['deleted'];
     _orderId = json['order_id'];
-    _displayId = json['display_id'];
+    _displayId = json['display_id']?.toString();
     _numberYear = json['number_year'];
     _numberSequence = json['number_sequence'];
     _currency = json['currency'];
@@ -210,8 +210,8 @@ class Invoice {
     _creditNoteDisplayId = json['credit_note_display_id'];
     _mainInvoiceDisplayId = json['main_invoice_display_id'];
     _recurringInvoiceDisplayId = json['recurring_invoice_display_id'];
-    _invoiceValue = json['invoice_value'];
-    _paymentReceived = json['payment_received'];
+    _invoiceValue = json['invoice_value']?.toString();
+    _paymentReceived = json['payment_received']?.toString();
     _taxPercentage = json['tax_percentage'];
     _taxPercentage2 = json['tax_percentage2'];
     _taxPercentage3 = json['tax_percentage3'];

@@ -37,4 +37,11 @@ class ProjectRepo {
         await apiClient.request(url, Method.getMethod, null, passHeader: true);
     return responseModel;
   }
+
+  Future<ResponseModel> getProjectDashboard() async {
+    String url = "${UrlContainer.baseUrl}${UrlContainer.projectsUrl}/dashboard";
+    ResponseModel responseModel =
+        await apiClient.request(url, Method.getMethod, null, passHeader: true);
+    return responseModel;
+  }
 }

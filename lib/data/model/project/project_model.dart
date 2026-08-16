@@ -126,6 +126,17 @@ class Project {
     _statusTitle = json['status_title']?.toString();
     _statusIcon = (json['status_icon'] ?? json['status_color'])?.toString();
     _labelsList = json['labels_list']?.toString();
+    _projectCode = json['project_code']?.toString();
+    _address = json['address']?.toString();
+    _projectTypeTitle = json['project_type_title']?.toString();
+    _totalSettledAmount = json['total_settled_amount']?.toString();
+    _totalNetPayable = json['total_net_payable']?.toString();
+    _remaining = json['remaining']?.toString();
+    _paymentProgress = json['payment_progress']?.toString();
+    _progress = json['progress']?.toString();
+    _health = json['health']?.toString();
+    _budget = json['acc_budget_amount']?.toString();
+    _actualCost = json['acc_actual_cost']?.toString();
   }
 
   String? _id;
@@ -155,6 +166,17 @@ class Project {
   String? _statusTitle;
   String? _statusIcon;
   String? _labelsList;
+  String? _projectCode;
+  String? _address;
+  String? _projectTypeTitle;
+  String? _totalSettledAmount;
+  String? _totalNetPayable;
+  String? _remaining;
+  String? _paymentProgress;
+  String? _progress;
+  String? _health;
+  String? _budget;
+  String? _actualCost;
 
   String? get id => _id;
   String? get title => _title;
@@ -183,6 +205,17 @@ class Project {
   String? get statusTitle => _statusTitle;
   String? get statusIcon => _statusIcon;
   String? get labelsList => _labelsList;
+  String? get projectCode => _projectCode;
+  String? get address => _address;
+  String? get projectTypeTitle => _projectTypeTitle;
+  String? get totalSettledAmount => _totalSettledAmount;
+  String? get totalNetPayable => _totalNetPayable;
+  String? get remaining => _remaining;
+  String? get paymentProgress => _paymentProgress;
+  String? get progress => _progress;
+  String? get health => _health;
+  String? get budget => _budget;
+  String? get actualCost => _actualCost;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};

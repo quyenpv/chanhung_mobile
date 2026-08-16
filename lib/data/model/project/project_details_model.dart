@@ -1,3 +1,5 @@
+import 'package:chanhung/data/model/project/project_dashboard_model.dart';
+
 class ProjectDetailsModel {
   ProjectDetailsModel({
     bool? success,
@@ -10,9 +12,13 @@ class ProjectDetailsModel {
   }
 
   ProjectDetailsModel.fromJson(dynamic json) {
-    _success = json['success'];
-    _message = json['message'];
-    _data = json['data'] != null ? Project.fromJson(json['data']) : null;
+    _success = json['success'] == true || json['success'] == 1;
+    _message = json['message']?.toString();
+    dynamic raw = json['data'];
+    if (raw is Map && raw['project'] is Map && raw['title'] == null) {
+      raw = raw['project'];
+    }
+    _data = raw is Map ? Project.fromJson(raw) : null;
   }
   bool? _success;
   String? _message;
@@ -94,33 +100,57 @@ class Project {
     _comments = comments;
   }
   Project.fromJson(dynamic json) {
-    _id = json['id'];
-    _title = json['title'];
-    _description = json['description'];
-    _projectType = json['project_type'];
-    _startDate = json['start_date'];
-    _deadline = json['deadline'];
-    _clientId = json['client_id'];
-    _createdDate = json['created_date'];
-    _createdBy = json['created_by'];
-    _status = json['status'];
-    _statusId = json['status_id'];
-    _labels = json['labels'];
-    _price = json['price'];
-    _starredBy = json['starred_by'];
-    _estimateId = json['estimate_id'];
-    _orderId = json['order_id'];
-    _proposalId = json['proposal_id'];
-    _deleted = json['deleted'];
-    _companyName = json['company_name'];
-    _currencySymbol = json['currency_symbol'];
-    _totalPoints = json['total_points'];
-    _completedPoints = json['completed_points'];
-    _statusKeyName = json['status_key_name'];
-    _titleLanguageKey = json['title_language_key'];
-    _statusTitle = json['status_title'];
-    _statusIcon = json['status_icon'];
-    _labelsList = json['labels_list'];
+    if (json is! Map) {
+      return;
+    }
+    _id = json['id']?.toString();
+    _title = json['title']?.toString();
+    _description = json['description']?.toString();
+    _projectType = json['project_type']?.toString();
+    _startDate = json['start_date']?.toString();
+    _deadline = json['deadline']?.toString();
+    _clientId = json['client_id']?.toString();
+    _createdDate = json['created_date']?.toString();
+    _createdBy = json['created_by']?.toString();
+    _status = json['status']?.toString();
+    _statusId = json['status_id']?.toString();
+    _labels = json['labels']?.toString();
+    _price = json['price']?.toString();
+    _starredBy = json['starred_by']?.toString();
+    _estimateId = json['estimate_id']?.toString();
+    _orderId = json['order_id']?.toString();
+    _proposalId = json['proposal_id']?.toString();
+    _deleted = json['deleted']?.toString();
+    _companyName = json['company_name']?.toString();
+    _currencySymbol = json['currency_symbol']?.toString();
+    _totalPoints = json['total_points']?.toString();
+    _completedPoints = json['completed_points']?.toString();
+    _statusKeyName = json['status_key_name']?.toString();
+    _titleLanguageKey = json['title_language_key']?.toString();
+    _statusTitle = json['status_title']?.toString();
+    _statusIcon = json['status_icon']?.toString();
+    _labelsList = json['labels_list']?.toString();
+    _projectCode = json['project_code']?.toString();
+    _address = json['address']?.toString();
+    _projectTypeTitle = json['project_type_title']?.toString();
+    _totalSettledAmount = json['total_settled_amount']?.toString();
+    _totalNetPayable = json['total_net_payable']?.toString();
+    _remaining = json['remaining']?.toString();
+    _paymentProgress = json['payment_progress']?.toString();
+    _progress = json['progress']?.toString();
+    _health = json['health']?.toString();
+    _budget = json['acc_budget_amount']?.toString();
+    _actualCost = json['acc_actual_cost']?.toString();
+    _memberCount = json['member_count']?.toString();
+    _counts = json['counts'] is Map
+        ? ProjectCounts.fromJson(json['counts'])
+        : ProjectCounts();
+    _taskStats = json['task_stats'] is Map
+        ? ProjectTaskStats.fromJson(json['task_stats'])
+        : ProjectTaskStats();
+    _finance = json['finance'] is Map
+        ? PartyFinance.fromJson(json['finance'])
+        : PartyFinance();
     if (json['comments'] != null) {
       _comments = [];
       json['comments'].forEach((v) {
@@ -157,6 +187,21 @@ class Project {
   String? _statusIcon;
   String? _labelsList;
   List<Comment>? _comments;
+  String? _projectCode;
+  String? _address;
+  String? _projectTypeTitle;
+  String? _totalSettledAmount;
+  String? _totalNetPayable;
+  String? _remaining;
+  String? _paymentProgress;
+  String? _progress;
+  String? _health;
+  String? _budget;
+  String? _actualCost;
+  String? _memberCount;
+  ProjectCounts? _counts;
+  ProjectTaskStats? _taskStats;
+  PartyFinance? _finance;
 
   String? get id => _id;
   String? get title => _title;
@@ -186,6 +231,21 @@ class Project {
   String? get statusIcon => _statusIcon;
   String? get labelsList => _labelsList;
   List<Comment>? get comments => _comments;
+  String? get projectCode => _projectCode;
+  String? get address => _address;
+  String? get projectTypeTitle => _projectTypeTitle;
+  String? get totalSettledAmount => _totalSettledAmount;
+  String? get totalNetPayable => _totalNetPayable;
+  String? get remaining => _remaining;
+  String? get paymentProgress => _paymentProgress;
+  String? get progress => _progress;
+  String? get health => _health;
+  String? get budget => _budget;
+  String? get actualCost => _actualCost;
+  String? get memberCount => _memberCount;
+  ProjectCounts get counts => _counts ?? ProjectCounts();
+  ProjectTaskStats get taskStats => _taskStats ?? ProjectTaskStats();
+  PartyFinance get finance => _finance ?? PartyFinance();
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -263,10 +323,10 @@ class Comment {
   }
 
   Comment.fromJson(dynamic json) {
-    _id = json['id'];
-    _createdBy = json['created_by'];
-    _createdAt = json['created_at'];
-    _description = json['description'];
+    _id = json['id']?.toString();
+    _createdBy = json['created_by']?.toString();
+    _createdAt = json['created_at']?.toString();
+    _description = json['description']?.toString();
     if (json['files'] != null) {
       _files = [];
       json['files'].forEach((v) {

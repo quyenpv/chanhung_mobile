@@ -23,7 +23,7 @@ class _ProjectTasksState extends State<ProjectTasks> {
     Get.put(ApiClient(sharedPreferences: Get.find()));
     Get.put(ProjectRepo(apiClient: Get.find()));
     final controller = Get.put(ProjectController(projectRepo: Get.find()));
-    controller.isLoading = true;
+    controller.isTasksLoading = true;
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
@@ -36,9 +36,9 @@ class _ProjectTasksState extends State<ProjectTasks> {
     return GetBuilder<ProjectController>(
       builder: (controller) {
         return Scaffold(
-          body: controller.isLoading
+          body: controller.isTasksLoading
               ? const CustomLoader()
-              : controller.tasksModel.success!
+              : (controller.tasksModel.data?.isNotEmpty ?? false)
                   ? RefreshIndicator(
                       color: ColorResources.primaryColor,
                       onRefresh: () async {

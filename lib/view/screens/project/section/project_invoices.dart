@@ -22,7 +22,7 @@ class _ProjectInvoicesState extends State<ProjectInvoices> {
     Get.put(ApiClient(sharedPreferences: Get.find()));
     Get.put(ProjectRepo(apiClient: Get.find()));
     final controller = Get.put(ProjectController(projectRepo: Get.find()));
-    controller.isLoading = true;
+    controller.isInvoicesLoading = true;
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
@@ -35,9 +35,9 @@ class _ProjectInvoicesState extends State<ProjectInvoices> {
     return GetBuilder<ProjectController>(
       builder: (controller) {
         return Scaffold(
-          body: controller.isLoading
+          body: controller.isInvoicesLoading
               ? const CustomLoader()
-              : controller.invoicesModel.success!
+              : (controller.invoicesModel.data?.isNotEmpty ?? false)
                   ? RefreshIndicator(
                       onRefresh: () async {
                         await controller.loadProjectInvoices(widget.id);

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
 class Converter {
   static String toCapitalized(String value) {
@@ -13,6 +14,13 @@ class Converter {
     } catch (e) {
       return value;
     }
+  }
+
+  static String formatMoney(dynamic value) {
+    final number = value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '') ?? 0;
+    return NumberFormat.decimalPattern('vi_VN').format(number.round());
   }
 
   static String formatNumber(String value, {int precision = 2}) {

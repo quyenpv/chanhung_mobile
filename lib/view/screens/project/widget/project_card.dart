@@ -1,6 +1,8 @@
+import 'package:chanhung/core/helper/string_format_helper.dart';
 import 'package:chanhung/core/route/route.dart';
 import 'package:chanhung/core/utils/color_resources.dart';
 import 'package:chanhung/core/utils/dimensions.dart';
+import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/style.dart';
 import 'package:chanhung/data/model/project/project_model.dart';
 import 'package:chanhung/view/components/divider/custom_divider.dart';
@@ -49,7 +51,7 @@ class ProjectCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              projectModel.title!,
+                              projectModel.title ?? '',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: regularLarge.copyWith(
@@ -68,16 +70,16 @@ class ProjectCard extends StatelessWidget {
                                 shape: StadiumBorder(
                                   side: BorderSide(
                                       color: ColorResources.projectStatusColor(
-                                          projectModel.statusId!)),
+                                          projectModel.statusId ?? '1')),
                                 ),
                               ),
                               child: Text(
-                                projectModel.statusTitle!.tr,
+                                (projectModel.statusTitle ?? '').tr,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: lightSmall.copyWith(
                                     color: ColorResources.projectStatusColor(
-                                        projectModel.statusId!)),
+                                        projectModel.statusId ?? '1')),
                               ),
                             ),
                           ),
@@ -101,7 +103,7 @@ class ProjectCard extends StatelessWidget {
                           Expanded(
                             flex: 3,
                             child: _ProjectMeta(
-                              text: projectModel.companyName!,
+                              text: projectModel.companyName ?? '',
                               icon: Icons.account_box_rounded,
                             ),
                           ),
@@ -115,7 +117,53 @@ class ProjectCard extends StatelessWidget {
                             ),
                           ),
                         ],
-                      )
+                      ),
+                      const SizedBox(height: Dimensions.space8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${LocalStrings.projectContractValue.tr}: ${Converter.formatMoney(projectModel.price)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: regularSmall.copyWith(
+                                  color: ColorResources.blueGreyColor),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${LocalStrings.paymentPercent.tr}: ${projectModel.paymentProgress ?? '0'}%',
+                            style: regularSmall.copyWith(
+                                color: ColorResources.primaryColor),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: Dimensions.space5),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${LocalStrings.settledAmount.tr}: ${Converter.formatMoney(projectModel.totalSettledAmount)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: regularSmall.copyWith(
+                                  color: ColorResources.blueGreyColor),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              '${LocalStrings.remainingAmount.tr}: ${Converter.formatMoney(projectModel.remaining)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.end,
+                              style: regularSmall.copyWith(
+                                  color: ColorResources.blueGreyColor),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   )),
             ),
