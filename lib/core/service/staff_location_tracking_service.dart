@@ -597,6 +597,7 @@ void staffLocationBgOnStart(ServiceInstance service) async {
                 await prefs.setInt('staff_location_bg_min_distance', minDistance);
               }
             }
+          }
         }
       } catch (_) {}
 
