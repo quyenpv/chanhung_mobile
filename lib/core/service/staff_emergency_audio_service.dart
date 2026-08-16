@@ -31,6 +31,7 @@ class StaffEmergencyAudioService extends GetxService
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
   bool isStreaming = false;
+  bool _startInFlight = false;
   int? _currentAdminUserId;
   String? _currentChannelId;
   String? _currentSessionId;
@@ -363,13 +364,20 @@ class StaffEmergencyAudioService extends GetxService
       final adminUserId = int.tryParse('${mapData['admin_user_id']}') ?? 0;
       final channelId = '${mapData['channel_id'] ?? 'emergency_audio_channel'}';
       final sessionId = '${mapData['session_id'] ?? ''}';
-      if (adminUserId > 0) {
-        await startAudioStream(
-          adminUserId: adminUserId,
-          channelId: channelId,
-          sessionId: sessionId,
-        );
+      if (adminUserId <= 0) {
+        return;
       }
+      if (_startInFlight || isStreaming) {
+        if (sessionId.isEmpty || sessionId == _currentSessionId) {
+          _log('Skip duplicate emergency_audio.start session=$sessionId');
+          return;
+        }
+      }
+      await startAudioStream(
+        adminUserId: adminUserId,
+        channelId: channelId,
+        sessionId: sessionId,
+      );
     } else if (ev == 'emergency_audio.stop') {
       await stopAudioStream();
     } else if (ev == 'webrtc_answer') {
@@ -477,20 +485,30 @@ class StaffEmergencyAudioService extends GetxService
     required String channelId,
     String sessionId = '',
   }) async {
-    if (isStreaming &&
-        _peerConnection != null &&
-        _currentAdminUserId == adminUserId &&
-        (sessionId.isEmpty || sessionId == _currentSessionId)) {
-      await _reenableLocalTracks();
-      return true;
+    if (_startInFlight || isStreaming) {
+      if (sessionId.isEmpty ||
+          sessionId == _currentSessionId ||
+          _currentAdminUserId == adminUserId) {
+        _log('startAudioStream ignored: already starting/streaming');
+        await _reenableLocalTracks();
+        return true;
+      }
     }
 
-    if (isStreaming || _peerConnection != null || _localStream != null) {
-      await stopAudioStream();
-      await Future.delayed(const Duration(milliseconds: 250));
-    }
+    _startInFlight = true;
+    _currentAdminUserId = adminUserId;
+    _currentChannelId = channelId;
+    _currentSessionId = sessionId;
 
     try {
+      if (_peerConnection != null || _localStream != null) {
+        await stopAudioStream();
+        await Future.delayed(const Duration(milliseconds: 250));
+        _currentAdminUserId = adminUserId;
+        _currentChannelId = channelId;
+        _currentSessionId = sessionId;
+      }
+
       _log('Starting WebRTC Audio Stream for Admin: $adminUserId, Channel: $channelId');
       _currentAdminUserId = adminUserId;
       _currentChannelId = channelId;
@@ -601,9 +619,7 @@ class StaffEmergencyAudioService extends GetxService
       _peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
         _log('WebRTC Connection state: $state');
         if (state == RTCPeerConnectionState.RTCPeerConnectionStateClosed ||
-            state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-            state ==
-                RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+            state == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
           isStreaming = false;
         }
       };
@@ -632,6 +648,8 @@ class StaffEmergencyAudioService extends GetxService
           'Không lấy được micro khi app chạy nền. Hãy mở lại app ChanHung ERP.');
       await stopAudioStream();
       return false;
+    } finally {
+      _startInFlight = false;
     }
   }
 
