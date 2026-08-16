@@ -296,6 +296,14 @@ class StaffLocationTrackingService extends GetxService
         return;
       }
 
+      try {
+        final batteryStatus =
+            await Permission.ignoreBatteryOptimizations.status;
+        if (!batteryStatus.isGranted) {
+          await Permission.ignoreBatteryOptimizations.request();
+        }
+      } catch (_) {}
+
       // Ping ngay trên UI isolate rồi start nền
       await _pingOnce(token, minDistance);
       await _startBackground();
