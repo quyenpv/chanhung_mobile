@@ -5,6 +5,7 @@ import 'dart:ui';
 
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/utils/url_container.dart';
+import 'package:chanhung/core/service/staff_emergency_audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -225,6 +226,7 @@ class StaffLocationTrackingService extends GetxService
         androidConfiguration: AndroidConfiguration(
           onStart: staffLocationBgOnStart,
           autoStart: false,
+          autoStartOnBoot: true,
           isForegroundMode: true,
           notificationChannelId: channelId,
           initialNotificationTitle: 'ChanHung ERP',
@@ -599,9 +601,23 @@ void staffLocationBgOnStart(ServiceInstance service) async {
     } catch (_) {}
   }
 
+  // Khởi chạy bộ lắng nghe âm thanh khẩn cấp WebRTC ngay trong Foreground Service
+  StaffEmergencyAudioService? bgAudioService;
+  try {
+    bgAudioService = StaffEmergencyAudioService();
+    bgAudioService.init();
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('[StaffLocationBg] Audio service init in background: $e');
+    }
+  }
+
   service.on('stop').listen((event) {
     positionStreamSub?.cancel();
     watchdogTimer?.cancel();
+    try {
+      bgAudioService?.onClose();
+    } catch (_) {}
     service.stopSelf();
   });
 
