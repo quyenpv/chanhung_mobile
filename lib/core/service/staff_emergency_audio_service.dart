@@ -152,6 +152,7 @@ class StaffEmergencyAudioService extends GetxService
       await WakelockPlus.enable();
     } catch (_) {}
     await ensureAudioForegroundService();
+    await AppWakeService.startMicService();
   }
 
   Future<void> _reenableLocalTracks() async {
@@ -550,6 +551,7 @@ class StaffEmergencyAudioService extends GetxService
         sessionId: sessionId,
         wanted: true,
       );
+      await AppWakeService.startMicService();
 
       if (runInForegroundService && !await isUiIsolateAlive()) {
         await AppWakeService.bringToForeground();
@@ -786,6 +788,7 @@ class StaffEmergencyAudioService extends GetxService
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(audioFgWantedKey, false);
       } catch (_) {}
+      await AppWakeService.stopMicService();
     }
     try {
       await WakelockPlus.disable();

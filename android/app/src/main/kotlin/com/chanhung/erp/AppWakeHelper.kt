@@ -71,6 +71,14 @@ class AppWakePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 result.success(true)
             }
             "canDrawOverlays" -> result.success(AppWakeHelper.canDrawOverlays(context))
+            "startMicService" -> {
+                KeepAliveHelper.startMicService(context)
+                result.success(true)
+            }
+            "stopMicService" -> {
+                KeepAliveHelper.stopMicService(context)
+                result.success(true)
+            }
             else -> result.notImplemented()
         }
     }

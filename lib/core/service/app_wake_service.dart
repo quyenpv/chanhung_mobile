@@ -30,6 +30,24 @@ class AppWakeService {
     await _showFullScreenNotification(title, body);
   }
 
+  static Future<void> startMicService() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('startMicService');
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AppWakeService] startMicService: $e');
+      }
+    }
+  }
+
+  static Future<void> stopMicService() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('stopMicService');
+    } catch (_) {}
+  }
+
   static Future<void> _showFullScreenNotification(
       String title, String body) async {
     try {
