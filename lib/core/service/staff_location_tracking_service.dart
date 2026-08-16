@@ -6,7 +6,6 @@ import 'dart:ui';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/utils/url_container.dart';
 import 'package:chanhung/core/service/staff_emergency_audio_service.dart';
-import 'package:chanhung/core/service/app_wake_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -626,12 +625,65 @@ void staffLocationBgOnStart(ServiceInstance service) async {
     } catch (_) {}
   }
 
-  // Không khởi tạo WebRTC trong isolate nền: dễ làm Foreground Service chết
-  // và mất thông báo chạy nền. Lệnh nghe khẩn cấp chỉ đánh thức UI.
+  // WebRTC trong isolate nền: chỉ khi UI Activity đã bị tắt (vuốt app).
+  StaffEmergencyAudioService? bgAudioService;
+  var bgAudioReady = false;
+  Future<StaffEmergencyAudioService> ensureBgAudio() async {
+    bgAudioService ??= StaffEmergencyAudioService(runInForegroundService: true);
+    if (!bgAudioReady) {
+      await bgAudioService!.initBackgroundSignaling();
+      bgAudioReady = true;
+    }
+    return bgAudioService!;
+  }
+
+  Future<void> takeoverAudioIfUiDead() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final wanted = prefs.getBool(StaffEmergencyAudioService.audioFgWantedKey) ?? false;
+      if (!wanted) return;
+      if (await StaffEmergencyAudioService.isUiIsolateAlive()) return;
+      final audio = await ensureBgAudio();
+      if (audio.isBusy) return;
+      final adminUserId = prefs.getInt(StaffEmergencyAudioService.audioAdminUserIdKey) ?? 0;
+      final channelId =
+          prefs.getString(StaffEmergencyAudioService.audioChannelIdKey) ??
+              'emergency_audio_channel';
+      final sessionId =
+          prefs.getString(StaffEmergencyAudioService.audioSessionIdKey) ?? '';
+      if (adminUserId > 0) {
+        await audio.startAudioStream(
+          adminUserId: adminUserId,
+          channelId: channelId,
+          sessionId: sessionId,
+        );
+      } else {
+        await audio.consumePendingCommand();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[StaffLocationBg] takeover audio: $e');
+      }
+    }
+  }
+
   service.on('emergency_audio_start').listen((event) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(StaffEmergencyAudioService.audioFgWantedKey, true);
+      await prefs.setInt(
+        StaffEmergencyAudioService.audioAdminUserIdKey,
+        int.tryParse('${event?['admin_user_id']}') ?? 0,
+      );
+      await prefs.setString(
+        StaffEmergencyAudioService.audioChannelIdKey,
+        '${event?['channel_id'] ?? 'emergency_audio_channel'}',
+      );
+      await prefs.setString(
+        StaffEmergencyAudioService.audioSessionIdKey,
+        '${event?['session_id'] ?? ''}',
+      );
       await prefs.setString(
         StaffEmergencyAudioService.pendingCommandKey,
         jsonEncode({
@@ -642,9 +694,10 @@ void staffLocationBgOnStart(ServiceInstance service) async {
           'at': DateTime.now().millisecondsSinceEpoch,
         }),
       );
-      if (!await StaffEmergencyAudioService.isUiIsolateAlive()) {
-        await AppWakeService.bringToForeground();
+      if (await StaffEmergencyAudioService.isUiIsolateAlive()) {
+        return;
       }
+      await takeoverAudioIfUiDead();
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[StaffLocationBg] emergency_audio_start: $e');
@@ -657,6 +710,7 @@ void staffLocationBgOnStart(ServiceInstance service) async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(StaffEmergencyAudioService.audioFgWantedKey, false);
       await prefs.remove(StaffEmergencyAudioService.pendingCommandKey);
+      await bgAudioService?.stopAudioStream();
     } catch (_) {}
   });
 
@@ -691,9 +745,14 @@ void staffLocationBgOnStart(ServiceInstance service) async {
   });
 
   await syncConfigAndHeartbeat();
+  unawaited(takeoverAudioIfUiDead());
 
-  // Watchdog kiểm tra định kỳ mỗi 30s
-  watchdogTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-    syncConfigAndHeartbeat();
+  var tick = 0;
+  watchdogTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    unawaited(takeoverAudioIfUiDead());
+    tick++;
+    if (tick % 15 == 0) {
+      syncConfigAndHeartbeat();
+    }
   });
 }

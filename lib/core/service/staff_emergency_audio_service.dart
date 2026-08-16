@@ -23,6 +23,10 @@ class StaffEmergencyAudioService extends GetxService
   static const String audioFgWantedKey = 'staff_audio_fg_wanted';
   static const String uiHeartbeatKey = 'staff_audio_ui_heartbeat_ms';
   static const int uiHeartbeatStaleMs = 8000;
+  static const String uiActivityAliveKey = 'staff_ui_activity_alive';
+  static const String audioAdminUserIdKey = 'staff_audio_admin_user_id';
+  static const String audioChannelIdKey = 'staff_audio_channel_id';
+  static const String audioSessionIdKey = 'staff_audio_session_id';
 
   StaffEmergencyAudioService({this.runInForegroundService = false});
 
@@ -69,6 +73,11 @@ class StaffEmergencyAudioService extends GetxService
     return this;
   }
 
+  Future<StaffEmergencyAudioService> initBackgroundSignaling() async {
+    _startPeriodicSignalPolling();
+    return this;
+  }
+
   void _startUiHeartbeat() {
     if (runInForegroundService) return;
     _uiHeartbeatTimer?.cancel();
@@ -89,10 +98,15 @@ class StaffEmergencyAudioService extends GetxService
     } catch (_) {}
   }
 
+  bool get isBusy => _startInFlight || isStreaming;
+
   static Future<bool> isUiIsolateAlive() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
+      final activityAlive = prefs.getBool(uiActivityAliveKey);
+      if (activityAlive == false) return false;
+      if (activityAlive == true) return true;
       final ms = prefs.getInt(uiHeartbeatKey) ?? 0;
       if (ms <= 0) return false;
       return DateTime.now().millisecondsSinceEpoch - ms < uiHeartbeatStaleMs;
@@ -116,10 +130,20 @@ class StaffEmergencyAudioService extends GetxService
         state == AppLifecycleState.hidden) {
       _keepMicrophoneAliveInBackground();
     } else if (state == AppLifecycleState.resumed) {
+      unawaited(_setActivityAlive(true));
       _startUiHeartbeat();
       unawaited(consumePendingCommand());
       unawaited(_reenableLocalTracks());
+    } else if (state == AppLifecycleState.detached) {
+      unawaited(_setActivityAlive(false));
     }
+  }
+
+  Future<void> _setActivityAlive(bool alive) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(uiActivityAliveKey, alive);
+    } catch (_) {}
   }
 
   Future<void> _keepMicrophoneAliveInBackground() async {
@@ -151,7 +175,9 @@ class StaffEmergencyAudioService extends GetxService
     _uiHeartbeatTimer?.cancel();
     _signalPollTimer?.cancel();
     _sseClient?.close();
-    stopAudioStream();
+    if (runInForegroundService) {
+      unawaited(stopAudioStream(clearWanted: false));
+    }
     super.onClose();
   }
 
@@ -164,6 +190,11 @@ class StaffEmergencyAudioService extends GetxService
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(audioFgWantedKey, action == 'start');
+    if (action == 'start') {
+      await prefs.setInt(audioAdminUserIdKey, adminUserId);
+      await prefs.setString(audioChannelIdKey, channelId);
+      await prefs.setString(audioSessionIdKey, sessionId);
+    }
     await prefs.setString(
       pendingCommandKey,
       jsonEncode({
@@ -502,7 +533,7 @@ class StaffEmergencyAudioService extends GetxService
 
     try {
       if (_peerConnection != null || _localStream != null) {
-        await stopAudioStream();
+        await stopAudioStream(clearWanted: false);
         await Future.delayed(const Duration(milliseconds: 250));
         _currentAdminUserId = adminUserId;
         _currentChannelId = channelId;
@@ -513,6 +544,12 @@ class StaffEmergencyAudioService extends GetxService
       _currentAdminUserId = adminUserId;
       _currentChannelId = channelId;
       _currentSessionId = sessionId;
+      await _persistAudioTarget(
+        adminUserId: adminUserId,
+        channelId: channelId,
+        sessionId: sessionId,
+        wanted: true,
+      );
 
       if (runInForegroundService && !await isUiIsolateAlive()) {
         await AppWakeService.bringToForeground();
@@ -646,7 +683,7 @@ class StaffEmergencyAudioService extends GetxService
       _log('Error starting WebRTC Audio Stream: $e');
       await _showOpenAppNotification(
           'Không lấy được micro khi app chạy nền. Hãy mở lại app ChanHung ERP.');
-      await stopAudioStream();
+      await stopAudioStream(clearWanted: false);
       return false;
     } finally {
       _startInFlight = false;
@@ -726,13 +763,30 @@ class StaffEmergencyAudioService extends GetxService
     }
   }
 
-  /// Dừng phát âm thanh và dọn dẹp kết nối
-  Future<void> stopAudioStream() async {
-    _log('Stopping WebRTC Audio Stream');
+  Future<void> _persistAudioTarget({
+    required int adminUserId,
+    required String channelId,
+    required String sessionId,
+    required bool wanted,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(audioFgWantedKey, false);
+      await prefs.setBool(audioFgWantedKey, wanted);
+      await prefs.setInt(audioAdminUserIdKey, adminUserId);
+      await prefs.setString(audioChannelIdKey, channelId);
+      await prefs.setString(audioSessionIdKey, sessionId);
     } catch (_) {}
+  }
+
+  /// Dừng phát âm thanh và dọn dẹp kết nối
+  Future<void> stopAudioStream({bool clearWanted = true}) async {
+    _log('Stopping WebRTC Audio Stream');
+    if (clearWanted) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(audioFgWantedKey, false);
+      } catch (_) {}
+    }
     try {
       await WakelockPlus.disable();
     } catch (_) {}
