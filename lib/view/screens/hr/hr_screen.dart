@@ -163,17 +163,20 @@ class _HrQuickActions extends StatelessWidget {
           ],
         ),
         const SizedBox(height: Dimensions.space10),
-        Row(
-          children: actions
-              .map((a) => Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        right: actions.last == a ? 0 : Dimensions.space10,
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: actions
+                .map((a) => Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: actions.last == a ? 0 : Dimensions.space10,
+                        ),
+                        child: _QuickActionCard(action: a),
                       ),
-                      child: _QuickActionCard(action: a),
-                    ),
-                  ))
-              .toList(),
+                    ))
+                .toList(),
+          ),
         ),
       ],
     );
@@ -203,14 +206,16 @@ class _QuickActionCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => Get.toNamed(action.route),
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(
-            vertical: Dimensions.space15, horizontal: Dimensions.space10),
+            vertical: Dimensions.space15, horizontal: Dimensions.space8),
         decoration: BoxDecoration(
           color: action.color.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(Dimensions.cardRadius + 2),
           border: Border.all(color: action.color.withValues(alpha: 0.20)),
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               width: 44,
@@ -222,12 +227,18 @@ class _QuickActionCard extends StatelessWidget {
               child: Icon(action.icon, color: action.color, size: 22),
             ),
             const SizedBox(height: Dimensions.space7),
-            Text(
-              action.label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: regularSmall.copyWith(color: action.color),
+            SizedBox(
+              height: Dimensions.fontSmall * 2.6,
+              child: Text(
+                action.label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: regularSmall.copyWith(
+                  color: action.color,
+                  height: 1.25,
+                ),
+              ),
             ),
           ],
         ),
