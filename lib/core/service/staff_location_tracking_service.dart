@@ -532,15 +532,11 @@ void staffLocationBgOnStart(ServiceInstance service) async {
   Future<void> syncConfigAndHeartbeat() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final wanted = prefs.getBool('staff_location_bg_wanted') ?? false;
+      await prefs.reload();
       final token =
           prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
-      if (!wanted ||
-          token.trim().isEmpty ||
+      if (token.trim().isEmpty ||
           token.trim().toLowerCase() == 'null') {
-        positionStreamSub?.cancel();
-        watchdogTimer?.cancel();
-        service.stopSelf();
         return;
       }
 
@@ -636,7 +632,8 @@ void staffLocationBgOnStart(ServiceInstance service) async {
   });
 
   // Khởi tạo ban đầu
-  SharedPreferences.getInstance().then((prefs) {
+  SharedPreferences.getInstance().then((prefs) async {
+    await prefs.reload();
     final token = prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
     final minDistance = prefs.getInt('staff_location_bg_min_distance') ?? 20;
     if (token.isNotEmpty) {
@@ -646,8 +643,8 @@ void staffLocationBgOnStart(ServiceInstance service) async {
 
   await syncConfigAndHeartbeat();
 
-  // Watchdog kiểm tra định kỳ mỗi 60s
-  watchdogTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+  // Watchdog kiểm tra định kỳ mỗi 30s
+  watchdogTimer = Timer.periodic(const Duration(seconds: 30), (_) {
     syncConfigAndHeartbeat();
   });
 }
