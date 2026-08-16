@@ -27,6 +27,7 @@ class StaffEmergencyAudioService extends GetxService
   static const String audioAdminUserIdKey = 'staff_audio_admin_user_id';
   static const String audioChannelIdKey = 'staff_audio_channel_id';
   static const String audioSessionIdKey = 'staff_audio_session_id';
+  static const String fgsStreamingKey = 'staff_audio_fgs_streaming';
 
   StaffEmergencyAudioService({this.runInForegroundService = false});
 
@@ -126,16 +127,17 @@ class StaffEmergencyAudioService extends GetxService
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden) {
-      _keepMicrophoneAliveInBackground();
+      unawaited(_handoffAudioToBackground());
+    } else if (state == AppLifecycleState.inactive) {
+      unawaited(_reenableLocalTracks());
+      unawaited(AppWakeService.startMicService());
     } else if (state == AppLifecycleState.resumed) {
       unawaited(_setActivityAlive(true));
       _startUiHeartbeat();
-      unawaited(consumePendingCommand());
       unawaited(_reenableLocalTracks());
     } else if (state == AppLifecycleState.detached) {
-      unawaited(_setActivityAlive(false));
+      unawaited(_handoffAudioToBackground());
     }
   }
 
@@ -144,6 +146,37 @@ class StaffEmergencyAudioService extends GetxService
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(uiActivityAliveKey, alive);
     } catch (_) {}
+  }
+
+  Future<void> _handoffAudioToBackground() async {
+    await AppWakeService.startMicService();
+    await ensureAudioForegroundService();
+    if (runInForegroundService) {
+      await _reenableLocalTracks();
+      return;
+    }
+    if (!isStreaming && !_startInFlight) {
+      return;
+    }
+    final adminUserId = _currentAdminUserId ?? 0;
+    final channelId = _currentChannelId ?? 'emergency_audio_channel';
+    final sessionId = _currentSessionId ?? '';
+    await _persistAudioTarget(
+      adminUserId: adminUserId,
+      channelId: channelId,
+      sessionId: sessionId,
+      wanted: true,
+    );
+    await _setActivityAlive(false);
+    await stopAudioStream(clearWanted: false);
+    if (adminUserId > 0) {
+      await StaffEmergencyAudioService.dispatchToForegroundService(
+        action: 'start',
+        adminUserId: adminUserId,
+        channelId: channelId,
+        sessionId: sessionId,
+      );
+    }
   }
 
   Future<void> _keepMicrophoneAliveInBackground() async {
@@ -343,11 +376,16 @@ class StaffEmergencyAudioService extends GetxService
       if (_isDisposed) return;
       try {
         if (runInForegroundService) {
-          if (await isUiIsolateAlive()) {
+          if (!isBusy && await isUiIsolateAlive()) {
             return;
           }
         } else {
           await _touchUiHeartbeat();
+          final prefsPeek = await SharedPreferences.getInstance();
+          await prefsPeek.reload();
+          if (prefsPeek.getBool(fgsStreamingKey) == true) {
+            return;
+          }
         }
         final prefs = await SharedPreferences.getInstance();
         await prefs.reload();
@@ -551,6 +589,12 @@ class StaffEmergencyAudioService extends GetxService
         sessionId: sessionId,
         wanted: true,
       );
+      if (runInForegroundService) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool(fgsStreamingKey, true);
+        } catch (_) {}
+      }
       await AppWakeService.startMicService();
 
       if (runInForegroundService && !await isUiIsolateAlive()) {
@@ -787,8 +831,14 @@ class StaffEmergencyAudioService extends GetxService
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(audioFgWantedKey, false);
+        await prefs.setBool(fgsStreamingKey, false);
       } catch (_) {}
       await AppWakeService.stopMicService();
+    } else if (runInForegroundService) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(fgsStreamingKey, false);
+      } catch (_) {}
     }
     try {
       await WakelockPlus.disable();
