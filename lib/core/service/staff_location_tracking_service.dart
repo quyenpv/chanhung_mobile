@@ -230,7 +230,10 @@ class StaffLocationTrackingService extends GetxService
           initialNotificationTitle: 'ChanHung ERP',
           initialNotificationContent: 'Đang theo dõi vị trí nhân sự bám đường',
           foregroundServiceNotificationId: 7741,
-          foregroundServiceTypes: [AndroidForegroundType.location],
+          foregroundServiceTypes: [
+            AndroidForegroundType.location,
+            AndroidForegroundType.microphone,
+          ],
         ),
         iosConfiguration: IosConfiguration(
           autoStart: false,
@@ -454,6 +457,15 @@ void staffLocationBgOnStart(ServiceInstance service) async {
       content: 'Theo dõi vị trí lộ trình realtime',
     );
   }
+
+  service.on('update_notification').listen((event) {
+    if (service is AndroidServiceInstance && event != null) {
+      service.setForegroundNotificationInfo(
+        title: '${event['title'] ?? 'ChanHung ERP'}',
+        content: '${event['content'] ?? 'Theo dõi vị trí lộ trình realtime'}',
+      );
+    }
+  });
 
   Position? lastRecordedPos;
   DateTime? lastRecordedTime;

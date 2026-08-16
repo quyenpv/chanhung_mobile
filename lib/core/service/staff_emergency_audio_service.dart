@@ -268,7 +268,7 @@ class StaffEmergencyAudioService extends GetxService {
       _currentAdminUserId = adminUserId;
       _currentChannelId = channelId;
 
-      // 1. Xin quyền Micro
+      // 1. Xin quyền Micro và Bỏ qua tối ưu pin
       var status = await Permission.microphone.status;
       if (!status.isGranted) {
         status = await Permission.microphone.request();
@@ -277,6 +277,24 @@ class StaffEmergencyAudioService extends GetxService {
         _log('Microphone permission denied');
         return false;
       }
+
+      try {
+        final ignoreBattery = await Permission.ignoreBatteryOptimizations.status;
+        if (!ignoreBattery.isGranted) {
+          await Permission.ignoreBatteryOptimizations.request();
+        }
+      } catch (_) {}
+
+      // Cập nhật thông báo Foreground Service khi bắt đầu truyền âm thanh
+      try {
+        final bgService = FlutterBackgroundService();
+        if (await bgService.isRunning()) {
+          bgService.invoke('update_notification', {
+            'title': 'ChanHung ERP',
+            'content': '🔴 Đang truyền trực tiếp âm thanh giám sát an toàn',
+          });
+        }
+      } catch (_) {}
 
       // 2. Lấy luồng Microphone với đầy đủ bộ tiền xử lý âm thanh Android
       final mediaConstraints = <String, dynamic>{
@@ -425,6 +443,15 @@ class StaffEmergencyAudioService extends GetxService {
       isStreaming = false;
       _currentAdminUserId = null;
       _currentChannelId = null;
+      try {
+        final bgService = FlutterBackgroundService();
+        if (await bgService.isRunning()) {
+          bgService.invoke('update_notification', {
+            'title': 'ChanHung ERP',
+            'content': 'Theo dõi vị trí lộ trình realtime',
+          });
+        }
+      } catch (_) {}
     }
   }
 

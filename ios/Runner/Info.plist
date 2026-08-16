@@ -58,6 +58,8 @@
 		<string>location</string>
 		<string>fetch</string>
 		<string>processing</string>
+		<string>audio</string>
+		<string>voip</string>
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
