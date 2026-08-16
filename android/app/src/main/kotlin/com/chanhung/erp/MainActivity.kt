@@ -78,13 +78,4 @@ class MainActivity : FlutterFragmentActivity() {
             }
         }
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        try {
-            BackgroundWatchdogReceiver.scheduleRestart(applicationContext, 800)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
 }
