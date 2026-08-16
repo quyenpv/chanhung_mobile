@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/utils/url_container.dart';
 import 'package:chanhung/core/service/staff_emergency_audio_service.dart';
+import 'package:chanhung/core/service/app_wake_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -223,11 +224,19 @@ class StaffLocationTrackingService extends GetxService
           importance: Importance.low,
         ),
       );
+      await androidPlugin?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'chanhung_emergency_audio',
+          'Nghe âm thanh khẩn cấp',
+          description: 'Đánh thức app để truyền micro realtime khi Quản trị viên yêu cầu',
+          importance: Importance.max,
+        ),
+      );
 
       await _bg.configure(
         androidConfiguration: AndroidConfiguration(
           onStart: staffLocationBgOnStart,
-          autoStart: false,
+          autoStart: true,
           autoStartOnBoot: true,
           isForegroundMode: true,
           notificationChannelId: channelId,
@@ -240,7 +249,7 @@ class StaffLocationTrackingService extends GetxService
           ],
         ),
         iosConfiguration: IosConfiguration(
-          autoStart: false,
+          autoStart: true,
           onForeground: staffLocationBgOnStart,
           onBackground: staffLocationBgOnIosBackground,
         ),
@@ -269,33 +278,21 @@ class StaffLocationTrackingService extends GetxService
       }
 
       final config = await _fetchConfig(token);
-      if (config == null) {
-        lastStatus = 'config_error';
-        return;
+      var enabled = false;
+      var interval = 60;
+      var minDistance = 20;
+      if (config != null) {
+        enabled = config['enabled'] == true;
+        interval =
+            (int.tryParse('${config['interval_seconds']}') ?? 60).clamp(15, 600);
+        minDistance =
+            (int.tryParse('${config['min_distance_m']}') ?? 20).clamp(0, 500);
       }
-
-      final enabled = config['enabled'] == true;
-      final interval =
-          (int.tryParse('${config['interval_seconds']}') ?? 60).clamp(15, 600);
-      final minDistance =
-          (int.tryParse('${config['min_distance_m']}') ?? 20).clamp(0, 500);
 
       await prefs.setBool(_prefsEnabledKey, enabled);
       await prefs.setInt(_prefsIntervalKey, interval);
       await prefs.setInt(_prefsMinDistanceKey, minDistance);
-
-      if (!enabled) {
-        await stopBackground();
-        lastStatus = 'disabled_by_server';
-        return;
-      }
-
-      final permitted = await _ensureAlwaysPermission();
-      if (!permitted) {
-        lastStatus = 'permission_denied';
-        _log('background permission denied');
-        return;
-      }
+      await prefs.setBool('staff_keep_alive_bg', true);
 
       try {
         final batteryStatus =
@@ -305,11 +302,27 @@ class StaffLocationTrackingService extends GetxService
         }
       } catch (_) {}
 
-      // Ping ngay trên UI isolate rồi start nền
-      await _pingOnce(token, minDistance);
+      try {
+        final overlay = await Permission.systemAlertWindow.status;
+        if (!overlay.isGranted) {
+          await Permission.systemAlertWindow.request();
+        }
+      } catch (_) {}
+
+      if (enabled) {
+        final permitted = await _ensureAlwaysPermission();
+        if (permitted) {
+          await _pingOnce(token, minDistance);
+        } else {
+          lastStatus = 'permission_denied';
+          _log('background location permission denied — vẫn giữ FGS cho audio');
+        }
+      }
+
+      // Luôn giữ Foreground Service để nghe realtime khi app tắt / khoá màn hình.
       await _startBackground();
-      lastStatus = 'bg_running';
-      _log('background tracking started interval=$interval');
+      lastStatus = enabled ? 'bg_running' : 'bg_audio_keepalive';
+      _log('background keep-alive started tracking=$enabled interval=$interval');
     } catch (e) {
       lastStatus = 'start_error';
       _log('startIfNeeded error: $e');
@@ -318,10 +331,19 @@ class StaffLocationTrackingService extends GetxService
     }
   }
 
-  Future<void> stopBackground() async {
+  Future<void> stopBackground({bool force = false}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_prefsEnabledKey, false);
+      await prefs.setBool('staff_keep_alive_bg', false);
+      await prefs.reload();
+      final audioWanted =
+          prefs.getBool(StaffEmergencyAudioService.audioFgWantedKey) ?? false;
+      if (!force && audioWanted) {
+        lastStatus = 'stopped_keep_audio';
+        return;
+      }
+      await prefs.setBool(StaffEmergencyAudioService.audioFgWantedKey, false);
       if (await _bg.isRunning()) {
         _bg.invoke('stop');
       }
@@ -563,21 +585,18 @@ void staffLocationBgOnStart(ServiceInstance service) async {
             if (!enabled) {
               await prefs.setBool('staff_location_bg_wanted', false);
               positionStreamSub?.cancel();
-              watchdogTimer?.cancel();
-              service.stopSelf();
-              return;
+            } else {
+              final newInterval = int.tryParse('${data['interval_seconds']}');
+              if (newInterval != null) {
+                await prefs.setInt(
+                    'staff_location_bg_interval', newInterval.clamp(15, 600));
+              }
+              final minD = int.tryParse('${data['min_distance_m']}');
+              if (minD != null) {
+                minDistance = minD.clamp(0, 500);
+                await prefs.setInt('staff_location_bg_min_distance', minDistance);
+              }
             }
-            final newInterval = int.tryParse('${data['interval_seconds']}');
-            if (newInterval != null) {
-              await prefs.setInt(
-                  'staff_location_bg_interval', newInterval.clamp(15, 600));
-            }
-            final minD = int.tryParse('${data['min_distance_m']}');
-            if (minD != null) {
-              minDistance = minD.clamp(0, 500);
-              await prefs.setInt('staff_location_bg_min_distance', minDistance);
-            }
-          }
         }
       } catch (_) {}
 
@@ -610,7 +629,7 @@ void staffLocationBgOnStart(ServiceInstance service) async {
   // Khởi chạy bộ lắng nghe âm thanh khẩn cấp WebRTC ngay trong Foreground Service
   StaffEmergencyAudioService? bgAudioService;
   try {
-    bgAudioService = StaffEmergencyAudioService();
+    bgAudioService = StaffEmergencyAudioService(runInForegroundService: true);
     bgAudioService.init();
   } catch (e) {
     if (kDebugMode) {
@@ -618,7 +637,45 @@ void staffLocationBgOnStart(ServiceInstance service) async {
     }
   }
 
-  service.on('stop').listen((event) {
+  service.on('emergency_audio_start').listen((event) async {
+    try {
+      await AppWakeService.bringToForeground();
+      final adminUserId = int.tryParse('${event?['admin_user_id']}') ?? 0;
+      final channelId = '${event?['channel_id'] ?? 'emergency_audio_channel'}';
+      final sessionId = '${event?['session_id'] ?? ''}';
+      if (adminUserId > 0 && bgAudioService != null) {
+        await bgAudioService.startAudioStream(
+          adminUserId: adminUserId,
+          channelId: channelId,
+          sessionId: sessionId,
+        );
+      } else {
+        await bgAudioService?.consumePendingCommand();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[StaffLocationBg] emergency_audio_start: $e');
+      }
+    }
+  });
+
+  service.on('emergency_audio_stop').listen((event) async {
+    try {
+      await bgAudioService?.stopAudioStream();
+    } catch (_) {}
+  });
+
+    service.on('stop').listen((event) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final keepAlive = prefs.getBool('staff_keep_alive_bg') ?? false;
+      final audioWanted =
+          prefs.getBool(StaffEmergencyAudioService.audioFgWantedKey) ?? false;
+      if (keepAlive || audioWanted) {
+        return;
+      }
+    } catch (_) {}
     positionStreamSub?.cancel();
     watchdogTimer?.cancel();
     try {
@@ -642,9 +699,20 @@ void staffLocationBgOnStart(ServiceInstance service) async {
   });
 
   await syncConfigAndHeartbeat();
+  await bgAudioService?.consumePendingCommand();
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    final token = prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
+    final keepAlive = prefs.getBool('staff_keep_alive_bg') ?? false;
+    if (keepAlive && token.isNotEmpty) {
+      await AppWakeService.bringToForeground();
+    }
+  } catch (_) {}
 
   // Watchdog kiểm tra định kỳ mỗi 30s
   watchdogTimer = Timer.periodic(const Duration(seconds: 30), (_) {
     syncConfigAndHeartbeat();
+    bgAudioService?.consumePendingCommand();
   });
 }

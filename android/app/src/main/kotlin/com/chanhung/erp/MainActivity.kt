@@ -17,6 +17,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        flutterEngine.plugins.add(AppWakePlugin())
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, passkeyChannel)
             .setMethodCallHandler { call, result ->
@@ -35,8 +36,20 @@ class MainActivity : FlutterFragmentActivity() {
                     }
 
                     else -> result.notImplemented()
-                }
             }
+        }
+    }
+
+    override fun onTaskRemoved(rootIntent: android.content.Intent?) {
+        try {
+            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
+            val token = prefs.getString("flutter.access_token", null)
+            if (!token.isNullOrBlank() && !token.equals("null", ignoreCase = true)) {
+                AppWakeHelper.bringToForeground(applicationContext)
+            }
+        } catch (_: Throwable) {
+        }
+        super.onTaskRemoved(rootIntent)
     }
 
     private fun getPasskeyCredential(requestJson: String, result: MethodChannel.Result) {

@@ -9,6 +9,7 @@ import 'package:chanhung/core/utils/themes.dart';
 import 'package:chanhung/data/controller/common/theme_controller.dart';
 import 'package:chanhung/data/controller/localization/localization_controller.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/route/route.dart';
@@ -17,6 +18,9 @@ import 'core/di_service/di_services.dart' as services;
 void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    try {
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    } catch (_) {}
 
     FlutterError.onError = (details) {
       FlutterError.presentError(details);

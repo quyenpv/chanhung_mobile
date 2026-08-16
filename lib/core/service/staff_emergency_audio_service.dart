@@ -1,28 +1,44 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:get/get.dart' hide navigator;
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
+import 'package:chanhung/core/service/app_wake_service.dart';
 import 'package:chanhung/core/utils/url_container.dart';
 
 /// Dịch vụ WebRTC Live Audio Stream phục vụ giám sát nghe âm thanh khẩn cấp từ Web Admin.
-class StaffEmergencyAudioService extends GetxService {
+/// Micro được giữ bởi Foreground Service (location|microphone) để vẫn chạy khi khoá màn hình.
+class StaffEmergencyAudioService extends GetxService
+    with WidgetsBindingObserver {
+  static const String pendingCommandKey = 'pending_emergency_audio_cmd_v1';
+  static const String audioFgWantedKey = 'staff_audio_fg_wanted';
+
+  StaffEmergencyAudioService({this.runInForegroundService = false});
+
+  final bool runInForegroundService;
+
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
   bool isStreaming = false;
   int? _currentAdminUserId;
   String? _currentChannelId;
+  String? _currentSessionId;
 
   String? _realtimeToken;
   String? _realtimeEventsPath;
   http.Client? _sseClient;
   bool _isDisposed = false;
   bool _isConnectingSse = false;
+  bool _observingLifecycle = false;
   Timer? _signalPollTimer;
 
   String get _signalGatewayUrl =>
@@ -30,6 +46,7 @@ class StaffEmergencyAudioService extends GetxService {
 
   Future<StaffEmergencyAudioService> init() async {
     _log('StaffEmergencyAudioService init() called');
+    _ensureLifecycleObserver();
     try {
       final micStatus = await Permission.microphone.status;
       if (!micStatus.isGranted) {
@@ -38,18 +55,156 @@ class StaffEmergencyAudioService extends GetxService {
         } catch (_) {}
       }
     } catch (_) {}
+    await ensureAudioForegroundService();
+    await Future.delayed(const Duration(milliseconds: 400));
+    await consumePendingCommand();
+
+    if (!runInForegroundService) {
+      try {
+        if (await FlutterBackgroundService().isRunning()) {
+          _log('FGS đang chạy — UI không poll signaling để tránh nuốt SDP');
+          return this;
+        }
+      } catch (_) {}
+    }
+
     _startRealtimeSseLoop();
     _startPeriodicSignalPolling();
     return this;
   }
 
+  void _ensureLifecycleObserver() {
+    if (_observingLifecycle) return;
+    try {
+      WidgetsBinding.instance.addObserver(this);
+      _observingLifecycle = true;
+    } catch (_) {}
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      _keepMicrophoneAliveInBackground();
+    } else if (state == AppLifecycleState.resumed) {
+      unawaited(consumePendingCommand());
+      unawaited(_reenableLocalTracks());
+    }
+  }
+
+  Future<void> _keepMicrophoneAliveInBackground() async {
+    await _reenableLocalTracks();
+    try {
+      await WakelockPlus.enable();
+    } catch (_) {}
+    await ensureAudioForegroundService();
+  }
+
+  Future<void> _reenableLocalTracks() async {
+    try {
+      if (_localStream == null) return;
+      for (final track in _localStream!.getAudioTracks()) {
+        track.enabled = true;
+      }
+    } catch (_) {}
+  }
+
   @override
   void onClose() {
     _isDisposed = true;
+    if (_observingLifecycle) {
+      try {
+        WidgetsBinding.instance.removeObserver(this);
+      } catch (_) {}
+      _observingLifecycle = false;
+    }
     _signalPollTimer?.cancel();
     _sseClient?.close();
     stopAudioStream();
     super.onClose();
+  }
+
+  /// Đánh thức Foreground Service và gửi lệnh start/stop (dùng từ UI isolate hoặc FCM).
+  static Future<void> dispatchToForegroundService({
+    required String action,
+    int adminUserId = 0,
+    String channelId = '',
+    String sessionId = '',
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(audioFgWantedKey, action == 'start');
+    await prefs.setString(
+      pendingCommandKey,
+      jsonEncode({
+        'action': action,
+        'admin_user_id': adminUserId,
+        'channel_id': channelId,
+        'session_id': sessionId,
+        'at': DateTime.now().millisecondsSinceEpoch,
+      }),
+    );
+
+    final bg = FlutterBackgroundService();
+    try {
+      if (!await bg.isRunning()) {
+        await bg.startService();
+        await Future.delayed(const Duration(milliseconds: 800));
+      }
+      bg.invoke(action == 'stop' ? 'emergency_audio_stop' : 'emergency_audio_start', {
+        'admin_user_id': adminUserId,
+        'channel_id': channelId,
+        'session_id': sessionId,
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[StaffEmergencyAudioService] dispatch FGS error: $e');
+      }
+    }
+  }
+
+  Future<void> consumePendingCommand() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final raw = prefs.getString(pendingCommandKey);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final at = int.tryParse('${decoded['at']}') ?? 0;
+      if (at > 0 &&
+          DateTime.now().millisecondsSinceEpoch - at > 120000) {
+        await prefs.remove(pendingCommandKey);
+        return;
+      }
+      await prefs.remove(pendingCommandKey);
+      final action = '${decoded['action'] ?? ''}';
+      if (action == 'stop') {
+        await stopAudioStream();
+        return;
+      }
+      final adminUserId = int.tryParse('${decoded['admin_user_id']}') ?? 0;
+      final channelId = '${decoded['channel_id'] ?? ''}';
+      final sessionId = '${decoded['session_id'] ?? ''}';
+      if (adminUserId > 0) {
+        await startAudioStream(
+          adminUserId: adminUserId,
+          channelId: channelId.isEmpty ? 'emergency_audio_channel' : channelId,
+          sessionId: sessionId,
+        );
+      }
+    } catch (e) {
+      _log('consumePendingCommand error: $e');
+    }
+  }
+
+  static Future<void> ensureAudioForegroundService() async {
+    try {
+      final bg = FlutterBackgroundService();
+      if (!await bg.isRunning()) {
+        await bg.startService();
+      }
+    } catch (_) {}
   }
 
   /// Lắng nghe SSE từ Gateway để nhận lệnh `emergency_audio.start` từ Admin
@@ -147,19 +302,7 @@ class StaffEmergencyAudioService extends GetxService {
                 final sigData = item['data'];
                 if (sigData is Map) {
                   final mapData = Map<String, dynamic>.from(sigData);
-                  if (ev == 'emergency_audio.start') {
-                    final adminUserId = int.tryParse('${mapData['admin_user_id']}') ?? 0;
-                    final channelId = '${mapData['channel_id'] ?? 'emergency_audio_channel'}';
-                    if (adminUserId > 0) {
-                      await startAudioStream(adminUserId: adminUserId, channelId: channelId);
-                    }
-                  } else if (ev == 'emergency_audio.stop') {
-                    await stopAudioStream();
-                  } else if (ev == 'webrtc_answer') {
-                    await handleAnswer(mapData);
-                  } else if (ev == 'webrtc_ice_candidate') {
-                    await handleRemoteCandidate(mapData);
-                  }
+                  await _handleCommandEvent(ev, mapData);
                 }
               }
             }
@@ -169,37 +312,34 @@ class StaffEmergencyAudioService extends GetxService {
     });
   }
 
+  Future<void> _handleCommandEvent(String? ev, Map<String, dynamic> mapData) async {
+    if (ev == 'emergency_audio.start') {
+      final adminUserId = int.tryParse('${mapData['admin_user_id']}') ?? 0;
+      final channelId = '${mapData['channel_id'] ?? 'emergency_audio_channel'}';
+      final sessionId = '${mapData['session_id'] ?? ''}';
+      if (adminUserId > 0) {
+        await startAudioStream(
+          adminUserId: adminUserId,
+          channelId: channelId,
+          sessionId: sessionId,
+        );
+      }
+    } else if (ev == 'emergency_audio.stop') {
+      await stopAudioStream();
+    } else if (ev == 'webrtc_answer') {
+      await handleAnswer(mapData);
+    } else if (ev == 'webrtc_ice_candidate') {
+      await handleRemoteCandidate(mapData);
+    }
+  }
+
   /// Xử lý các sự kiện nhận được từ SSE Gateway
   void _handleSseEvent(String? event, String dataStr) {
     try {
       _log('Received SSE Event: $event -> $dataStr');
       final Map<String, dynamic> data =
           dataStr.isNotEmpty ? jsonDecode(dataStr) : {};
-
-      switch (event) {
-        case 'emergency_audio.start':
-          final adminUserId = int.tryParse('${data['admin_user_id']}') ?? 0;
-          final channelId = '${data['channel_id'] ?? 'emergency_audio_channel'}';
-          if (adminUserId > 0) {
-            startAudioStream(adminUserId: adminUserId, channelId: channelId);
-          }
-          break;
-
-        case 'emergency_audio.stop':
-          stopAudioStream();
-          break;
-
-        case 'webrtc_answer':
-          handleAnswer(data);
-          break;
-
-        case 'webrtc_ice_candidate':
-          handleRemoteCandidate(data);
-          break;
-
-        default:
-          break;
-      }
+      unawaited(_handleCommandEvent(event, data));
     } catch (e) {
       _log('Error handling SSE event: $e');
     }
@@ -238,7 +378,7 @@ class StaffEmergencyAudioService extends GetxService {
               ? json['data']
               : (json is Map ? json : null);
           if (dataObj != null && dataObj['realtime'] is Map) {
-            final rt = dataObj['realtime'] as Map<String, dynamic>;
+            final rt = Map<String, dynamic>.from(dataObj['realtime'] as Map);
             _realtimeToken = rt['token']?.toString();
             _realtimeEventsPath = rt['events_path']?.toString();
 
@@ -260,26 +400,75 @@ class StaffEmergencyAudioService extends GetxService {
     }
   }
 
+  Future<void> _configureNativeAudio() async {
+    try {
+      await WebRTC.initialize();
+    } catch (_) {}
+    try {
+      if (Platform.isAndroid) {
+        await Helper.setAndroidAudioConfiguration(
+          AndroidAudioConfiguration.communication,
+        );
+      }
+    } catch (e) {
+      _log('Android audio configuration: $e');
+    }
+    try {
+      if (Platform.isIOS) {
+        await Helper.setAppleAudioIOMode(
+          AppleAudioIOMode.localAndRemote,
+          preferSpeakerOutput: false,
+        );
+      }
+    } catch (e) {
+      _log('iOS audio IO mode: $e');
+    }
+  }
+
   /// Khởi tạo luồng WebRTC Audio và kết nối tới Admin
-  Future<bool> startAudioStream(
-      {required int adminUserId, required String channelId}) async {
+  Future<bool> startAudioStream({
+    required int adminUserId,
+    required String channelId,
+    String sessionId = '',
+  }) async {
+    if (isStreaming &&
+        _peerConnection != null &&
+        _currentAdminUserId == adminUserId &&
+        (sessionId.isEmpty || sessionId == _currentSessionId)) {
+      await _reenableLocalTracks();
+      return true;
+    }
+
     if (isStreaming || _peerConnection != null || _localStream != null) {
       await stopAudioStream();
-      await Future.delayed(const Duration(milliseconds: 200));
+      await Future.delayed(const Duration(milliseconds: 250));
     }
 
     try {
       _log('Starting WebRTC Audio Stream for Admin: $adminUserId, Channel: $channelId');
       _currentAdminUserId = adminUserId;
       _currentChannelId = channelId;
+      _currentSessionId = sessionId;
 
-      // 1. Kiểm tra quyền micro an toàn (không chặn khi chạy ngầm)
+      await AppWakeService.bringToForeground();
+      await ensureAudioForegroundService();
+      await _configureNativeAudio();
+      try {
+        await WakelockPlus.enable();
+      } catch (_) {}
+
       try {
         final status = await Permission.microphone.status;
         if (!status.isGranted) {
           try {
             await Permission.microphone.request();
           } catch (_) {}
+        }
+        if (!status.isGranted &&
+            await Permission.microphone.status != PermissionStatus.granted) {
+          await _showOpenAppNotification(
+              'Cần quyền micro để truyền âm thanh khẩn cấp');
+          return false;
         }
       } catch (_) {}
 
@@ -292,25 +481,23 @@ class StaffEmergencyAudioService extends GetxService {
         }
       } catch (_) {}
 
-      // Cập nhật thông báo Foreground Service khi bắt đầu truyền âm thanh
       try {
         final bgService = FlutterBackgroundService();
         if (await bgService.isRunning()) {
           bgService.invoke('update_notification', {
             'title': 'ChanHung ERP',
-            'content': '🔴 Đang truyền trực tiếp âm thanh giám sát an toàn',
+            'content': 'Đang truyền âm thanh khẩn cấp (micro vẫn chạy khi khoá màn hình)',
           });
         }
       } catch (_) {}
 
-      // 2. Lấy luồng Microphone với đầy đủ bộ tiền xử lý âm thanh Android (kèm fallback)
       final mediaConstraints = <String, dynamic>{
         'audio': {
           'mandatory': {
-            'googEchoCancellation': 'true',
-            'googAutoGainControl': 'true',
-            'googHighpassFilter': 'true',
-            'googNoiseSuppression': 'true',
+            'googEchoCancellation': false,
+            'googAutoGainControl': true,
+            'googHighpassFilter': true,
+            'googNoiseSuppression': true,
           },
           'optional': [],
         },
@@ -333,7 +520,6 @@ class StaffEmergencyAudioService extends GetxService {
         _log('Microphone track active: ${track.id}, enabled: ${track.enabled}');
       }
 
-      // 3. Khởi tạo RTCPeerConnection với STUN server
       final configuration = <String, dynamic>{
         'iceServers': [
           {'urls': 'stun:stun.l.google.com:19302'},
@@ -346,12 +532,10 @@ class StaffEmergencyAudioService extends GetxService {
 
       _peerConnection = await createPeerConnection(configuration);
 
-      // Add local audio tracks to peer connection
       _localStream!.getTracks().forEach((track) {
         _peerConnection!.addTrack(track, _localStream!);
       });
 
-      // Lắng nghe ICE Candidates và gửi tới Admin qua Signaling Gateway
       _peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
         if (candidate.candidate != null) {
           _sendSignal(
@@ -359,6 +543,7 @@ class StaffEmergencyAudioService extends GetxService {
             event: 'webrtc_ice_candidate',
             data: {
               'channel_id': channelId,
+              'session_id': sessionId,
               'candidate': candidate.toMap(),
             },
           );
@@ -375,17 +560,16 @@ class StaffEmergencyAudioService extends GetxService {
         }
       };
 
-      // 4. Tạo SDP Offer
       final offer = await _peerConnection!.createOffer(
           {'offerToReceiveAudio': false, 'offerToReceiveVideo': false});
       await _peerConnection!.setLocalDescription(offer);
 
-      // 5. Gửi Offer SDP tới Web Admin
       await _sendSignal(
         targetUserId: adminUserId,
         event: 'webrtc_offer',
         data: {
           'channel_id': channelId,
+          'session_id': sessionId,
           'sdp': offer.sdp,
           'type': offer.type,
         },
@@ -396,8 +580,48 @@ class StaffEmergencyAudioService extends GetxService {
       return true;
     } catch (e) {
       _log('Error starting WebRTC Audio Stream: $e');
+      await _showOpenAppNotification(
+          'Không lấy được micro khi app chạy nền. Hãy mở lại app ChanHung ERP.');
       await stopAudioStream();
       return false;
+    }
+  }
+
+  Future<void> _showOpenAppNotification(String body) async {
+    try {
+      final notifications = FlutterLocalNotificationsPlugin();
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      await notifications.initialize(
+        const InitializationSettings(android: androidInit),
+      );
+      await notifications.show(
+        7752,
+        'ChanHung ERP — nghe khẩn cấp',
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'chanhung_emergency_audio',
+            'Nghe âm thanh khẩn cấp',
+            channelDescription: 'Đánh thức app để truyền micro realtime',
+            importance: Importance.max,
+            priority: Priority.max,
+            icon: '@mipmap/ic_launcher',
+            ongoing: true,
+            autoCancel: false,
+            category: AndroidNotificationCategory.call,
+            visibility: NotificationVisibility.public,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            interruptionLevel: InterruptionLevel.timeSensitive,
+          ),
+        ),
+        payload: jsonEncode({'type': 'emergency_audio', 'action': 'start'}),
+      );
+    } catch (e) {
+      _log('showOpenAppNotification error: $e');
     }
   }
 
@@ -440,6 +664,13 @@ class StaffEmergencyAudioService extends GetxService {
   Future<void> stopAudioStream() async {
     _log('Stopping WebRTC Audio Stream');
     try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(audioFgWantedKey, false);
+    } catch (_) {}
+    try {
+      await WakelockPlus.disable();
+    } catch (_) {}
+    try {
       if (_localStream != null) {
         for (final track in _localStream!.getTracks()) {
           track.stop();
@@ -459,6 +690,7 @@ class StaffEmergencyAudioService extends GetxService {
       isStreaming = false;
       _currentAdminUserId = null;
       _currentChannelId = null;
+      _currentSessionId = null;
       try {
         final bgService = FlutterBackgroundService();
         if (await bgService.isRunning()) {
@@ -484,7 +716,6 @@ class StaffEmergencyAudioService extends GetxService {
       final bearerToken =
           prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
 
-      // 1. Gửi trực tiếp tới ERP API Relay (100% tin cậy, không phụ thuộc Gateway SSE)
       try {
         final erpSignalUrl =
             Uri.parse('${UrlContainer.baseUrl}location_tracking/signal');
@@ -505,7 +736,6 @@ class StaffEmergencyAudioService extends GetxService {
         _log('ERP API signal error: $e');
       }
 
-      // 2. Gửi qua Gateway nếu có
       final token = _realtimeToken ?? '';
       if (token.isNotEmpty) {
         try {

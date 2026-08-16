@@ -343,7 +343,7 @@ class DashboardController extends GetxController {
     update();
     try {
       if (Get.isRegistered<StaffLocationTrackingService>()) {
-        Get.find<StaffLocationTrackingService>().stopBackground();
+        Get.find<StaffLocationTrackingService>().stopBackground(force: true);
       }
     } catch (_) {}
     await dashboardRepo.clearSharedPrefData();

@@ -1,7 +1,7 @@
 name: chanhung
 description: "ChanHung ERP Customer App By Branditta"
 publish_to: 'none'
-version: 1.1.67+152
+version: 1.1.68+153
 
 environment:
   sdk: ^3.5.4
@@ -52,6 +52,7 @@ dependencies:
   # WebRTC Realtime Audio Streaming
   flutter_webrtc: ^0.12.0
   permission_handler: ^11.3.1
+  wakelock_plus: ^1.2.8
 
 dev_dependencies:
   flutter_test:
