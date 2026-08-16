@@ -1,6 +1,5 @@
 package com.chanhung.erp
 
-import android.content.Intent
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetPublicKeyCredentialOption
@@ -37,20 +36,8 @@ class MainActivity : FlutterFragmentActivity() {
                     }
 
                     else -> result.notImplemented()
+                }
             }
-        }
-    }
-
-    override fun onTaskRemoved(rootIntent: Intent) {
-        try {
-            val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-            val token = prefs.getString("flutter.access_token", null)
-            if (!token.isNullOrBlank() && !token.equals("null", ignoreCase = true)) {
-                AppWakeHelper.bringToForeground(applicationContext)
-            }
-        } catch (_: Throwable) {
-        }
-        super.onTaskRemoved(rootIntent)
     }
 
     private fun getPasskeyCredential(requestJson: String, result: MethodChannel.Result) {
