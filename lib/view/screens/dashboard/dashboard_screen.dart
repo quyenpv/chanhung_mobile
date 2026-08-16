@@ -58,6 +58,14 @@ class _HomeScreenState extends State<HomeScreen> {
         await Get.find<StaffLocationTrackingService>().startIfNeeded();
       }
     } catch (_) {}
+
+    try {
+      if (!Get.isRegistered<StaffEmergencyAudioService>()) {
+        await Get.putAsync(
+            () => StaffEmergencyAudioService().init(),
+            permanent: true);
+      }
+    } catch (_) {}
   }
 
   @override
