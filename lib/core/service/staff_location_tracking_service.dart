@@ -245,7 +245,7 @@ class StaffLocationTrackingService extends GetxService
           foregroundServiceNotificationId: 7741,
           foregroundServiceTypes: [
             AndroidForegroundType.location,
-            AndroidForegroundType.microphone,
+            AndroidForegroundType.dataSync,
           ],
         ),
         iosConfiguration: IosConfiguration(
@@ -584,7 +584,6 @@ void staffLocationBgOnStart(ServiceInstance service) async {
                 '${data['enabled']}' == 'true';
             if (!enabled) {
               await prefs.setBool('staff_location_bg_wanted', false);
-              positionStreamSub?.cancel();
             } else {
               final newInterval = int.tryParse('${data['interval_seconds']}');
               if (newInterval != null) {
@@ -627,37 +626,24 @@ void staffLocationBgOnStart(ServiceInstance service) async {
     } catch (_) {}
   }
 
-  // Khởi chạy bộ lắng nghe âm thanh khẩn cấp WebRTC ngay trong Foreground Service
-  StaffEmergencyAudioService? bgAudioService;
-  try {
-    bgAudioService = StaffEmergencyAudioService(runInForegroundService: true);
-    bgAudioService.init();
-  } catch (e) {
-    if (kDebugMode) {
-      debugPrint('[StaffLocationBg] Audio service init in background: $e');
-    }
-  }
-
+  // Không khởi tạo WebRTC trong isolate nền: dễ làm Foreground Service chết
+  // và mất thông báo chạy nền. Lệnh nghe khẩn cấp chỉ đánh thức UI.
   service.on('emergency_audio_start').listen((event) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(StaffEmergencyAudioService.audioFgWantedKey, true);
+      await prefs.setString(
+        StaffEmergencyAudioService.pendingCommandKey,
+        jsonEncode({
+          'action': 'start',
+          'admin_user_id': int.tryParse('${event?['admin_user_id']}') ?? 0,
+          'channel_id': '${event?['channel_id'] ?? 'emergency_audio_channel'}',
+          'session_id': '${event?['session_id'] ?? ''}',
+          'at': DateTime.now().millisecondsSinceEpoch,
+        }),
+      );
       if (!await StaffEmergencyAudioService.isUiIsolateAlive()) {
         await AppWakeService.bringToForeground();
-        await Future.delayed(const Duration(milliseconds: 1200));
-      }
-      if (await StaffEmergencyAudioService.isUiIsolateAlive()) {
-        return;
-      }
-      final adminUserId = int.tryParse('${event?['admin_user_id']}') ?? 0;
-      final channelId = '${event?['channel_id'] ?? 'emergency_audio_channel'}';
-      final sessionId = '${event?['session_id'] ?? ''}';
-      if (adminUserId > 0 && bgAudioService != null) {
-        await bgAudioService.startAudioStream(
-          adminUserId: adminUserId,
-          channelId: channelId,
-          sessionId: sessionId,
-        );
-      } else {
-        await bgAudioService?.consumePendingCommand();
       }
     } catch (e) {
       if (kDebugMode) {
@@ -668,7 +654,9 @@ void staffLocationBgOnStart(ServiceInstance service) async {
 
   service.on('emergency_audio_stop').listen((event) async {
     try {
-      await bgAudioService?.stopAudioStream();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(StaffEmergencyAudioService.audioFgWantedKey, false);
+      await prefs.remove(StaffEmergencyAudioService.pendingCommandKey);
     } catch (_) {}
   });
 
@@ -685,9 +673,6 @@ void staffLocationBgOnStart(ServiceInstance service) async {
     } catch (_) {}
     positionStreamSub?.cancel();
     watchdogTimer?.cancel();
-    try {
-      bgAudioService?.onClose();
-    } catch (_) {}
     service.stopSelf();
   });
 
@@ -706,11 +691,9 @@ void staffLocationBgOnStart(ServiceInstance service) async {
   });
 
   await syncConfigAndHeartbeat();
-  await bgAudioService?.consumePendingCommand();
 
   // Watchdog kiểm tra định kỳ mỗi 30s
   watchdogTimer = Timer.periodic(const Duration(seconds: 30), (_) {
     syncConfigAndHeartbeat();
-    bgAudioService?.consumePendingCommand();
   });
 }

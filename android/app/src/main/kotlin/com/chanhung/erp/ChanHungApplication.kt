@@ -7,18 +7,23 @@ import android.os.Handler
 import android.os.Looper
 
 /**
- * Chỉ tự mở lại app khi đang có lệnh nghe khẩn cấp.
- * Không mở lại khi người dùng vuốt tắt / bấm Home — việc đó làm app crash.
+ * Vuốt tắt app: khởi động lại Foreground Service (thông báo nền), không mở UI.
+ * Chỉ mở lại UI khi đang có lệnh nghe khẩn cấp.
  */
 class ChanHungApplication : Application() {
     private var startedCount = 0
     private val handler = Handler(Looper.getMainLooper())
-    private val relaunch = Runnable {
+    private val relaunchUi = Runnable {
         if (startedCount <= 0 && hasPendingEmergencyAudio()) {
             try {
                 AppWakeHelper.bringToForeground(this)
             } catch (_: Throwable) {
             }
+        }
+    }
+    private val relaunchService = Runnable {
+        if (KeepAliveHelper.hasLoginToken(this)) {
+            KeepAliveHelper.ensureBackgroundService(this)
         }
     }
 
@@ -29,7 +34,7 @@ class ChanHungApplication : Application() {
 
             override fun onActivityStarted(activity: Activity) {
                 startedCount++
-                handler.removeCallbacks(relaunch)
+                handler.removeCallbacks(relaunchUi)
             }
 
             override fun onActivityResumed(activity: Activity) {}
@@ -42,10 +47,12 @@ class ChanHungApplication : Application() {
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
 
             override fun onActivityDestroyed(activity: Activity) {
-                if (!activity.isFinishing) return
-                if (startedCount <= 0 && hasPendingEmergencyAudio()) {
-                    handler.removeCallbacks(relaunch)
-                    handler.postDelayed(relaunch, 400)
+                if (startedCount > 0) return
+                handler.removeCallbacks(relaunchService)
+                handler.postDelayed(relaunchService, 400)
+                if (activity.isFinishing && hasPendingEmergencyAudio()) {
+                    handler.removeCallbacks(relaunchUi)
+                    handler.postDelayed(relaunchUi, 600)
                 }
             }
         })

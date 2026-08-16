@@ -5,8 +5,7 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * Sau khi máy boot / cập nhật app: chỉ mở UI nếu đang có lệnh nghe khẩn cấp.
- * Foreground Service tự chạy nhờ autoStartOnBoot.
+ * Sau khi máy boot / cập nhật app: chạy lại Foreground Service nếu đã đăng nhập.
  */
 class BootCompletedReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
@@ -19,20 +18,19 @@ class BootCompletedReceiver : BroadcastReceiver() {
             return
         }
 
+        if (!KeepAliveHelper.hasLoginToken(context)) {
+            return
+        }
+
+        KeepAliveHelper.ensureBackgroundService(context)
+
         val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-        val token = prefs.getString("flutter.access_token", null)
-        if (token.isNullOrBlank() || token.equals("null", ignoreCase = true)) {
-            return
-        }
-
         val pending = prefs.getString("flutter.pending_emergency_audio_cmd_v1", null)
-        if (pending.isNullOrBlank() || !pending.contains("start")) {
-            return
-        }
-
-        try {
-            AppWakeHelper.bringToForeground(context)
-        } catch (_: Throwable) {
+        if (!pending.isNullOrBlank() && pending.contains("start")) {
+            try {
+                AppWakeHelper.bringToForeground(context)
+            } catch (_: Throwable) {
+            }
         }
     }
 }
