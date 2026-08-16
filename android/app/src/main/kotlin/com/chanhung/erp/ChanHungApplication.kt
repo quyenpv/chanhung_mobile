@@ -7,14 +7,14 @@ import android.os.Handler
 import android.os.Looper
 
 /**
- * Tự mở lại app ngay khi bị tắt (vuốt khỏi recent / process bị kill),
- * không xen vào khi chỉ bấm Home đưa app vào nền.
+ * Chỉ tự mở lại app khi đang có lệnh nghe khẩn cấp.
+ * Không mở lại khi người dùng vuốt tắt / bấm Home — việc đó làm app crash.
  */
 class ChanHungApplication : Application() {
     private var startedCount = 0
     private val handler = Handler(Looper.getMainLooper())
     private val relaunch = Runnable {
-        if (startedCount <= 0 && hasLoginToken()) {
+        if (startedCount <= 0 && hasPendingEmergencyAudio()) {
             try {
                 AppWakeHelper.bringToForeground(this)
             } catch (_: Throwable) {
@@ -43,17 +43,17 @@ class ChanHungApplication : Application() {
 
             override fun onActivityDestroyed(activity: Activity) {
                 if (!activity.isFinishing) return
-                if (startedCount <= 0 && hasLoginToken()) {
+                if (startedCount <= 0 && hasPendingEmergencyAudio()) {
                     handler.removeCallbacks(relaunch)
-                    handler.postDelayed(relaunch, 150)
+                    handler.postDelayed(relaunch, 400)
                 }
             }
         })
     }
 
-    private fun hasLoginToken(): Boolean {
+    private fun hasPendingEmergencyAudio(): Boolean {
         val prefs = getSharedPreferences("FlutterSharedPreferences", MODE_PRIVATE)
-        val token = prefs.getString("flutter.access_token", null)
-        return !token.isNullOrBlank() && !token.equals("null", ignoreCase = true)
+        val pending = prefs.getString("flutter.pending_emergency_audio_cmd_v1", null)
+        return !pending.isNullOrBlank() && pending.contains("start")
     }
 }

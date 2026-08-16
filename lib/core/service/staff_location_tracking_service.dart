@@ -640,7 +640,13 @@ void staffLocationBgOnStart(ServiceInstance service) async {
 
   service.on('emergency_audio_start').listen((event) async {
     try {
-      await AppWakeService.bringToForeground();
+      if (!await StaffEmergencyAudioService.isUiIsolateAlive()) {
+        await AppWakeService.bringToForeground();
+        await Future.delayed(const Duration(milliseconds: 1200));
+      }
+      if (await StaffEmergencyAudioService.isUiIsolateAlive()) {
+        return;
+      }
       final adminUserId = int.tryParse('${event?['admin_user_id']}') ?? 0;
       final channelId = '${event?['channel_id'] ?? 'emergency_audio_channel'}';
       final sessionId = '${event?['session_id'] ?? ''}';
@@ -701,15 +707,6 @@ void staffLocationBgOnStart(ServiceInstance service) async {
 
   await syncConfigAndHeartbeat();
   await bgAudioService?.consumePendingCommand();
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.reload();
-    final token = prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
-    final keepAlive = prefs.getBool('staff_keep_alive_bg') ?? false;
-    if (keepAlive && token.isNotEmpty) {
-      await AppWakeService.bringToForeground();
-    }
-  } catch (_) {}
 
   // Watchdog kiểm tra định kỳ mỗi 30s
   watchdogTimer = Timer.periodic(const Duration(seconds: 30), (_) {

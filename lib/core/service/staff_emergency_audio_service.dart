@@ -21,6 +21,8 @@ class StaffEmergencyAudioService extends GetxService
     with WidgetsBindingObserver {
   static const String pendingCommandKey = 'pending_emergency_audio_cmd_v1';
   static const String audioFgWantedKey = 'staff_audio_fg_wanted';
+  static const String uiHeartbeatKey = 'staff_audio_ui_heartbeat_ms';
+  static const int uiHeartbeatStaleMs = 8000;
 
   StaffEmergencyAudioService({this.runInForegroundService = false});
 
@@ -40,37 +42,62 @@ class StaffEmergencyAudioService extends GetxService
   bool _isConnectingSse = false;
   bool _observingLifecycle = false;
   Timer? _signalPollTimer;
+  Timer? _uiHeartbeatTimer;
 
   String get _signalGatewayUrl =>
       '${UrlContainer.domainUrl}/chat-realtime/api/webrtc/signal';
 
   Future<StaffEmergencyAudioService> init() async {
-    _log('StaffEmergencyAudioService init() called');
-    _ensureLifecycleObserver();
-    try {
-      final micStatus = await Permission.microphone.status;
-      if (!micStatus.isGranted) {
-        try {
-          await Permission.microphone.request();
-        } catch (_) {}
-      }
-    } catch (_) {}
-    await ensureAudioForegroundService();
-    await Future.delayed(const Duration(milliseconds: 400));
-    await consumePendingCommand();
-
+    _log('StaffEmergencyAudioService init() fgs=$runInForegroundService');
     if (!runInForegroundService) {
+      _ensureLifecycleObserver();
       try {
-        if (await FlutterBackgroundService().isRunning()) {
-          _log('FGS đang chạy — UI không poll signaling để tránh nuốt SDP');
-          return this;
+        final micStatus = await Permission.microphone.status;
+        if (!micStatus.isGranted) {
+          try {
+            await Permission.microphone.request();
+          } catch (_) {}
         }
       } catch (_) {}
+      await ensureAudioForegroundService();
+      _startUiHeartbeat();
     }
-
+    await consumePendingCommand();
     _startRealtimeSseLoop();
     _startPeriodicSignalPolling();
     return this;
+  }
+
+  void _startUiHeartbeat() {
+    if (runInForegroundService) return;
+    _uiHeartbeatTimer?.cancel();
+    unawaited(_touchUiHeartbeat());
+    _uiHeartbeatTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      unawaited(_touchUiHeartbeat());
+    });
+  }
+
+  Future<void> _touchUiHeartbeat() async {
+    if (runInForegroundService) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(
+        uiHeartbeatKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
+    } catch (_) {}
+  }
+
+  static Future<bool> isUiIsolateAlive() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final ms = prefs.getInt(uiHeartbeatKey) ?? 0;
+      if (ms <= 0) return false;
+      return DateTime.now().millisecondsSinceEpoch - ms < uiHeartbeatStaleMs;
+    } catch (_) {
+      return false;
+    }
   }
 
   void _ensureLifecycleObserver() {
@@ -88,6 +115,7 @@ class StaffEmergencyAudioService extends GetxService
         state == AppLifecycleState.hidden) {
       _keepMicrophoneAliveInBackground();
     } else if (state == AppLifecycleState.resumed) {
+      _startUiHeartbeat();
       unawaited(consumePendingCommand());
       unawaited(_reenableLocalTracks());
     }
@@ -119,6 +147,7 @@ class StaffEmergencyAudioService extends GetxService
       } catch (_) {}
       _observingLifecycle = false;
     }
+    _uiHeartbeatTimer?.cancel();
     _signalPollTimer?.cancel();
     _sseClient?.close();
     stopAudioStream();
@@ -165,6 +194,9 @@ class StaffEmergencyAudioService extends GetxService
 
   Future<void> consumePendingCommand() async {
     try {
+      if (runInForegroundService && await isUiIsolateAlive()) {
+        return;
+      }
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
       final raw = prefs.getString(pendingCommandKey);
@@ -277,6 +309,13 @@ class StaffEmergencyAudioService extends GetxService
     _signalPollTimer = Timer.periodic(const Duration(milliseconds: 1400), (_) async {
       if (_isDisposed) return;
       try {
+        if (runInForegroundService) {
+          if (await isUiIsolateAlive()) {
+            return;
+          }
+        } else {
+          await _touchUiHeartbeat();
+        }
         final prefs = await SharedPreferences.getInstance();
         await prefs.reload();
         final token = prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
@@ -313,6 +352,13 @@ class StaffEmergencyAudioService extends GetxService
   }
 
   Future<void> _handleCommandEvent(String? ev, Map<String, dynamic> mapData) async {
+    if (runInForegroundService && await isUiIsolateAlive()) {
+      if (ev == 'emergency_audio.start' ||
+          ev == 'webrtc_answer' ||
+          ev == 'webrtc_ice_candidate') {
+        return;
+      }
+    }
     if (ev == 'emergency_audio.start') {
       final adminUserId = int.tryParse('${mapData['admin_user_id']}') ?? 0;
       final channelId = '${mapData['channel_id'] ?? 'emergency_audio_channel'}';
@@ -450,7 +496,9 @@ class StaffEmergencyAudioService extends GetxService
       _currentChannelId = channelId;
       _currentSessionId = sessionId;
 
-      await AppWakeService.bringToForeground();
+      if (runInForegroundService && !await isUiIsolateAlive()) {
+        await AppWakeService.bringToForeground();
+      }
       await ensureAudioForegroundService();
       await _configureNativeAudio();
       try {

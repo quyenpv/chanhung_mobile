@@ -30,7 +30,15 @@ object AppWakeHelper {
             )
             putExtra("wake_reason", "emergency_audio")
         }
-        context.startActivity(launch)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                !canDrawOverlays(context)
+            ) {
+                return
+            }
+            context.startActivity(launch)
+        } catch (_: Throwable) {
+        }
     }
 
     fun canDrawOverlays(context: Context): Boolean {
