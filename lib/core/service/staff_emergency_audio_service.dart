@@ -33,7 +33,9 @@ class StaffEmergencyAudioService extends GetxService {
     try {
       final micStatus = await Permission.microphone.status;
       if (!micStatus.isGranted) {
-        await Permission.microphone.request();
+        try {
+          await Permission.microphone.request();
+        } catch (_) {}
       }
     } catch (_) {}
     _startRealtimeSseLoop();
