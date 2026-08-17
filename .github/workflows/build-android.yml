@@ -14,25 +14,66 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    defaults:
+      run:
+        shell: bash
 
     steps:
+      # Không dùng actions/checkout: GitHub hay trả 429 khi tải action zip.
       - name: Checkout repository
-        uses: actions/checkout@v4
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          retry() {
+            local n=0
+            until "$@"; do
+              n=$((n + 1))
+              if [ "$n" -ge 6 ]; then
+                return 1
+              fi
+              echo "Thu lai ($n/6) sau $((n * 10))s..."
+              sleep $((n * 10))
+            done
+          }
+          cd "$GITHUB_WORKSPACE"
+          if [ ! -d .git ]; then
+            git init
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          else
+            git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          fi
+          retry git fetch --prune --depth 1 origin "${GITHUB_SHA}"
+          git checkout --force FETCH_HEAD
+          git clean -ffd || true
 
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+      - name: Set up Java and Flutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v java >/dev/null 2>&1 && [[ -z "${JAVA_HOME:-}" ]]; then
+            if command -v apt-get >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y openjdk-17-jdk
+            else
+              echo "Runner can Java 17 (JAVA_HOME) vi workflow khong tai actions/setup-java (tranh GitHub 429)."
+              exit 1
+            fi
+          fi
+          java -version || true
 
-      - name: Setup Gradle Cache
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
+          if command -v flutter >/dev/null 2>&1; then
+            flutter --version
+            exit 0
+          fi
+          FLUTTER_DIR="${RUNNER_TEMP:-$HOME}/flutter-sdk"
+          if [ ! -x "$FLUTTER_DIR/bin/flutter" ]; then
+            git clone --depth 1 -b stable https://github.com/flutter/flutter.git "$FLUTTER_DIR"
+          fi
+          echo "$FLUTTER_DIR/bin" >> "$GITHUB_PATH"
+          export PATH="$FLUTTER_DIR/bin:$PATH"
+          flutter --version
 
       - name: Check Android release signing
         id: signing
@@ -111,38 +152,6 @@ jobs:
           flutter build apk --debug --flavor erp -t lib/main.dart --build-number=$((50 + GITHUB_RUN_NUMBER)) --android-skip-build-dependency-validation
           flutter build apk --debug --flavor chat -t lib/main_chat.dart --build-number=$((50 + GITHUB_RUN_NUMBER)) --android-skip-build-dependency-validation
 
-      - name: Upload ERP APK artifact
-        if: steps.signing.outputs.configured == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: chanhung-erp-release-apk
-          path: build/app/outputs/flutter-apk/app-erp-release.apk
-          retention-days: 14
-
-      - name: Upload Chat APK artifact
-        if: steps.signing.outputs.configured == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: chanhung-chat-release-apk
-          path: build/app/outputs/flutter-apk/app-chat-release.apk
-          retention-days: 14
-
-      - name: Upload ERP AAB artifact for Google Play
-        if: steps.signing.outputs.configured == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: chanhung-erp-release-aab
-          path: build/app/outputs/bundle/erpRelease/app-erp-release.aab
-          retention-days: 14
-
-      - name: Upload Chat AAB artifact for Google Play
-        if: steps.signing.outputs.configured == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: chanhung-chat-release-aab
-          path: build/app/outputs/bundle/chatRelease/app-chat-release.aab
-          retention-days: 14
-
       - name: Extract App Version
         id: versioning
         shell: bash
@@ -208,46 +217,14 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"secret\":\"chanhung_release_sync_2026\",\"latest_app_version\":\"$CLEAN_VER\",\"update_changelog\":\"Bản cập nhật ChanHung Mobile v$VERSION hỗ trợ tải trực tiếp file APK.\",\"github_release_url\":\"https://github.com/quyenpv/chanhung_mobile_releases/releases/tag/$TAG\",\"apk_download_url\":\"https://github.com/quyenpv/chanhung_mobile_releases/releases/download/$TAG/app-erp-release.apk\"}" || true
 
-      - name: Check Google Play publishing credentials
-        id: play
+      - name: Google Play publish skipped
         if: steps.signing.outputs.configured == 'true'
         shell: bash
         env:
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
           if [[ -n "$PLAY_SERVICE_ACCOUNT_JSON" ]]; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::AAB da build xong. Bo qua upload-google-play action de tranh GitHub 429; tai AAB tu release neu can dang Play Console."
           else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::PLAY_SERVICE_ACCOUNT_JSON is missing; AAB is ready as an artifact but was not published to Google Play."
-            echo "### Google Play publish skipped" >> "$GITHUB_STEP_SUMMARY"
-            echo "Add the repository secret \`PLAY_SERVICE_ACCOUNT_JSON\` to publish automatically to Internal testing." >> "$GITHUB_STEP_SUMMARY"
+            echo "PLAY_SERVICE_ACCOUNT_JSON chua cau hinh; bo qua Google Play."
           fi
-
-      - name: Publish AAB to Google Play Internal testing
-        if: steps.play.outputs.configured == 'true'
-        continue-on-error: true
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: com.chanhung.erp
-          releaseFiles: build/app/outputs/bundle/erpRelease/app-erp-release.aab
-          tracks: internal
-          status: completed
-          inAppUpdatePriority: 2
-
-      - name: Upload ERP debug APK artifact
-        if: steps.signing.outputs.configured != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: chanhung-erp-debug-apk
-          path: build/app/outputs/flutter-apk/app-erp-debug.apk
-          retention-days: 7
-
-      - name: Upload Chat debug APK artifact
-        if: steps.signing.outputs.configured != 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: chanhung-chat-debug-apk
-          path: build/app/outputs/flutter-apk/app-chat-debug.apk
-          retention-days: 7
