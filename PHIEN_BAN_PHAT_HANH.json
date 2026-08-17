@@ -1,0 +1,12 @@
+{
+  "app": "chanhung_erp_mobile",
+  "version": "1.1.77",
+  "build": 166,
+  "full": "1.1.77+166",
+  "tag": "v1.1.77",
+  "released_at": "2026-08-17",
+  "source_repo": "https://github.com/quyenpv/chanhung_mobile",
+  "release_repo": "https://github.com/quyenpv/chanhung_mobile_releases",
+  "apk_url": "https://github.com/quyenpv/chanhung_mobile_releases/releases/download/v1.1.77/app-erp-release.apk",
+  "next_version": "1.1.78"
+}

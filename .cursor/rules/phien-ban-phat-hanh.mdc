@@ -1,0 +1,13 @@
+---
+description: Đọc phiên bản đang phát hành trước khi sửa code hoặc tăng số bản
+alwaysApply: true
+---
+
+# Phiên bản đang phát hành
+
+Đọc `PHIEN_BAN_PHAT_HANH.json` trước mọi thay đổi.
+
+1. `git fetch origin` — lấy số bản từ `origin/main:pubspec.yaml` và file JSON, không tin working copy lệch.
+2. Bản đang phát hành hiện tại: xem field `full` trong JSON.
+3. Bản kế tiếp: field `next_version`. Cập nhật JSON + `pubspec.yaml` trong cùng commit.
+4. Cũng cập nhật `PHIEN_BAN_APP_MOBILE.json` trong repo ERP `ChanHung_ERP`.
