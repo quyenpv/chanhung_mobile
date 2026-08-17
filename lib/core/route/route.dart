@@ -8,7 +8,7 @@ import 'package:chanhung/view/screens/estimate/estimate_screen.dart';
 import 'package:chanhung/view/screens/dms/dms_document_details_screen.dart';
 import 'package:chanhung/view/screens/dms/dms_pdf_viewer_screen.dart';
 import 'package:chanhung/view/screens/dms/dms_screen.dart';
-import 'package:chanhung/view/screens/dashboard/dashboard_screen.dart';
+import 'package:chanhung/view/screens/dashboard/main_shell_screen.dart';
 import 'package:chanhung/view/screens/hr/hr_screen.dart';
 import 'package:chanhung/view/screens/hr/leave_screen.dart';
 import 'package:chanhung/view/screens/hr/attendance_screen.dart';
@@ -90,7 +90,7 @@ class RouteHelper {
     GetPage(name: registrationScreen, page: () => const RegistrationScreen()),
     GetPage(
         name: forgotPasswordScreen, page: () => const ForgetPasswordScreen()),
-    GetPage(name: dashboardScreen, page: () => const HomeScreen()),
+    GetPage(name: dashboardScreen, page: () => const MainShellScreen()),
     GetPage(name: projectScreen, page: () => const ProjectsScreen()),
     GetPage(
         name: projectDetailsScreen,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -13,6 +14,12 @@ import 'package:chanhung/core/utils/method.dart';
 class ApiClient extends GetxService {
   SharedPreferences sharedPreferences;
   ApiClient({required this.sharedPreferences});
+
+  static const Duration _requestTimeout = Duration(seconds: 15);
+
+  Future<http.Response> _timed(Future<http.Response> request) {
+    return request.timeout(_requestTimeout);
+  }
 
   Future<ResponseModel> request(
     String uri,
@@ -37,43 +44,34 @@ class ApiClient extends GetxService {
         if (passHeader) {
           initToken();
           if (isOnlyAcceptType) {
-            response = await http.post(url, body: params, headers: {
+            response = await _timed(http.post(url, body: params, headers: {
               "Accept": "application/json",
-            });
+            }));
           } else {
-            response =
-                await http.post(url, body: params, headers: _authHeaders());
+            response = await _timed(
+                http.post(url, body: params, headers: _authHeaders()));
           }
         } else {
-          response = await http.post(url, body: params);
-        }
-      } else if (method == Method.postMethod) {
-        if (passHeader) {
-          initToken();
-          response =
-              await http.post(url, body: params, headers: _authHeaders());
-        } else {
-          response = await http.post(url, body: params);
+          response = await _timed(http.post(url, body: params));
         }
       } else if (method == Method.putMethod) {
         if (passHeader) {
           initToken();
-          response = await http.put(url, body: params, headers: _authHeaders());
+          response = await _timed(
+              http.put(url, body: params, headers: _authHeaders()));
         } else {
-          response = await http.post(url, body: params);
+          response = await _timed(http.post(url, body: params));
         }
       } else if (method == Method.deleteMethod) {
-        response = await http.delete(url);
+        response = await _timed(http.delete(url));
       } else if (method == Method.updateMethod) {
-        response = await http.patch(url);
+        response = await _timed(http.patch(url));
       } else {
         if (passHeader) {
           initToken();
-          response = await http.get(url, headers: _authHeaders());
+          response = await _timed(http.get(url, headers: _authHeaders()));
         } else {
-          response = await http.get(
-            url,
-          );
+          response = await _timed(http.get(url));
         }
       }
 
@@ -120,6 +118,8 @@ class ApiClient extends GetxService {
             false, message, response.statusCode, response.body);
       }
     } on SocketException {
+      return ResponseModel(false, LocalStrings.noInternet.tr, 503, '');
+    } on TimeoutException {
       return ResponseModel(false, LocalStrings.noInternet.tr, 503, '');
     } on FormatException {
       return ResponseModel(false, LocalStrings.badResponseMsg.tr, 400, '');

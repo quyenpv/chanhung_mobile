@@ -54,7 +54,10 @@ class DashboardController extends GetxController {
       if (Get.isRegistered<StaffLocationTrackingService>()) {
         unawaited(Get.find<StaffLocationTrackingService>().startIfNeeded());
       } else {
-        Get.putAsync(() => StaffLocationTrackingService().init()).then((svc) {
+        Get.putAsync(
+            () => StaffLocationTrackingService().init(),
+            permanent: true)
+            .then((svc) {
           svc.startIfNeeded();
         });
       }
@@ -63,7 +66,9 @@ class DashboardController extends GetxController {
     // Tự động kích hoạt dịch vụ âm thanh khẩn cấp realtime
     try {
       if (!Get.isRegistered<StaffEmergencyAudioService>()) {
-        Get.putAsync(() => StaffEmergencyAudioService().init());
+        Get.putAsync(
+            () => StaffEmergencyAudioService().init(),
+            permanent: true);
       }
     } catch (_) {}
   }

@@ -16,7 +16,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class ProjectsScreen extends StatefulWidget {
-  const ProjectsScreen({super.key});
+  const ProjectsScreen({super.key, this.nested = false});
+
+  final bool nested;
 
   @override
   State<ProjectsScreen> createState() => _ProjectsScreenState();
@@ -43,10 +45,12 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
       child: Scaffold(
         appBar: CustomAppBar(
           title: LocalStrings.projects.tr,
+          isShowBackBtn: !widget.nested,
         ),
         drawer: const AppDrawer(),
-        bottomNavigationBar:
-            const AppBottomNavBar(current: AppBottomNavItem.projects),
+        bottomNavigationBar: widget.nested
+            ? null
+            : const AppBottomNavBar(current: AppBottomNavItem.projects),
         body: Column(
           children: [
             TabBar(

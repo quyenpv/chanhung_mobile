@@ -25,7 +25,9 @@ import 'package:chanhung/data/services/api_service.dart';
 import 'package:chanhung/view/components/will_pop_widget.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.nested = false});
+
+  final bool nested;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -73,10 +75,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopWidget(
-      nextRoute: "",
-      child: GetBuilder<DashboardController>(
-        builder: (controller) {
+    final page = GetBuilder<DashboardController>(
+      builder: (controller) {
           final dashboardData = controller.dashboardModel.data;
           final clientData = dashboardData?.clientData;
           final projects = dashboardData?.projects ?? [];
@@ -114,7 +114,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               actions: [
                 ActionButtonIconWidget(
-                  pressed: () => Get.toNamed(RouteHelper.settingsScreen),
+                  pressed: () =>
+                      AppTabNavigation.selectTab(AppBottomNavItem.settings),
                   icon: Icons.settings,
                   size: 28,
                   iconColor: AppDesign.ink,
@@ -124,8 +125,9 @@ class _HomeScreenState extends State<HomeScreen> {
             drawer: dashboardData == null
                 ? null
                 : HomeDrawer(dashboardModel: controller.dashboardModel),
-            bottomNavigationBar:
-                const AppBottomNavBar(current: AppBottomNavItem.home),
+            bottomNavigationBar: widget.nested
+                ? null
+                : const AppBottomNavBar(current: AppBottomNavItem.home),
             body: controller.isLoading
                 ? const CustomLoader()
                 : dashboardData == null
@@ -224,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         icon: Icons.grid_view,
                                         iconColor: ColorResources.blueColor,
                                         name: LocalStrings.projects.tr,
-                                        onPress: () => Get.toNamed(
+                                        onPress: () => AppTabNavigation.open(
                                             RouteHelper.projectScreen),
                                         number:
                                             widgetsData?.projects?.toString() ??
@@ -284,8 +286,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                           icon: Icons.groups_outlined,
                                           iconColor: ColorResources.purpleColor,
                                           name: LocalStrings.humanResources.tr,
-                                          onPress: () =>
-                                              Get.toNamed(RouteHelper.hrScreen),
+                                          onPress: () => AppTabNavigation.open(
+                                              RouteHelper.hrScreen),
                                           number: (widgetsData
                                                       ?.hr?.totalEmployees ??
                                                   0)
@@ -298,7 +300,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           iconColor:
                                               ColorResources.primaryColor,
                                           name: LocalStrings.dmsOffice.tr,
-                                          onPress: () => Get.toNamed(
+                                          onPress: () => AppTabNavigation.open(
                                               RouteHelper.dmsScreen),
                                           number:
                                               (widgetsData?.dmsAttentionCount ??
@@ -326,7 +328,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     const Spacer(),
                                     TextButton(
                                       onPressed: () {
-                                        Get.toNamed(RouteHelper.projectScreen);
+                                        AppTabNavigation.open(
+                                            RouteHelper.projectScreen);
                                       },
                                       child: Text(
                                         LocalStrings.viewAll.tr,
@@ -360,7 +363,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
           );
         },
-      ),
-    );
+      );
+    if (widget.nested) return page;
+    return WillPopWidget(nextRoute: "", child: page);
   }
 }

@@ -18,7 +18,9 @@ import 'package:chanhung/view/components/no_data.dart';
 import 'package:chanhung/view/screens/hr/employee_details_screen.dart';
 
 class HrScreen extends StatefulWidget {
-  const HrScreen({super.key});
+  const HrScreen({super.key, this.nested = false});
+
+  final bool nested;
 
   @override
   State<HrScreen> createState() => _HrScreenState();
@@ -53,10 +55,14 @@ class _HrScreenState extends State<HrScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(title: LocalStrings.humanResources.tr),
+      appBar: CustomAppBar(
+        title: LocalStrings.humanResources.tr,
+        isShowBackBtn: !widget.nested,
+      ),
       drawer: const AppDrawer(),
-      bottomNavigationBar:
-          const AppBottomNavBar(current: AppBottomNavItem.hr),
+      bottomNavigationBar: widget.nested
+          ? null
+          : const AppBottomNavBar(current: AppBottomNavItem.hr),
       body: GetBuilder<HrController>(
         builder: (controller) {
           if (controller.isLoading) {

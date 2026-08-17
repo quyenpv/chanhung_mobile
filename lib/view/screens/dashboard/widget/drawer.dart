@@ -5,6 +5,7 @@ import 'package:chanhung/core/utils/local_strings.dart';
 import 'package:chanhung/core/utils/url_container.dart';
 import 'package:chanhung/data/controller/dashboard/dashboard_controller.dart';
 import 'package:chanhung/data/model/dashboard/dashboard_model.dart';
+import 'package:chanhung/view/components/app_bottom_nav_bar.dart';
 import 'package:chanhung/view/components/circle_image_button.dart';
 import 'package:chanhung/view/components/dialog/warning_dialog.dart';
 import 'package:flutter/material.dart';
@@ -304,7 +305,7 @@ class _MenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selected = Get.currentRoute == entry.route;
+    final selected = AppTabNavigation.isCurrent(entry.route);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
@@ -316,7 +317,7 @@ class _MenuItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           onTap: () {
             Navigator.pop(context);
-            if (!selected) Get.toNamed(entry.route);
+            if (!selected) AppTabNavigation.open(entry.route);
           },
           child: SizedBox(
             height: 48,

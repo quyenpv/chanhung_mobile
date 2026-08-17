@@ -17,7 +17,9 @@ import 'package:chanhung/view/components/custom_loader/custom_loader.dart';
 import 'package:chanhung/view/components/no_data.dart';
 
 class DmsScreen extends StatefulWidget {
-  const DmsScreen({super.key});
+  const DmsScreen({super.key, this.nested = false});
+
+  final bool nested;
 
   @override
   State<DmsScreen> createState() => _DmsScreenState();
@@ -52,9 +54,14 @@ class _DmsScreenState extends State<DmsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(title: LocalStrings.dmsOffice.tr),
+      appBar: CustomAppBar(
+        title: LocalStrings.dmsOffice.tr,
+        isShowBackBtn: !widget.nested,
+      ),
       drawer: const AppDrawer(),
-      bottomNavigationBar: const AppBottomNavBar(current: AppBottomNavItem.dms),
+      bottomNavigationBar: widget.nested
+          ? null
+          : const AppBottomNavBar(current: AppBottomNavItem.dms),
       body: GetBuilder<DmsController>(
         builder: (controller) {
           final documents = controller.documentsModel.data ?? [];

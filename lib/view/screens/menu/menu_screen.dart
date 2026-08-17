@@ -28,7 +28,9 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MenuScreen extends StatefulWidget {
-  const MenuScreen({super.key});
+  const MenuScreen({super.key, this.nested = false});
+
+  final bool nested;
 
   @override
   State<MenuScreen> createState() => _MenuScreenState();
@@ -73,17 +75,17 @@ class _MenuScreenState extends State<MenuScreen> {
         Theme.of(context).appBarTheme.backgroundColor ?? AppDesign.canvas;
 
     return GetBuilder<ThemeController>(builder: (theme) {
-      return WillPopWidget(
-        nextRoute: RouteHelper.dashboardScreen,
-        child: Scaffold(
+      final scaffold = Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: CustomAppBar(
             title: LocalStrings.settings.tr,
             bgColor: appBarBg,
+            isShowBackBtn: !widget.nested,
           ),
           drawer: const AppDrawer(),
-          bottomNavigationBar:
-              const AppBottomNavBar(current: AppBottomNavItem.settings),
+          bottomNavigationBar: widget.nested
+              ? null
+              : const AppBottomNavBar(current: AppBottomNavItem.settings),
           body: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
@@ -327,7 +329,11 @@ class _MenuScreenState extends State<MenuScreen> {
               ],
             ),
           ),
-        ),
+        );
+      if (widget.nested) return scaffold;
+      return WillPopWidget(
+        nextRoute: RouteHelper.dashboardScreen,
+        child: scaffold,
       );
     });
   }

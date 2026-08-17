@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:chanhung/core/utils/local_strings.dart';
@@ -10,7 +11,6 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:chanhung/core/helper/shared_preference_helper.dart';
 import 'package:chanhung/core/route/route.dart';
-import 'package:chanhung/core/service/staff_location_tracking_service.dart';
 import 'package:chanhung/data/repo/splash/splash_repo.dart';
 import 'package:chanhung/view/components/snack_bar/show_custom_snackbar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -41,7 +41,6 @@ class SplashController extends GetxController {
 
     try {
       await loadLanguage();
-      await checkAppUpdate();
       bool isRemember = splashRepo.apiClient.sharedPreferences
               .getBool(SharedPreferenceHelper.rememberMeKey) ??
           false;
@@ -62,6 +61,7 @@ class SplashController extends GetxController {
       update();
 
       await getData(isRemember, isOnBoard);
+      unawaited(checkAppUpdate());
     } catch (_) {
       isLoading = false;
       noInternet = true;
@@ -96,7 +96,9 @@ class SplashController extends GetxController {
 
       // 1. Kiểm tra cấu hình từ máy chủ ERP
       try {
-        ResponseModel response = await splashRepo.getAppConfig();
+        ResponseModel response = await splashRepo
+            .getAppConfig()
+            .timeout(const Duration(seconds: 4));
         if (response.statusCode == 200) {
           var json = jsonDecode(response.responseJson);
           if (json != null && json['success'] == true && json['data'] != null) {
@@ -260,7 +262,14 @@ class SplashController extends GetxController {
       return;
     }
 
-    ResponseModel response = await splashRepo.getOverviewData();
+    ResponseModel response;
+    try {
+      response = await splashRepo
+          .getOverviewData()
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      response = ResponseModel(false, '', 503, '');
+    }
     if (response.statusCode == 200) {
       OverviewModel model =
           OverviewModel.fromJson(jsonDecode(response.responseJson));
@@ -310,7 +319,10 @@ class SplashController extends GetxController {
       } else if (response.statusCode == 401 || response.statusCode == 403) {
         isRemember = false;
       }
-      if (response.statusCode != 401 && response.statusCode != 403) {
+      if (response.statusCode != 401 &&
+          response.statusCode != 403 &&
+          response.statusCode != 503 &&
+          response.message.trim().isNotEmpty) {
         CustomSnackBar.error(errorList: [response.message]);
       }
     }
