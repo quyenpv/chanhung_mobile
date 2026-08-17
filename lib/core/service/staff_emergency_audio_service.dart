@@ -49,6 +49,16 @@ class StaffEmergencyAudioService extends GetxService
   bool _observingLifecycle = false;
   Timer? _signalPollTimer;
   Timer? _uiHeartbeatTimer;
+  List<dynamic> _iceServers = const [
+    {
+      'urls': [
+        'stun:stun.l.google.com:19302',
+        'stun:stun1.l.google.com:19302',
+        'stun:stun.cloudflare.com:3478',
+      ],
+    },
+  ];
+  bool _hasServerIceConfig = false;
 
   String get _signalGatewayUrl =>
       '${UrlContainer.domainUrl}/chat-realtime/api/webrtc/signal';
@@ -262,7 +272,8 @@ class StaffEmergencyAudioService extends GetxService
         await bg.startService();
         await Future.delayed(const Duration(milliseconds: 800));
       }
-      bg.invoke(action == 'stop' ? 'emergency_audio_stop' : 'emergency_audio_start', {
+      bg.invoke(
+          action == 'stop' ? 'emergency_audio_stop' : 'emergency_audio_start', {
         'admin_user_id': adminUserId,
         'channel_id': channelId,
         'session_id': sessionId,
@@ -286,8 +297,7 @@ class StaffEmergencyAudioService extends GetxService
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return;
       final at = int.tryParse('${decoded['at']}') ?? 0;
-      if (at > 0 &&
-          DateTime.now().millisecondsSinceEpoch - at > 120000) {
+      if (at > 0 && DateTime.now().millisecondsSinceEpoch - at > 120000) {
         await prefs.remove(pendingCommandKey);
         return;
       }
@@ -388,7 +398,8 @@ class StaffEmergencyAudioService extends GetxService
   /// Polling tín hiệu WebRTC định kỳ từ ERP API Relay (Fallback khi SSE ngắt quãng)
   void _startPeriodicSignalPolling() {
     _signalPollTimer?.cancel();
-    _signalPollTimer = Timer.periodic(const Duration(milliseconds: 1400), (_) async {
+    _signalPollTimer =
+        Timer.periodic(const Duration(milliseconds: 1400), (_) async {
       if (_isDisposed) return;
       try {
         if (runInForegroundService) {
@@ -401,10 +412,12 @@ class StaffEmergencyAudioService extends GetxService
         }
         final prefs = await SharedPreferences.getInstance();
         await prefs.reload();
-        final token = prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
+        final token =
+            prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
         if (token.isEmpty) return;
 
-        final url = Uri.parse('${UrlContainer.baseUrl}location_tracking/signals');
+        final url =
+            Uri.parse('${UrlContainer.baseUrl}location_tracking/signals');
         final res = await http.get(url, headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -434,7 +447,8 @@ class StaffEmergencyAudioService extends GetxService
     });
   }
 
-  Future<void> _handleCommandEvent(String? ev, Map<String, dynamic> mapData) async {
+  Future<void> _handleCommandEvent(
+      String? ev, Map<String, dynamic> mapData) async {
     if (runInForegroundService && await isUiIsolateAlive()) {
       if (ev == 'emergency_audio.start' ||
           ev == 'webrtc_answer' ||
@@ -493,14 +507,24 @@ class StaffEmergencyAudioService extends GetxService
       _realtimeToken = prefs.getString(SharedPreferenceHelper.realtimeTokenKey);
       _realtimeEventsPath =
           prefs.getString(SharedPreferenceHelper.realtimeEventsPathKey);
+      final cachedIceServers = prefs.getString('staff_audio_ice_servers');
+      if (cachedIceServers != null && cachedIceServers.isNotEmpty) {
+        final decoded = jsonDecode(cachedIceServers);
+        if (decoded is List && decoded.isNotEmpty) {
+          _iceServers = decoded;
+          _hasServerIceConfig = true;
+        }
+      }
     }
 
     if (forceRefresh ||
         _realtimeToken == null ||
         _realtimeToken!.isEmpty ||
         _realtimeEventsPath == null ||
-        _realtimeEventsPath!.isEmpty) {
-      final token = prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
+        _realtimeEventsPath!.isEmpty ||
+        !_hasServerIceConfig) {
+      final token =
+          prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
       if (token.isEmpty) return;
 
       try {
@@ -521,6 +545,15 @@ class StaffEmergencyAudioService extends GetxService
             final rt = Map<String, dynamic>.from(dataObj['realtime'] as Map);
             _realtimeToken = rt['token']?.toString();
             _realtimeEventsPath = rt['events_path']?.toString();
+            if (rt['ice_servers'] is List &&
+                (rt['ice_servers'] as List).isNotEmpty) {
+              _iceServers = List<dynamic>.from(rt['ice_servers'] as List);
+              _hasServerIceConfig = true;
+              await prefs.setString(
+                'staff_audio_ice_servers',
+                jsonEncode(_iceServers),
+              );
+            }
 
             if (_realtimeToken != null) {
               await prefs.setString(
@@ -531,7 +564,8 @@ class StaffEmergencyAudioService extends GetxService
                   SharedPreferenceHelper.realtimeEventsPathKey,
                   _realtimeEventsPath!);
             }
-            _log('Fetched realtime token successfully: path=$_realtimeEventsPath');
+            _log(
+                'Fetched realtime token successfully: path=$_realtimeEventsPath');
           }
         }
       } catch (e) {
@@ -594,7 +628,8 @@ class StaffEmergencyAudioService extends GetxService
         _currentSessionId = sessionId;
       }
 
-      _log('Starting WebRTC Audio Stream for Admin: $adminUserId, Channel: $channelId');
+      _log(
+          'Starting WebRTC Audio Stream for Admin: $adminUserId, Channel: $channelId');
       _currentAdminUserId = adminUserId;
       _currentChannelId = channelId;
       _currentSessionId = sessionId;
@@ -638,7 +673,8 @@ class StaffEmergencyAudioService extends GetxService
       } catch (_) {}
 
       try {
-        final ignoreBattery = await Permission.ignoreBatteryOptimizations.status;
+        final ignoreBattery =
+            await Permission.ignoreBatteryOptimizations.status;
         if (!ignoreBattery.isGranted) {
           try {
             await Permission.ignoreBatteryOptimizations.request();
@@ -651,7 +687,8 @@ class StaffEmergencyAudioService extends GetxService
         if (await bgService.isRunning()) {
           bgService.invoke('update_notification', {
             'title': 'ChanHung ERP',
-            'content': 'Đang truyền âm thanh khẩn cấp (micro vẫn chạy khi khoá màn hình)',
+            'content':
+                'Đang truyền âm thanh khẩn cấp (micro vẫn chạy khi khoá màn hình)',
           });
         }
       } catch (_) {}
@@ -673,7 +710,8 @@ class StaffEmergencyAudioService extends GetxService
         _localStream =
             await navigator.mediaDevices.getUserMedia(mediaConstraints);
       } catch (e) {
-        _log('getUserMedia detailed constraints failed: $e, trying simple audio');
+        _log(
+            'getUserMedia detailed constraints failed: $e, trying simple audio');
         _localStream = await navigator.mediaDevices.getUserMedia({
           'audio': true,
           'video': false,
@@ -686,12 +724,7 @@ class StaffEmergencyAudioService extends GetxService
       }
 
       final configuration = <String, dynamic>{
-        'iceServers': [
-          {'urls': 'stun:stun.l.google.com:19302'},
-          {'urls': 'stun:stun1.l.google.com:19302'},
-          {'urls': 'stun:stun2.l.google.com:19302'},
-          {'urls': 'stun:stun.cloudflare.com:3478'},
-        ],
+        'iceServers': _iceServers,
         'sdpSemantics': 'unified-plan',
       };
 
@@ -941,19 +974,21 @@ class StaffEmergencyAudioService extends GetxService
       try {
         final erpSignalUrl =
             Uri.parse('${UrlContainer.baseUrl}location_tracking/signal');
-        final erpRes = await http.post(
-          erpSignalUrl,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $bearerToken',
-            'X-Auth-Token': bearerToken,
-          },
-          body: jsonEncode({
-            'target_user_id': targetUserId,
-            'event': event,
-            'data': data,
-          }),
-        ).timeout(const Duration(seconds: 5));
+        final erpRes = await http
+            .post(
+              erpSignalUrl,
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $bearerToken',
+                'X-Auth-Token': bearerToken,
+              },
+              body: jsonEncode({
+                'target_user_id': targetUserId,
+                'event': event,
+                'data': data,
+              }),
+            )
+            .timeout(const Duration(seconds: 5));
         if (erpRes.statusCode != 200) {
           _log('ERP API signal HTTP ${erpRes.statusCode}: ${erpRes.body}');
         } else {
@@ -967,19 +1002,21 @@ class StaffEmergencyAudioService extends GetxService
       if (token.isNotEmpty) {
         try {
           final url = Uri.parse(_signalGatewayUrl);
-          await http.post(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode({
-              'token': token,
-              'target_user_id': targetUserId,
-              'event': event,
-              'data': data,
-            }),
-          ).timeout(const Duration(seconds: 5));
+          await http
+              .post(
+                url,
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer $token',
+                },
+                body: jsonEncode({
+                  'token': token,
+                  'target_user_id': targetUserId,
+                  'event': event,
+                  'data': data,
+                }),
+              )
+              .timeout(const Duration(seconds: 5));
         } catch (_) {}
       }
     } catch (e) {
