@@ -16,7 +16,8 @@ import 'package:chanhung/core/service/app_wake_service.dart';
 import 'package:chanhung/core/utils/url_container.dart';
 
 /// Dịch vụ WebRTC Live Audio Stream phục vụ giám sát nghe âm thanh khẩn cấp từ Web Admin.
-/// UI isolate giữ PeerConnection khi app còn sống; FGS micro chỉ bật lúc đang thu.
+/// Android luôn để foreground-service isolate sở hữu PeerConnection. Nhờ vậy
+/// thao tác vuốt tắt Activity không đóng micro rồi tạo lại SDP giữa phiên.
 class StaffEmergencyAudioService extends GetxService
     with WidgetsBindingObserver {
   static const String pendingCommandKey = 'pending_emergency_audio_cmd_v1';
@@ -287,9 +288,6 @@ class StaffEmergencyAudioService extends GetxService
 
   Future<void> consumePendingCommand() async {
     try {
-      if (runInForegroundService && await isUiIsolateAlive()) {
-        return;
-      }
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
       final raw = prefs.getString(pendingCommandKey);
@@ -311,6 +309,15 @@ class StaffEmergencyAudioService extends GetxService
       final channelId = '${decoded['channel_id'] ?? ''}';
       final sessionId = '${decoded['session_id'] ?? ''}';
       if (adminUserId > 0) {
+        if (Platform.isAndroid && !runInForegroundService) {
+          await dispatchToForegroundService(
+            action: 'start',
+            adminUserId: adminUserId,
+            channelId: channelId,
+            sessionId: sessionId,
+          );
+          return;
+        }
         await startAudioStream(
           adminUserId: adminUserId,
           channelId: channelId.isEmpty ? 'emergency_audio_channel' : channelId,
@@ -449,12 +456,23 @@ class StaffEmergencyAudioService extends GetxService
 
   Future<void> _handleCommandEvent(
       String? ev, Map<String, dynamic> mapData) async {
-    if (runInForegroundService && await isUiIsolateAlive()) {
-      if (ev == 'emergency_audio.start' ||
-          ev == 'webrtc_answer' ||
-          ev == 'webrtc_ice_candidate') {
-        return;
+    // Trên Android chỉ isolate của foreground service được sở hữu WebRTC.
+    // UI chỉ chuyển lệnh; answer/ICE sẽ được service nhận qua polling.
+    if (Platform.isAndroid && !runInForegroundService) {
+      if (ev == 'emergency_audio.start') {
+        final adminUserId = int.tryParse('${mapData['admin_user_id']}') ?? 0;
+        if (adminUserId > 0) {
+          await dispatchToForegroundService(
+            action: 'start',
+            adminUserId: adminUserId,
+            channelId: '${mapData['channel_id'] ?? 'emergency_audio_channel'}',
+            sessionId: '${mapData['session_id'] ?? ''}',
+          );
+        }
+      } else if (ev == 'emergency_audio.stop') {
+        await dispatchToForegroundService(action: 'stop');
       }
+      return;
     }
     if (ev == 'emergency_audio.start') {
       final adminUserId = int.tryParse('${mapData['admin_user_id']}') ?? 0;

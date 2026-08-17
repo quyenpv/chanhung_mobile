@@ -122,9 +122,11 @@ Map<String, String> _locationPayload(Position pos) {
     'latitude': pos.latitude.toString(),
     'longitude': pos.longitude.toString(),
     'accuracy_m': pos.accuracy.toStringAsFixed(1),
-    'speed_kmh':
-        (pos.speed.isFinite && pos.speed >= 0 ? (pos.speed * 3.6) : 0).toStringAsFixed(1),
-    'heading': pos.heading.isFinite && pos.heading >= 0 ? pos.heading.toStringAsFixed(1) : '0',
+    'speed_kmh': (pos.speed.isFinite && pos.speed >= 0 ? (pos.speed * 3.6) : 0)
+        .toStringAsFixed(1),
+    'heading': pos.heading.isFinite && pos.heading >= 0
+        ? pos.heading.toStringAsFixed(1)
+        : '0',
     'device_platform': Platform.isIOS ? 'ios' : 'android',
     'recorded_at': recordedAt,
   };
@@ -141,7 +143,8 @@ bool _isValidQualityPosition(Position pos, Position? lastPos) {
   }
 
   // Toạ độ quá cũ từ cache (> 3 phút) -> loại
-  final ageSeconds = DateTime.now().toUtc().difference(pos.timestamp.toUtc()).inSeconds.abs();
+  final ageSeconds =
+      DateTime.now().toUtc().difference(pos.timestamp.toUtc()).inSeconds.abs();
   if (ageSeconds > 180) {
     return false;
   }
@@ -154,7 +157,8 @@ bool _isValidQualityPosition(Position pos, Position? lastPos) {
       pos.latitude,
       pos.longitude,
     );
-    final timeDiffSeconds = pos.timestamp.difference(lastPos.timestamp).inSeconds.abs();
+    final timeDiffSeconds =
+        pos.timestamp.difference(lastPos.timestamp).inSeconds.abs();
     if (timeDiffSeconds > 0 && timeDiffSeconds < 60) {
       final calculatedSpeedKmh = (distanceMeters / timeDiffSeconds) * 3.6;
       if (calculatedSpeedKmh > 130.0) {
@@ -227,7 +231,8 @@ class StaffLocationTrackingService extends GetxService
         const AndroidNotificationChannel(
           'chanhung_emergency_audio',
           'Nghe âm thanh khẩn cấp',
-          description: 'Đánh thức app để truyền micro realtime khi Quản trị viên yêu cầu',
+          description:
+              'Đánh thức app để truyền micro realtime khi Quản trị viên yêu cầu',
           importance: Importance.max,
         ),
       );
@@ -282,8 +287,8 @@ class StaffLocationTrackingService extends GetxService
       var minDistance = 20;
       if (config != null) {
         enabled = config['enabled'] == true;
-        interval =
-            (int.tryParse('${config['interval_seconds']}') ?? 60).clamp(15, 600);
+        interval = (int.tryParse('${config['interval_seconds']}') ?? 60)
+            .clamp(15, 600);
         minDistance =
             (int.tryParse('${config['min_distance_m']}') ?? 20).clamp(0, 500);
       }
@@ -321,7 +326,8 @@ class StaffLocationTrackingService extends GetxService
       // Luôn giữ Foreground Service để nghe realtime khi app tắt / khoá màn hình.
       await _startBackground();
       lastStatus = enabled ? 'bg_running' : 'bg_audio_keepalive';
-      _log('background keep-alive started tracking=$enabled interval=$interval');
+      _log(
+          'background keep-alive started tracking=$enabled interval=$interval');
     } catch (e) {
       lastStatus = 'start_error';
       _log('startIfNeeded error: $e');
@@ -449,7 +455,10 @@ class StaffLocationTrackingService extends GetxService
           pos.latitude,
           pos.longitude,
         );
-        final elapsed = pos.timestamp.difference(_lastUiPosition!.timestamp).inSeconds.abs();
+        final elapsed = pos.timestamp
+            .difference(_lastUiPosition!.timestamp)
+            .inSeconds
+            .abs();
         if (dist < 12.0 && elapsed < 180) {
           return;
         }
@@ -505,7 +514,8 @@ void staffLocationBgOnStart(ServiceInstance service) async {
   StreamSubscription<Position>? positionStreamSub;
   Timer? watchdogTimer;
 
-  Future<void> processAndEnqueue(Position pos, String token, int minDistance) async {
+  Future<void> processAndEnqueue(
+      Position pos, String token, int minDistance) async {
     if (!_isValidQualityPosition(pos, lastRecordedPos)) return;
 
     final now = DateTime.now();
@@ -556,8 +566,7 @@ void staffLocationBgOnStart(ServiceInstance service) async {
       await prefs.reload();
       final token =
           prefs.getString(SharedPreferenceHelper.accessTokenKey) ?? '';
-      if (token.trim().isEmpty ||
-          token.trim().toLowerCase() == 'null') {
+      if (token.trim().isEmpty || token.trim().toLowerCase() == 'null') {
         return;
       }
 
@@ -592,7 +601,8 @@ void staffLocationBgOnStart(ServiceInstance service) async {
               final minD = int.tryParse('${data['min_distance_m']}');
               if (minD != null) {
                 minDistance = minD.clamp(0, 500);
-                await prefs.setInt('staff_location_bg_min_distance', minDistance);
+                await prefs.setInt(
+                    'staff_location_bg_min_distance', minDistance);
               }
             }
           }
@@ -641,12 +651,13 @@ void staffLocationBgOnStart(ServiceInstance service) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
-      final wanted = prefs.getBool(StaffEmergencyAudioService.audioFgWantedKey) ?? false;
+      final wanted =
+          prefs.getBool(StaffEmergencyAudioService.audioFgWantedKey) ?? false;
       if (!wanted) return;
-      if (await StaffEmergencyAudioService.isUiIsolateAlive()) return;
       final audio = await ensureBgAudio();
       if (audio.isBusy) return;
-      final adminUserId = prefs.getInt(StaffEmergencyAudioService.audioAdminUserIdKey) ?? 0;
+      final adminUserId =
+          prefs.getInt(StaffEmergencyAudioService.audioAdminUserIdKey) ?? 0;
       final channelId =
           prefs.getString(StaffEmergencyAudioService.audioChannelIdKey) ??
               'emergency_audio_channel';
@@ -694,9 +705,6 @@ void staffLocationBgOnStart(ServiceInstance service) async {
           'at': DateTime.now().millisecondsSinceEpoch,
         }),
       );
-      if (await StaffEmergencyAudioService.isUiIsolateAlive()) {
-        return;
-      }
       await takeoverAudioIfUiDead();
     } catch (e) {
       if (kDebugMode) {
@@ -714,7 +722,7 @@ void staffLocationBgOnStart(ServiceInstance service) async {
     } catch (_) {}
   });
 
-    service.on('stop').listen((event) async {
+  service.on('stop').listen((event) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();

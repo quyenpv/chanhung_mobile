@@ -51,7 +51,7 @@
         </activity>
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
-            android:foregroundServiceType="location|dataSync"
+            android:foregroundServiceType="location|dataSync|microphone"
             android:stopWithTask="false"
             android:exported="true"
             tools:replace="android:exported" />

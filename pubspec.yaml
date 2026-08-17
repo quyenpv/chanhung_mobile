@@ -1,7 +1,7 @@
 name: chanhung
 description: "ChanHung ERP Customer App By Branditta"
 publish_to: 'none'
-version: 1.1.76+161
+version: 1.1.77+162
 
 environment:
   sdk: ^3.5.4
