@@ -17,64 +17,71 @@ class HomeDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final client = dashboardModel.data?.clientData;
-
     return Drawer(
       width: MediaQuery.sizeOf(context).width.clamp(280, 330).toDouble(),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.horizontal(right: Radius.circular(28)),
       ),
       child: SafeArea(
-        child: GetBuilder<DashboardController>(
-          builder: (controller) {
-            final groups = _buildGroups(controller);
-            return Column(
-              children: [
-                _ProfileHeader(
-                  avatar:
-                      '${UrlContainer.profileImgUrl}${client?.avatar ?? ''}',
-                  name: '${client?.firstName ?? ''} ${client?.lastName ?? ''}'
-                      .trim(),
-                  subtitle: client?.jobTitle ?? '',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Get.toNamed(RouteHelper.profileScreen);
-                  },
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: groups.length,
-                    itemBuilder: (context, index) {
-                      final group = groups[index];
-                      return _MenuGroup(group: group);
-                    },
-                  ),
-                ),
-                const Divider(height: 1, indent: 20, endIndent: 20),
-                _LogoutButton(
-                  onTap: () {
-                    const WarningAlertDialog().warningAlertDialog(
-                      context,
-                      () {
-                        Get.back();
-                        Get.find<DashboardController>().logout();
-                      },
-                      title: LocalStrings.logoutTitle.tr,
-                      subTitle: LocalStrings.logoutSureWarningMSg.tr,
-                    );
-                  },
-                ),
-              ],
-            );
-          },
-        ),
+        child: Get.isRegistered<DashboardController>()
+            ? GetBuilder<DashboardController>(
+                builder: (controller) => _drawerBody(context, controller),
+              )
+            : _drawerBody(context, null),
       ),
     );
   }
 
-  List<_DrawerGroupData> _buildGroups(DashboardController controller) {
+  Widget _drawerBody(BuildContext context, DashboardController? controller) {
+    final model = controller?.dashboardModel ?? dashboardModel;
+    final client = model.data?.clientData;
+    final groups = _buildGroups(controller);
+    return Column(
+      children: [
+        _ProfileHeader(
+          avatar: '${UrlContainer.profileImgUrl}${client?.avatar ?? ''}',
+          name: '${client?.firstName ?? ''} ${client?.lastName ?? ''}'.trim(),
+          subtitle: client?.jobTitle ?? '',
+          onTap: () {
+            Navigator.pop(context);
+            Get.toNamed(RouteHelper.profileScreen);
+          },
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+            physics: const BouncingScrollPhysics(),
+            itemCount: groups.length,
+            itemBuilder: (context, index) {
+              final group = groups[index];
+              return _MenuGroup(group: group);
+            },
+          ),
+        ),
+        const Divider(height: 1, indent: 20, endIndent: 20),
+        _LogoutButton(
+          onTap: () {
+            if (controller == null &&
+                !Get.isRegistered<DashboardController>()) {
+              Navigator.pop(context);
+              return;
+            }
+            const WarningAlertDialog().warningAlertDialog(
+              context,
+              () {
+                Get.back();
+                Get.find<DashboardController>().logout();
+              },
+              title: LocalStrings.logoutTitle.tr,
+              subTitle: LocalStrings.logoutSureWarningMSg.tr,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  List<_DrawerGroupData> _buildGroups(DashboardController? controller) {
     return [
       _DrawerGroupData('TỔNG QUAN', [
         _DrawerEntry(
@@ -82,7 +89,7 @@ class HomeDrawer extends StatelessWidget {
           Icons.home_rounded,
           RouteHelper.dashboardScreen,
         ),
-        if (controller.isProjectsEnable)
+        if (controller?.isProjectsEnable ?? false)
           _DrawerEntry(
             LocalStrings.projects.tr,
             Icons.grid_view_rounded,
@@ -100,7 +107,7 @@ class HomeDrawer extends StatelessWidget {
           Icons.assignment_ind_rounded,
           RouteHelper.deptDailyWorkScreen,
         ),
-        if (controller.isTicketsEnable)
+        if (controller?.isTicketsEnable ?? false)
           _DrawerEntry(
             LocalStrings.tickets.tr,
             Icons.confirmation_number_rounded,
@@ -111,13 +118,13 @@ class HomeDrawer extends StatelessWidget {
           Icons.forum_rounded,
           RouteHelper.teamChatScreen,
         ),
-        if (controller.isHumanResourcesEnable)
+        if (controller?.isHumanResourcesEnable ?? false)
           _DrawerEntry(
             LocalStrings.humanResources.tr,
             Icons.groups_rounded,
             RouteHelper.hrScreen,
           ),
-        if (controller.isDmsOfficeEnable)
+        if (controller?.isDmsOfficeEnable ?? false)
           _DrawerEntry(
             LocalStrings.dmsOffice.tr,
             Icons.folder_copy_rounded,
@@ -125,37 +132,37 @@ class HomeDrawer extends StatelessWidget {
           ),
       ]),
       _DrawerGroupData('TÀI CHÍNH & HỒ SƠ', [
-        if (controller.isContractsEnable)
+        if (controller?.isContractsEnable ?? false)
           _DrawerEntry(
             LocalStrings.contracts.tr,
             Icons.description_rounded,
             RouteHelper.contractScreen,
           ),
-        if (controller.isProposalsEnable)
+        if (controller?.isProposalsEnable ?? false)
           _DrawerEntry(
             LocalStrings.proposals.tr,
             Icons.request_quote_rounded,
             RouteHelper.proposalScreen,
           ),
-        if (controller.isEstimatesEnable)
+        if (controller?.isEstimatesEnable ?? false)
           _DrawerEntry(
             LocalStrings.estimates.tr,
             Icons.analytics_rounded,
             RouteHelper.estimateScreen,
           ),
-        if (controller.isInvoicesEnable)
+        if (controller?.isInvoicesEnable ?? false)
           _DrawerEntry(
             LocalStrings.invoices.tr,
             Icons.receipt_long_rounded,
             RouteHelper.invoiceScreen,
           ),
-        if (controller.isPaymentsEnable)
+        if (controller?.isPaymentsEnable ?? false)
           _DrawerEntry(
             LocalStrings.payments.tr,
             Icons.account_balance_wallet_rounded,
             RouteHelper.paymentScreen,
           ),
-        if (controller.isPaymentRequestsEnable)
+        if (controller?.isPaymentRequestsEnable ?? false)
           _DrawerEntry(
             'ĐNTT/ĐNTU & Hoàn ứng',
             Icons.payments_rounded,

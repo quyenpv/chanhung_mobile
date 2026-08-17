@@ -58,13 +58,14 @@ class AppBottomNavBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenWidth = constraints.maxWidth;
-        // Tính toán toạ độ trọng tâm của tab active (mỗi tab chiếm 1/5 màn hình)
-        final centerFraction = (currentIndex + 0.5) / 5.0;
-        final rawCenterX = screenWidth * centerFraction;
         const corner = 18.0;
         const radius = 33.0;
-        final activeCenterX = rawCenterX.clamp(corner + radius + 4.0, screenWidth - corner - radius - 4.0);
-        final circleLeft = activeCenterX - 31.0; // 62 / 2 = 31
+        final minX = corner + radius + 4.0;
+        final maxX = screenWidth - corner - radius - 4.0;
+        final centerFraction = (currentIndex + 0.5) / 5.0;
+        final rawCenterX = screenWidth.isFinite ? screenWidth * centerFraction : 0.0;
+        final activeCenterX = _safeCenterX(rawCenterX, minX, maxX, screenWidth);
+        final circleLeft = activeCenterX - 31.0;
 
         return SizedBox(
           height: 84 + bottomInset,
@@ -177,6 +178,15 @@ class AppBottomNavBar extends StatelessWidget {
   }
 }
 
+double _safeCenterX(double value, double min, double max, double width) {
+  if (!width.isFinite || width <= 0) return 0;
+  if (!min.isFinite || !max.isFinite || min > max) {
+    return width / 2;
+  }
+  if (!value.isFinite) return (min + max) / 2;
+  return value.clamp(min, max);
+}
+
 /// Clipper vẽ đường cong uốn lõm mềm mại (Curved Concave Notch) an toàn 100% không bao giờ lỗi toạ độ
 class _SafeCurvedNotchClipper extends CustomClipper<Path> {
   final double activeCenterX;
@@ -194,7 +204,12 @@ class _SafeCurvedNotchClipper extends CustomClipper<Path> {
     const corner = 18.0;
 
     final notchHalfWidth = radius * 1.2;
-    final center = activeCenterX.clamp(corner + notchHalfWidth, w - corner - notchHalfWidth);
+    final minCenter = corner + notchHalfWidth;
+    final maxCenter = w - corner - notchHalfWidth;
+    if (!w.isFinite || w <= minCenter * 2 || minCenter > maxCenter) {
+      return Path()..addRect(Rect.fromLTWH(0, 0, w.isFinite ? w : 0, h.isFinite ? h : 0));
+    }
+    final center = _safeCenterX(activeCenterX, minCenter, maxCenter, w);
     final p1x = center - notchHalfWidth;
     final p2x = center + notchHalfWidth;
 

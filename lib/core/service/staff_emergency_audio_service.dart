@@ -68,20 +68,27 @@ class StaffEmergencyAudioService extends GetxService
     _log('StaffEmergencyAudioService init() fgs=$runInForegroundService');
     if (!runInForegroundService) {
       _ensureLifecycleObserver();
-      try {
-        final micStatus = await Permission.microphone.status;
-        if (!micStatus.isGranted) {
-          try {
-            await Permission.microphone.request();
-          } catch (_) {}
-        }
-      } catch (_) {}
-      await ensureAudioForegroundService();
       _startUiHeartbeat();
+      await _setActivityAlive(true);
+      await _touchUiHeartbeat();
+      await ensureAudioForegroundService();
     }
-    await consumePendingCommand();
     if (!isStreaming && !_startInFlight) {
       await AppWakeService.stopMicService();
+    }
+    if (runInForegroundService) {
+      await consumePendingCommand();
+    } else {
+      unawaited(Future<void>.delayed(const Duration(seconds: 2), () async {
+        if (_isDisposed) return;
+        await consumePendingCommand();
+        if (isStreaming || _startInFlight) return;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool(audioFgWantedKey, false);
+        } catch (_) {}
+        await AppWakeService.stopMicService();
+      }));
     }
     _startRealtimeSseLoop();
     _startPeriodicSignalPolling();
@@ -295,8 +302,9 @@ class StaffEmergencyAudioService extends GetxService
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return;
       final at = int.tryParse('${decoded['at']}') ?? 0;
-      if (at > 0 && DateTime.now().millisecondsSinceEpoch - at > 120000) {
+      if (at > 0 && DateTime.now().millisecondsSinceEpoch - at > 20000) {
         await prefs.remove(pendingCommandKey);
+        await prefs.setBool(audioFgWantedKey, false);
         return;
       }
       await prefs.remove(pendingCommandKey);
@@ -309,15 +317,6 @@ class StaffEmergencyAudioService extends GetxService
       final channelId = '${decoded['channel_id'] ?? ''}';
       final sessionId = '${decoded['session_id'] ?? ''}';
       if (adminUserId > 0) {
-        if (Platform.isAndroid && !runInForegroundService) {
-          await dispatchToForegroundService(
-            action: 'start',
-            adminUserId: adminUserId,
-            channelId: channelId,
-            sessionId: sessionId,
-          );
-          return;
-        }
         await startAudioStream(
           adminUserId: adminUserId,
           channelId: channelId.isEmpty ? 'emergency_audio_channel' : channelId,

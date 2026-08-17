@@ -34,9 +34,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
-    Get.put(ApiClient(sharedPreferences: Get.find()));
-    Get.put(DashboardRepo(apiClient: Get.find()));
-    final controller = Get.put(DashboardController(dashboardRepo: Get.find()));
+    Get.put(ApiClient(sharedPreferences: Get.find()), permanent: true);
+    Get.put(DashboardRepo(apiClient: Get.find()), permanent: true);
+    final controller = Get.put(
+      DashboardController(dashboardRepo: Get.find()),
+      permanent: true,
+    );
     controller.isLoading = true;
 
     super.initState();
