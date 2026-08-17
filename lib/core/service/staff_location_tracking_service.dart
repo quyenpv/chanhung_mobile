@@ -748,10 +748,10 @@ void staffLocationBgOnStart(ServiceInstance service) async {
   unawaited(takeoverAudioIfUiDead());
 
   var tick = 0;
-  watchdogTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+  watchdogTimer = Timer.periodic(const Duration(seconds: 10), (_) {
     unawaited(takeoverAudioIfUiDead());
     tick++;
-    if (tick % 15 == 0) {
+    if (tick % 3 == 0) {
       syncConfigAndHeartbeat();
     }
   });

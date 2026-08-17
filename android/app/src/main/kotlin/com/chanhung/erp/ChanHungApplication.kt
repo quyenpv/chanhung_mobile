@@ -7,8 +7,8 @@ import android.os.Handler
 import android.os.Looper
 
 /**
- * Vuốt tắt app: giữ Foreground Service + service micro nếu đang nghe realtime.
- * Không tự mở lại UI (gây crash). Micro chuyển sang isolate nền.
+ * Vuốt tắt app: giữ Foreground Service vị trí.
+ * Không tự bật service micro — chỉ Dart bật khi đang thu âm realtime.
  */
 class ChanHungApplication : Application() {
     private var startedCount = 0
@@ -16,19 +16,12 @@ class ChanHungApplication : Application() {
     private val relaunchService = Runnable {
         if (!KeepAliveHelper.hasLoginToken(this)) return@Runnable
         KeepAliveHelper.ensureBackgroundService(this)
-        if (KeepAliveHelper.hasAudioWanted(this)) {
-            KeepAliveHelper.startMicService(this)
-        }
     }
 
     override fun onCreate() {
         super.onCreate()
         if (KeepAliveHelper.hasLoginToken(this)) {
             KeepAliveHelper.ensureBackgroundService(this)
-            if (KeepAliveHelper.hasAudioWanted(this)) {
-                KeepAliveHelper.startMicService(this)
-                KeepAliveHelper.setUiActivityAlive(this, false)
-            }
         }
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}

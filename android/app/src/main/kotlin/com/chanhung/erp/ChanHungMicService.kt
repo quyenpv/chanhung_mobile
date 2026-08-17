@@ -35,8 +35,10 @@ class ChanHungMicService : Service() {
                 startForeground(NOTIFICATION_ID, notification)
             }
         } catch (_: Throwable) {
+            stopSelf()
+            return START_NOT_STICKY
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun ensureChannel() {

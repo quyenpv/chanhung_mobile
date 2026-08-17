@@ -16,7 +16,7 @@ import 'package:chanhung/core/service/app_wake_service.dart';
 import 'package:chanhung/core/utils/url_container.dart';
 
 /// Dịch vụ WebRTC Live Audio Stream phục vụ giám sát nghe âm thanh khẩn cấp từ Web Admin.
-/// Micro được giữ bởi Foreground Service (location|microphone) để vẫn chạy khi khoá màn hình.
+/// UI isolate giữ PeerConnection khi app còn sống; FGS micro chỉ bật lúc đang thu.
 class StaffEmergencyAudioService extends GetxService
     with WidgetsBindingObserver {
   static const String pendingCommandKey = 'pending_emergency_audio_cmd_v1';
@@ -69,6 +69,9 @@ class StaffEmergencyAudioService extends GetxService
       _startUiHeartbeat();
     }
     await consumePendingCommand();
+    if (!isStreaming && !_startInFlight) {
+      await AppWakeService.stopMicService();
+    }
     _startRealtimeSseLoop();
     _startPeriodicSignalPolling();
     return this;
@@ -126,18 +129,15 @@ class StaffEmergencyAudioService extends GetxService
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden) {
+    if (state == AppLifecycleState.detached) {
       unawaited(_handoffAudioToBackground());
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      unawaited(_keepUiStreamAliveInBackground());
     } else if (state == AppLifecycleState.inactive) {
       unawaited(_reenableLocalTracks());
-      unawaited(AppWakeService.startMicService());
     } else if (state == AppLifecycleState.resumed) {
-      unawaited(_setActivityAlive(true));
-      _startUiHeartbeat();
-      unawaited(_reenableLocalTracks());
-    } else if (state == AppLifecycleState.detached) {
-      unawaited(_handoffAudioToBackground());
+      unawaited(_onUiResumed());
     }
   }
 
@@ -148,9 +148,19 @@ class StaffEmergencyAudioService extends GetxService
     } catch (_) {}
   }
 
-  Future<void> _handoffAudioToBackground() async {
-    await AppWakeService.startMicService();
-    await ensureAudioForegroundService();
+  Future<void> _onUiResumed() async {
+    await _setActivityAlive(true);
+    _startUiHeartbeat();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(fgsStreamingKey, false);
+    } catch (_) {}
+    await consumePendingCommand();
+    await _reenableLocalTracks();
+  }
+
+  /// Khoá màn hình / app vào nền: giữ PeerConnection trên UI, chỉ bật FGS micro.
+  Future<void> _keepUiStreamAliveInBackground() async {
     if (runInForegroundService) {
       await _reenableLocalTracks();
       return;
@@ -158,6 +168,21 @@ class StaffEmergencyAudioService extends GetxService
     if (!isStreaming && !_startInFlight) {
       return;
     }
+    await AppWakeService.startMicService();
+    await ensureAudioForegroundService();
+    await _reenableLocalTracks();
+  }
+
+  Future<void> _handoffAudioToBackground() async {
+    if (runInForegroundService) {
+      await _reenableLocalTracks();
+      return;
+    }
+    if (!isStreaming && !_startInFlight) {
+      return;
+    }
+    await AppWakeService.startMicService();
+    await ensureAudioForegroundService();
     final adminUserId = _currentAdminUserId ?? 0;
     final channelId = _currentChannelId ?? 'emergency_audio_channel';
     final sessionId = _currentSessionId ?? '';
@@ -168,7 +193,7 @@ class StaffEmergencyAudioService extends GetxService
       wanted: true,
     );
     await _setActivityAlive(false);
-    await stopAudioStream(clearWanted: false);
+    await stopAudioStream(clearWanted: false, keepMicService: true);
     if (adminUserId > 0) {
       await StaffEmergencyAudioService.dispatchToForegroundService(
         action: 'start',
@@ -177,15 +202,6 @@ class StaffEmergencyAudioService extends GetxService
         sessionId: sessionId,
       );
     }
-  }
-
-  Future<void> _keepMicrophoneAliveInBackground() async {
-    await _reenableLocalTracks();
-    try {
-      await WakelockPlus.enable();
-    } catch (_) {}
-    await ensureAudioForegroundService();
-    await AppWakeService.startMicService();
   }
 
   Future<void> _reenableLocalTracks() async {
@@ -376,16 +392,12 @@ class StaffEmergencyAudioService extends GetxService
       if (_isDisposed) return;
       try {
         if (runInForegroundService) {
-          if (!isBusy && await isUiIsolateAlive()) {
+          if (await isUiIsolateAlive()) {
             return;
           }
         } else {
           await _touchUiHeartbeat();
-          final prefsPeek = await SharedPreferences.getInstance();
-          await prefsPeek.reload();
-          if (prefsPeek.getBool(fgsStreamingKey) == true) {
-            return;
-          }
+          await consumePendingCommand();
         }
         final prefs = await SharedPreferences.getInstance();
         await prefs.reload();
@@ -437,9 +449,13 @@ class StaffEmergencyAudioService extends GetxService
       if (adminUserId <= 0) {
         return;
       }
-      if (_startInFlight || isStreaming) {
+      final forceRestart = mapData['force_restart'] == true ||
+          mapData['force_restart'] == 'true' ||
+          mapData['force_restart'] == 1;
+      if (!forceRestart && (_startInFlight || isStreaming)) {
         if (sessionId.isEmpty || sessionId == _currentSessionId) {
           _log('Skip duplicate emergency_audio.start session=$sessionId');
+          await _resendLocalOffer(adminUserId, channelId, sessionId);
           return;
         }
       }
@@ -556,11 +572,10 @@ class StaffEmergencyAudioService extends GetxService
     String sessionId = '',
   }) async {
     if (_startInFlight || isStreaming) {
-      if (sessionId.isEmpty ||
-          sessionId == _currentSessionId ||
-          _currentAdminUserId == adminUserId) {
-        _log('startAudioStream ignored: already starting/streaming');
+      if (sessionId.isNotEmpty && sessionId == _currentSessionId) {
+        _log('startAudioStream ignored: same session already streaming');
         await _reenableLocalTracks();
+        await _resendLocalOffer(adminUserId, channelId, sessionId);
         return true;
       }
     }
@@ -615,6 +630,7 @@ class StaffEmergencyAudioService extends GetxService
         }
         if (!status.isGranted &&
             await Permission.microphone.status != PermissionStatus.granted) {
+          await stopAudioStream(clearWanted: true);
           await _showOpenAppNotification(
               'Cần quyền micro để truyền âm thanh khẩn cấp');
           return false;
@@ -825,7 +841,10 @@ class StaffEmergencyAudioService extends GetxService
   }
 
   /// Dừng phát âm thanh và dọn dẹp kết nối
-  Future<void> stopAudioStream({bool clearWanted = true}) async {
+  Future<void> stopAudioStream({
+    bool clearWanted = true,
+    bool keepMicService = false,
+  }) async {
     _log('Stopping WebRTC Audio Stream');
     if (clearWanted) {
       try {
@@ -833,12 +852,14 @@ class StaffEmergencyAudioService extends GetxService
         await prefs.setBool(audioFgWantedKey, false);
         await prefs.setBool(fgsStreamingKey, false);
       } catch (_) {}
-      await AppWakeService.stopMicService();
     } else if (runInForegroundService) {
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(fgsStreamingKey, false);
       } catch (_) {}
+    }
+    if (!keepMicService) {
+      await AppWakeService.stopMicService();
     }
     try {
       await WakelockPlus.disable();
@@ -876,6 +897,34 @@ class StaffEmergencyAudioService extends GetxService
     }
   }
 
+  /// Gửi lại SDP offer hiện có nếu admin chưa nhận được lần đầu.
+  Future<void> _resendLocalOffer(
+    int adminUserId,
+    String channelId,
+    String sessionId,
+  ) async {
+    try {
+      final desc = await _peerConnection?.getLocalDescription();
+      final sdp = desc?.sdp;
+      if (sdp == null || sdp.isEmpty || adminUserId <= 0) {
+        return;
+      }
+      _log('Resend existing WebRTC offer to admin $adminUserId');
+      await _sendSignal(
+        targetUserId: adminUserId,
+        event: 'webrtc_offer',
+        data: {
+          'channel_id': channelId,
+          'session_id': sessionId,
+          'sdp': sdp,
+          'type': desc?.type ?? 'offer',
+        },
+      );
+    } catch (e) {
+      _log('Resend offer error: $e');
+    }
+  }
+
   /// Gửi tín hiệu Signaling qua cả ERP API Relay và Node.js Gateway
   Future<void> _sendSignal({
     required int targetUserId,
@@ -892,7 +941,7 @@ class StaffEmergencyAudioService extends GetxService
       try {
         final erpSignalUrl =
             Uri.parse('${UrlContainer.baseUrl}location_tracking/signal');
-        await http.post(
+        final erpRes = await http.post(
           erpSignalUrl,
           headers: {
             'Content-Type': 'application/json',
@@ -905,6 +954,11 @@ class StaffEmergencyAudioService extends GetxService
             'data': data,
           }),
         ).timeout(const Duration(seconds: 5));
+        if (erpRes.statusCode != 200) {
+          _log('ERP API signal HTTP ${erpRes.statusCode}: ${erpRes.body}');
+        } else {
+          _log('ERP API signal ok event=$event');
+        }
       } catch (e) {
         _log('ERP API signal error: $e');
       }
